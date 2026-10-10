@@ -1,0 +1,713 @@
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.lobby {
+  background-image: url('../img/fondo.png');
+  background-size: cover;
+  background-position: center;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Avatar flotante esquina */
+.profile-avatar {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid #2ec8e8;
+  background: #0a0a0a;
+  cursor: pointer;
+  padding: 0;
+  box-shadow:
+    0 0 16px rgba(46, 200, 232, 0.65),
+    0 0 30px rgba(46, 200, 232, 0.25);
+  z-index: 5;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 22px rgba(46, 200, 232, 0.85),
+    0 0 40px rgba(46, 200, 232, 0.35);
+}
+
+/* Cara: ojo izquierdo guiñando (semicírculo), derecho abierto (círculo) */
+.avatar-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 50%;
+  background: #0a0a0a;
+}
+
+/* Ojo izquierdo: guiño — óvalo/semicírculo blanco horizontal */
+.avatar-face .eye.left {
+  position: absolute;
+  top: 44%;
+  left: 18%;
+  width: 22%;
+  height: 14%;
+  background: #fff;
+  border-radius: 50% 50% 45% 45%;
+  /* mitad inferior “cerrada” como en Figma */
+  clip-path: ellipse(50% 55% at 50% 35%);
+  box-shadow: none;
+}
+
+.avatar-face .eye.left::after {
+  display: none;
+}
+
+/* Ojo derecho: abierto — círculo blanco completo */
+.avatar-face .eye.right {
+  position: absolute;
+  top: 40%;
+  right: 18%;
+  width: 24%;
+  height: 24%;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.avatar-face .eye.right::after {
+  display: none;
+}
+
+/* Panel menú central */
+.menu-panel {
+  background-color: rgba(0, 0, 50, 0.6);
+  border: 2px solid #00aaff;
+  box-shadow: 0 0 25px #00aaff;
+  padding: 40px;
+  border-radius: 10px;
+  text-align: center;
+  width: 600px;
+  max-width: 92vw;
+  z-index: 2;
+}
+
+.logo {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.menu button {
+  width: 100%;
+  background-color: #001f5c;
+  color: #dcdcdc;
+  border: 2px solid #000000;
+  border-radius: 30px;
+  padding: 12px 0;
+  margin: 10px 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 10px #0044cc,
+    0 0 10px #0044cc;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.menu button:hover {
+  background-color: #0033aa;
+  box-shadow:
+    inset 0 0 15px #00aaff,
+    0 0 15px #00aaff;
+}
+
+.menu .btn-full {
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row button {
+  flex: 1;
+}
+
+/* ========== MODALES ========== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #f0f4f8;
+  letter-spacing: 1px;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #c8d4e0;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* --- Perfil (estilo Figma) --- */
+.profile-modal {
+  width: min(380px, 100%);
+  background: #5a6a78;
+  border: none;
+  border-radius: 18px;
+  padding: 18px 22px 22px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(180, 210, 230, 0.35);
+  color: #f2f5f7;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.profile-title {
+  margin: 0;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #f0e6b8;
+  text-shadow:
+    0 1px 0 #8a7020,
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  letter-spacing: 1px;
+}
+
+.profile-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #eef2f5;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 6px;
+  font-family: Georgia, serif;
+}
+
+.profile-close:hover {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+.profile-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+  padding: 0 4px;
+}
+
+.profile-avatar-lg {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+/* Modal perfil: misma cara guiñando (Figma 73×73) */
+.avatar-face.figma {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #000;
+  border-radius: 50%;
+}
+
+/* Ojo izquierdo guiñando: semicírculo blanco (como Figma) */
+.avatar-face.figma .eye-slot.left {
+  position: absolute;
+  top: 44%;
+  left: 15%;
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  border-radius: 50%;
+  /* Solo la mitad superior visible → guiño */
+  clip-path: inset(0 0 50% 0);
+}
+
+/* Ojo derecho abierto: círculo blanco completo */
+.avatar-face.figma .eye-slot.right {
+  position: absolute;
+  top: 40%;
+  right: 15%;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Mismo guiño en el avatar del lobby (esquina) */
+.profile-avatar .avatar-face.figma .eye-slot.left {
+  width: 20px;
+  height: 20px;
+  top: 44%;
+  left: 16%;
+}
+
+.profile-avatar .avatar-face.figma .eye-slot.right {
+  width: 18px;
+  height: 18px;
+  top: 40%;
+  right: 16%;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.profile-line {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: #eef2f5;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.xp-line {
+  margin-top: 10px !important;
+  margin-bottom: 8px !important;
+}
+
+.xp-bar {
+  height: 12px;
+  border-radius: 4px;
+  background: #1a1a1a;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.xp-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #c9a227 0%, #f0d060 55%, #d4b43a 100%);
+  box-shadow: 0 0 6px rgba(240, 200, 80, 0.45);
+}
+
+.profile-stats {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-stats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.98rem;
+  color: #eef2f5;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+.profile-stats .stat-label {
+  flex: 1;
+}
+
+.profile-stats strong {
+  margin-left: auto;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.stat-icon {
+  width: 1.4em;
+  text-align: center;
+  font-size: 1.05rem;
+  filter: grayscale(0.15) brightness(1.1);
+}
+
+.profile-currency {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 0 2px;
+}
+
+.currency-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #1e3a8a;
+  box-shadow:
+    0 3px 0 #12255a,
+    0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.currency-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.currency-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.currency-text strong {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.currency-text small {
+  color: rgba(220, 230, 255, 0.85);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-account {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #1e3a8a;
+  color: #f0e6b0;
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  box-shadow:
+    0 3px 0 #12255a,
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
+}
+
+.btn-account:hover {
+  filter: brightness(1.1);
+}
+
+.btn-logout {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #c62828;
+  color: #f0e6b0;
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  box-shadow:
+    0 3px 0 #8b1a1a,
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  text-transform: uppercase;
+}
+
+.btn-logout:hover {
+  filter: brightness(1.08);
+}
+
+/* --- Configuración (estilo Figma) --- */
+.settings-backdrop {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 48px 56px 24px;
+}
+
+.settings-modal {
+  width: min(300px, 100%);
+  background: linear-gradient(180deg, #1c222c 0%, #141820 100%);
+  border: 2px solid rgba(190, 155, 70, 0.75);
+  border-radius: 12px;
+  padding: 16px 18px 18px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(180, 140, 50, 0.22),
+    0 18px 40px rgba(0, 0, 0, 0.55);
+  color: #e8e0c8;
+}
+
+.settings-header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  color: #e8c86a;
+  font-size: 1.05rem;
+  letter-spacing: 2px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.settings-section {
+  margin-bottom: 14px;
+}
+
+.settings-section h3 {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  color: #c8b070;
+  font-weight: 700;
+}
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  color: #d8d0b8;
+}
+
+.slider-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slider-ico {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.slider-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-control input[type='range'] {
+  flex: 1;
+  height: 6px;
+  accent-color: #d4a017;
+  cursor: pointer;
+}
+
+/* Pista dorada más cercana al Figma */
+.slider-control input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8a6a18, #d4a017);
+}
+
+.slider-control input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #f0d060;
+  border: 1px solid #8a7020;
+  box-shadow: 0 0 6px rgba(240, 200, 80, 0.5);
+}
+
+.slider-control em {
+  font-style: normal;
+  color: #e8c86a;
+  font-weight: 700;
+  min-width: 2.6em;
+  text-align: right;
+  font-size: 0.8rem;
+}
+
+/* Campo de nuevo nombre (línea para escribir) */
+.name-change-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1.5px solid rgba(180, 150, 70, 0.5);
+  border-radius: 8px;
+  background: rgba(30, 28, 22, 0.9);
+}
+
+.name-change-label {
+  color: #e8d8a0;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.name-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1.5px solid rgba(200, 180, 120, 0.55);
+  border-radius: 0;
+  background: transparent;
+  color: #f0e8c8;
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-align: center;
+  padding: 6px 4px 8px;
+  outline: none;
+  caret-color: #e8c86a;
+}
+
+.name-input::placeholder {
+  color: rgba(200, 180, 120, 0.45);
+  font-size: 0.82rem;
+}
+
+.name-input:focus {
+  border-bottom-color: #e8c86a;
+  box-shadow: 0 1px 0 rgba(232, 200, 106, 0.35);
+}
+
+.btn-save {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(80, 140, 200, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a4a8a 0%, #1a3268 100%);
+  color: #e8f0ff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow:
+    0 2px 0 #122048,
+    0 0 12px rgba(40, 90, 180, 0.3);
+}
+
+.btn-save:hover {
+  filter: brightness(1.1);
+}
+
+/* Toast CAMBIOS GUARDADOS (Figma) */
+.toast,
+.toast-saved {
+  position: fixed;
+  top: 22px;
+  right: 48px;
+  z-index: 70;
+  padding: 10px 28px;
+  border-radius: 14px;
+  background: #1a1e16;
+  border: 2px solid rgba(190, 160, 70, 0.85);
+  color: #e8c86a;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  font-size: 0.82rem;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 6px 20px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(180, 140, 50, 0.2);
+  animation: toast-in 0.28s ease;
+  text-transform: uppercase;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 700px) {
+  .settings-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .toast-saved {
+    right: 16px;
+    left: 16px;
+    text-align: center;
+  }
+}

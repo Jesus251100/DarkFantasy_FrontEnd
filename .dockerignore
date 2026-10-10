@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.git
+.agents
+.vscode
+.idea
+coverage
+*.log
+*.md
+.env
+Dockerfile

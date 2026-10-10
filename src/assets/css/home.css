@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap');
+
+.lobby {
+  width: 100%;
+  min-height: 100vh;
+
+  background-image: url('../assets/img/fondo.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.contenido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+
+  /* Sube el bloque un poco */
+  transform: translateY(-60px);
+}
+
+.logo {
+  width: 550px;
+  max-width: 90%;
+}
+
+.btn {
+  width: 220px;
+  height: 60px;
+
+  border: 2px solid #000000;
+  border-radius: 20px;
+  background-color: #001f5c;
+  color: rgb(255, 255, 255);
+  font-weight: bold;
+  cursor: pointer;
+}
