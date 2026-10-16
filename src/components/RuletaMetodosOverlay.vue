@@ -85,6 +85,8 @@ const props = defineProps<{
   show: boolean
   metodos: WinMode[]
   size: number
+  /** Si se indica, la ruleta cae siempre en este método (lo decide el servidor). */
+  resultado?: WinMode | null
 }>()
 
 const emit = defineEmits<{
@@ -161,7 +163,10 @@ function reset() {
 function girar() {
   if (spinning.value || landed.value) return
   spinning.value = true
-  const { modo, indice } = new RuletaMetodos(pool.value).girarIndice()
+  const forzado = props.resultado && pool.value.includes(props.resultado) ? props.resultado : null
+  const { modo, indice } = forzado
+    ? { modo: forzado, indice: pool.value.indexOf(forzado) }
+    : new RuletaMetodos(pool.value).girarIndice()
   indiceElegido.value = indice
   const extra = 360 * (5 + Math.floor(Math.random() * 2))
   const destino = extra - midAngle(indice)

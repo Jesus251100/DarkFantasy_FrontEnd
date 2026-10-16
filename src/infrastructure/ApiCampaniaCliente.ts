@@ -2,12 +2,18 @@ import { api } from '../api/cliente'
 import type { ResultadoClear } from '../domain/campania/Campania'
 import type { IClienteCampania } from '../domain/campania/IClienteCampania'
 import type { DatosCampania } from '../domain/campania/IRepositorioCampania'
+import type { LogroVista } from '../domain/logros/Logros'
 
 /** Adaptador HTTP del puerto IClienteCampania. */
 export class ApiCampaniaCliente implements IClienteCampania {
   async obtener(): Promise<DatosCampania> {
     const data = await api<{ campania: DatosCampania }>('/api/campania')
     return data.campania
+  }
+
+  async listarLogros(): Promise<LogroVista[]> {
+    const data = await api<{ logros: LogroVista[] }>('/api/campania/logros')
+    return data.logros
   }
 
   async completarNivel(nivel: number) {

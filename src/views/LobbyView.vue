@@ -233,7 +233,6 @@ const logout = () => {
 }
 
 const onOnline = () => {
-  // Placeholder: modo online aún no implementado
-  window.alert('Modo ONLINE próximamente.')
+  router.push('/online')
 }
 </script>

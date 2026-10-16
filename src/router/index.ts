@@ -8,6 +8,7 @@ import LoginView from '../views/LoginView.vue'
 import LoginAdminView from '../views/LoginAdminView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import LobbyView from '../views/LobbyView.vue'
+import OnlineView from '../views/OnlineView.vue'
 import InventoryView from '../views/InventoryView.vue'
 import StoreView from '../views/StoreView.vue'
 import LevelView from '../views/LevelView.vue'
@@ -60,6 +61,11 @@ const router = createRouter({
       path: '/lobby',
       name: 'lobby',
       component: LobbyView,
+    },
+    {
+      path: '/online',
+      name: 'online',
+      component: OnlineView,
     },
     {
       path: '/inventory',
@@ -161,6 +167,7 @@ const router = createRouter({
 
 const rutasPrivadas = new Set([
   '/lobby',
+  '/online',
   '/inventory',
   '/store',
   '/levels',

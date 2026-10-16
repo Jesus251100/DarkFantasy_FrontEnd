@@ -11,82 +11,54 @@
     </div>
 
     <AchievementRow v-for="item in achievements" :key="item.id" :achievement="item" />
+
+    <p v-if="!achievements.length" class="vacio">Cargando logros...</p>
   </div>
 </template>
 
 <script lang="ts" setup>
+import { onMounted, ref } from 'vue'
 import AchievementRow from './AchievementRow.vue'
+import { ListarLogros } from '../application/ListarLogros'
+import { ApiCampaniaCliente } from '../infrastructure/ApiCampaniaCliente'
+import { useProgressStore } from '../stores/progress'
 
-const achievements = [
-  {
-    id: 1,
+interface FilaLogro {
+  id: string
+  nombre: string
+  imagen: string
+  progreso: string
+  oro: number
+  diamantes: number
+  estado: string
+  desbloqueado: boolean
+}
 
-    nombre: 'Completa el nivel 1',
+const progress = useProgressStore()
+const listar = new ListarLogros(new ApiCampaniaCliente())
 
-    imagen: 'level1 1.png',
+const achievements = ref<FilaLogro[]>([])
 
-    progreso: '1323/1370 jugadores',
-
-    oro: 500,
-
-    diamantes: 10,
-
-    estado: 'Completado',
-  },
-
-  {
-    id: 2,
-
-    nombre: 'Completa el nivel 2',
-
-    imagen: 'level2 1.png',
-
-    progreso: '1300/1370 jugadores',
-
-    oro: 500,
-
-    diamantes: 10,
-
-    estado: 'Completado',
-  },
-
-  {
-    id: 3,
-
-    nombre: 'Completa el nivel 3',
-
-    imagen: 'level3 1.png',
-
-    progreso: '1210/1370 jugadores',
-
-    oro: 700,
-
-    diamantes: 15,
-
-    estado: 'Completado',
-  },
-
-  {
-    id: 4,
-
-    nombre: 'Completa el nivel 4',
-
-    imagen: 'level4 1.png',
-
-    progreso: '1070/1370 jugadores',
-
-    oro: 700,
-
-    diamantes: 15,
-
-    estado: 'Completado',
-  },
-]
+onMounted(async () => {
+  await progress.asegurarHidratado()
+  const logros = await listar.ejecutar([...progress.completed])
+  achievements.value = logros.map((logro) => ({
+    id: logro.codigo,
+    nombre: logro.nombre,
+    imagen: logro.imagen,
+    progreso: logro.desbloqueado ? '1/1' : '0/1',
+    oro: logro.monedas,
+    diamantes: logro.diamantes,
+    estado: logro.desbloqueado ? 'Completado' : 'Bloqueado',
+    desbloqueado: logro.desbloqueado,
+  }))
+})
 </script>
 
 <style scoped>
 .tabla {
-  width: 900px;
+  width: 100%;
+  max-width: 900px;
 
   background: rgba(5, 25, 70, 0.55);
 
@@ -109,5 +81,21 @@ const achievements = [
   padding: 15px;
 
   font-weight: bold;
+}
+
+@media (max-width: 640px) {
+  .tabla {
+    font-size: 0.82rem;
+  }
+
+  .header {
+    padding: 10px;
+  }
+}
+
+.vacio {
+  margin: 0;
+  padding: 24px;
+  color: rgba(230, 240, 255, 0.85);
 }
 </style>

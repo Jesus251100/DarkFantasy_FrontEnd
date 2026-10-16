@@ -80,7 +80,7 @@ function buildPrompts(phase: number): Prompt[] {
   const count = phase <= 1 ? 3 : phase === 2 ? 4 : 5
   const ms = phase <= 1 ? 1500 : phase === 2 ? 1100 : 850
   return Array.from({ length: count }, (_, i) => ({
-    code: KEYS[i % KEYS.length],
+    code: KEYS[i % KEYS.length] ?? KEYS[0],
     windowMs: ms,
   }))
 }

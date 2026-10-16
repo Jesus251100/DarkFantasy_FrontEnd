@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BossCard from '../components/BossCard.vue'
 import MethodPatternPreview from '../components/MethodPatternPreview.vue'
+import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay.vue'
 import VictoryChallengeOverlay from '../components/VictoryChallengeOverlay.vue'
 import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
 import PauseOverlay from '../components/PauseOverlay.vue'
@@ -83,6 +84,13 @@ const {
 const fondo = computed(() =>
   definicion.fondo === 'final' ? fondo10 : (FONDOS[props.levelNumber] ?? level1),
 )
+
+const logroVisible = ref(false)
+const logroActual = computed(() => (playerWon.value ? (lastClear.value?.logro ?? null) : null))
+
+watch(showVictoryOverlay, (abierto, antes) => {
+  if (antes && !abierto && logroActual.value) logroVisible.value = true
+})
 
 const multiCard = computed(() => cards.value.length > 1)
 const gridClass = computed(() => `grid-${size.value}`)
@@ -193,6 +201,13 @@ function onVictoryNext() {
       :qte-phase="phase"
       @go-levels="onVictoryLevels"
       @go-next="onVictoryNext"
+    />
+    <AchievementUnlockOverlay
+      v-model:show="logroVisible"
+      :nombre="logroActual?.nombre ?? ''"
+      :imagen="logroActual?.imagen ?? ''"
+      :monedas="logroActual?.monedas ?? 0"
+      :diamantes="logroActual?.diamantes ?? 0"
     />
     <RuletaMetodosOverlay
       :show="showRuleta"
