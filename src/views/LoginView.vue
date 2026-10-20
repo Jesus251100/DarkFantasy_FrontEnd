@@ -66,11 +66,6 @@ function volverTipoUser() {
       </div>
 
       <p v-if="error" class="login-error">{{ error }}</p>
-      <p class="login-hint">
-        Prueba: <strong>jugador@darkfantasy.com</strong> / <strong>jugador123</strong>
-        <br />
-        Con Docker: <strong>docker compose up --build</strong>
-      </p>
       <div class="olvido">¿Olvidaste tu contraseña?</div>
       <button type="button" class="btn-login" :disabled="cargando" @click="ingresarJugador">
         {{ cargando ? 'INGRESANDO…' : 'INGRESAR' }}

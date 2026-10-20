@@ -13,8 +13,12 @@ export function useRegistro() {
 
   const username = shallowRef('')
   const email = shallowRef('')
+  const confirmarEmail = shallowRef('')
   const password = shallowRef('')
   const confirmPassword = shallowRef('')
+  const nacionalidad = shallowRef('')
+  const genero = shallowRef('')
+  const fechaNacimiento = shallowRef('')
   const showVerify = shallowRef(false)
   const showAccountCreated = shallowRef(false)
   const toast = shallowRef<string | null>(null)
@@ -62,8 +66,15 @@ export function useRegistro() {
   function validarFormulario(): string | null {
     if (!username.value.trim()) return 'Ingresa un nombre de usuario'
     if (!email.value.includes('@')) return 'Ingresa un correo válido'
+    if (!confirmarEmail.value.trim()) return 'Confirma tu correo electrónico'
+    if (email.value.trim().toLowerCase() !== confirmarEmail.value.trim().toLowerCase()) {
+      return 'Los correos no coinciden'
+    }
     if (password.value.length < 4) return 'La contraseña debe tener al menos 4 caracteres'
     if (password.value !== confirmPassword.value) return 'Las contraseñas no coinciden'
+    if (!nacionalidad.value.trim()) return 'Selecciona tu nacionalidad'
+    if (!genero.value) return 'Selecciona tu género'
+    if (!fechaNacimiento.value) return 'Selecciona tu fecha de nacimiento'
     return null
   }
 
@@ -119,7 +130,16 @@ export function useRegistro() {
     }
     cargando.value = true
     try {
-      await auth.registrar(email.value.trim(), password.value, username.value.trim(), codigo)
+      await auth.registrar(
+        email.value.trim(),
+        password.value,
+        username.value.trim(),
+        codigo,
+        nacionalidad.value.trim() || null,
+        genero.value || null,
+        fechaNacimiento.value || null,
+        confirmarEmail.value.trim(),
+      )
       await progress.hidratarDesdeApi()
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'No se pudo registrar')
@@ -155,8 +175,12 @@ export function useRegistro() {
   return {
     username,
     email,
+    confirmarEmail,
     password,
     confirmPassword,
+    nacionalidad,
+    genero,
+    fechaNacimiento,
     showVerify,
     showAccountCreated,
     toast,

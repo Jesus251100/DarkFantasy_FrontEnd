@@ -9,6 +9,9 @@ export interface UsuarioSesion {
   correo: string
   rol: Rol
   nombre: string
+  nacionalidad?: string | null
+  genero?: string | null
+  fechaNacimiento?: string | null
 }
 
 type AuthResponse = { token: string; usuario: UsuarioSesion }
@@ -35,10 +38,29 @@ export const useAuthStore = defineStore('auth', () => {
     return data.usuario
   }
 
-  async function registrar(correo: string, clave: string, nombre: string, codigo: string) {
+  async function registrar(
+    correo: string,
+    clave: string,
+    nombre: string,
+    codigo: string,
+    nacionalidad?: string | null,
+    genero?: string | null,
+    fechaNacimiento?: string | null,
+    confirmarCorreo?: string,
+  ) {
     const data = await api<AuthResponse>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ correo, clave, nombre, codigo, rol: 'jugador' }),
+      body: JSON.stringify({
+        correo,
+        clave,
+        nombre,
+        codigo,
+        rol: 'jugador',
+        nacionalidad,
+        genero,
+        fechaNacimiento,
+        confirmarCorreo,
+      }),
     })
     persistir(data.token, data.usuario)
     return data.usuario

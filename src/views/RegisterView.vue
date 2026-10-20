@@ -3,12 +3,17 @@ import '../assets/css/register.css'
 import AccountCreatedOverlay from '../components/AccountCreatedOverlay.vue'
 import VerifyEmailModal from '../components/VerifyEmailModal.vue'
 import { useRegistro } from '../composables/useRegistro'
+import { REGIONES, nombrePais } from '../domain/identidad/paises'
 
 const {
   username,
   email,
+  confirmarEmail,
   password,
   confirmPassword,
+  nacionalidad,
+  genero,
+  fechaNacimiento,
   showVerify,
   showAccountCreated,
   toast,
@@ -29,24 +34,65 @@ const {
     <div class="login-card">
       <img src="../assets/img/logo.png" class="logo" alt="Dark Fantasy" />
 
-      <div class="campo">
-        <label>Nombre de usuario</label>
-        <input v-model="username" type="text" placeholder="INGRESE SU NOMBRE DE USUARIO" />
-      </div>
+      <div class="form-grid">
+        <div class="campo">
+          <label>Nombre de usuario</label>
+          <input v-model="username" type="text" placeholder="INGRESE SU NOMBRE DE USUARIO" />
+        </div>
 
-      <div class="campo">
-        <label>Correo Electrónico</label>
-        <input v-model="email" type="text" placeholder="INGRESE SU CORREO" />
-      </div>
+        <div class="campo">
+          <label>Nacionalidad</label>
+          <select v-model="nacionalidad" class="select-pais">
+            <option value="">Selecciona un país</option>
+            <optgroup
+              v-for="region in REGIONES"
+              :key="region.nombre"
+              :label="region.nombre"
+            >
+              <option
+                v-for="codigo in region.codigos"
+                :key="codigo"
+                :value="codigo.toUpperCase()"
+              >
+                {{ nombrePais(codigo) }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
 
-      <div class="campo">
-        <label>Contraseña</label>
-        <input v-model="password" type="password" placeholder="INGRESE SU CONTRASEÑA" />
-      </div>
+        <div class="campo">
+          <label>Correo Electrónico</label>
+          <input v-model="email" type="text" placeholder="INGRESE SU CORREO" />
+        </div>
 
-      <div class="campo">
-        <label>Confirmar Contraseña</label>
-        <input v-model="confirmPassword" type="password" placeholder="INGRESE SU CONTRASEÑA" />
+        <div class="campo">
+          <label>Confirmar Correo</label>
+          <input v-model="confirmarEmail" type="text" placeholder="CONFIRME SU CORREO" />
+        </div>
+
+        <div class="campo">
+          <label>Contraseña</label>
+          <input v-model="password" type="password" placeholder="INGRESE SU CONTRASEÑA" />
+        </div>
+
+        <div class="campo">
+          <label>Confirmar Contraseña</label>
+          <input v-model="confirmPassword" type="password" placeholder="CONFIRME SU CONTRASEÑA" />
+        </div>
+
+        <div class="campo">
+          <label>Género</label>
+          <select v-model="genero" class="select-genero">
+            <option value="">Selecciona tu género</option>
+            <option value="M">♂️ Hombre</option>
+            <option value="F">♀️ Mujer</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Fecha de Nacimiento</label>
+          <input v-model="fechaNacimiento" type="date" />
+        </div>
       </div>
 
       <button type="button" class="btn-login" :disabled="cargando" @click="continuar">
@@ -105,7 +151,7 @@ const {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
   .reg-toast {
     right: 16px;
     left: 16px;

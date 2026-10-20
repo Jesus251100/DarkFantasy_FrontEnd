@@ -49,7 +49,15 @@
             </span>
           </div>
           <div class="profile-info">
-            <p class="profile-line">Nombre: {{ progress.displayName }}</p>
+            <p class="profile-line">
+              Nombre: {{ progress.displayName }}
+              <span class="flag-icon" aria-label="Bandera de {{ usuario?.nacionalidad }}">
+                <img :src="banderaSrc" :alt="`Bandera de ${nombrePais(usuario?.nacionalidad)}`" />
+              </span>
+              <span class="gender-icon" :class="usuario?.genero === 'F' ? 'is-female' : 'is-male'" aria-hidden="true">
+                {{ genderSymbol }}
+              </span>
+            </p>
             <p class="profile-line">Nivel: {{ progress.campaignLevel }}</p>
             <p class="profile-line xp-line">Experiencia: {{ progress.xp }} XP</p>
             <div class="xp-bar" aria-hidden="true">
@@ -169,13 +177,28 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import '../assets/css/lobby.css'
 import { useProgressStore } from '../stores/progress'
+import { useAuthStore } from '../stores/auth'
+import { banderaUrl, nombrePais } from '../domain/identidad/paises'
 
 const router = useRouter()
 const progress = useProgressStore()
+const auth = useAuthStore()
+
+const usuario = computed(() => auth.usuario)
+
+const banderaSrc = computed(() => {
+  const n = usuario.value?.nacionalidad
+  return n ? banderaUrl(n) : ''
+})
+
+const genderSymbol = computed(() => {
+  const g = usuario.value?.genero
+  return g === 'M' ? '♂' : g === 'F' ? '♀' : ''
+})
 
 const showProfile = ref(false)
 const showSettings = ref(false)

@@ -66,11 +66,7 @@ function volverTipoUser() {
       </div>
 
       <p v-if="error" class="login-error">{{ error }}</p>
-      <p class="login-hint">
-        Prueba: <strong>admin@darkfantasy.com</strong> / <strong>admin123</strong>
-        <br />
-        Entra por perfil Administrador, no por Jugador.
-      </p>
+
       <div class="olvido">¿Olvidaste tu contraseña?</div>
       <button type="button" class="btn-login" :disabled="cargando" @click="ingresarAdmin">
         {{ cargando ? 'INGRESANDO…' : 'INGRESAR' }}

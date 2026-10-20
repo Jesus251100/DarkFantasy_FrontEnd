@@ -396,6 +396,52 @@ body,
   filter: grayscale(0.15) brightness(1.1);
 }
 
+.flag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-left: 6px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.flag-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gender-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-left: 6px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.gender-icon.is-male {
+  color: #4d9dff;
+}
+
+.gender-icon.is-female {
+  color: #ff7aa8;
+}
+
 .profile-currency {
   display: flex;
   justify-content: space-between;

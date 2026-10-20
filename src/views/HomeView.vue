@@ -17,8 +17,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 const irRegistro = () => {
-  // Después del inicio: elegir tipo de perfil
-  router.push({ path: '/tipo-user', query: { mode: 'register' } })
+  router.push('/register')
 }
 
 const irLogin = () => {
