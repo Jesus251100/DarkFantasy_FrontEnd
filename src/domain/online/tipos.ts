@@ -32,3 +32,33 @@ export interface ResumenOnline {
 }
 
 export type FaseOnline = 'idle' | 'cola' | 'jugando' | 'terminado'
+
+export interface MensajeChatOnline {
+  id: string
+  nombre: string
+  texto: string
+}
+
+export interface JugadorEsperaOnline {
+  id: string
+  nombre: string
+}
+
+export interface SalaEsperaOnline {
+  codigo: string
+  anfitrionId: string
+  jugadores: JugadorEsperaOnline[]
+}
+
+export interface FilaRankingOnline {
+  nombre: string
+  puntos: number
+  victorias: number
+}
+
+export interface VueloBoosterOnline {
+  deId: string
+  deNombre: string
+  boosterId: number
+  objetivoId: string
+}

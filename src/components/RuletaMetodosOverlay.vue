@@ -9,7 +9,7 @@
         aria-label="Ruleta de método de victoria"
       >
         <div class="ruleta-panel">
-          <p class="ruleta-kicker">Evento de campaña</p>
+          <p class="ruleta-kicker">{{ kicker }}</p>
           <h2 class="ruleta-title">LA RULETA</h2>
           <p class="ruleta-sub">El método que caiga bajo la lanza será la victoria</p>
 
@@ -81,13 +81,17 @@ import punteroSrc from '@/assets/img/ruleta-puntero.png'
 const SLICE_A = ['#7a1810', '#2a0a12', '#8a2414', '#1c080c']
 const SLICE_B = ['#4a1018', '#6e1414', '#3a0c10', '#5c1810']
 
-const props = defineProps<{
-  show: boolean
-  metodos: WinMode[]
-  size: number
-  /** Si se indica, la ruleta cae siempre en este método (lo decide el servidor). */
-  resultado?: WinMode | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    show: boolean
+    metodos: WinMode[]
+    size: number
+    /** Si se indica, la ruleta cae siempre en este método (lo decide el servidor). */
+    resultado?: WinMode | null
+    kicker?: string
+  }>(),
+  { kicker: 'Evento de campaña' },
+)
 
 const emit = defineEmits<{
   elegido: [mode: WinMode]

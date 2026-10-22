@@ -44,6 +44,7 @@ const {
   status,
   lastClaim,
   lastDrawn,
+  calledList,
   methodLabel,
   size,
   winModes,
@@ -117,18 +118,38 @@ const nextLevelNum = computed(() => {
   return props.levelNumber + 1
 })
 
-function cellVeiled(cell: BingoCell) {
-  if (!oscuridad.value || !isPlaying.value) return false
-  if (cell.free || cell.marked) return false
-  return !isCellCalled(cell.number)
-}
+/**
+ * Bolas que el jugador no marcó. La última, si está en el cartón, espera
+ * al siguiente canto para darle tiempo a pulsarla.
+ * Con 5 aparece la nube al 20%. Cada 2 más suma otro 20%, hasta 100%.
+ */
+const opacidadNube = computed(() => {
+  if (!oscuridad.value || (status.value !== 'playing' && status.value !== 'paused')) return 0
+  const llamadas = calledList.value
+  let sinMarca = 0
+  for (let i = 0; i < llamadas.length; i++) {
+    const numero = llamadas[i]
+    let enCarton = false
+    let marcada = false
+    for (const board of cards.value) {
+      for (const cell of board) {
+        if (cell.free || cell.number !== numero) continue
+        enCarton = true
+        if (cell.marked) marcada = true
+      }
+    }
+    if (marcada) continue
+    if (!enCarton || i < llamadas.length - 1) sinMarca++
+  }
+  if (sinMarca < 5) return 0
+  return Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
+})
 
 function cellClass(cell: BingoCell, cellIndex: number, cardIndex: number) {
   return {
     free: cell.free,
     marked: cell.marked && !cell.free,
     called: isCellCalled(cell.number) && !cell.marked && !cell.free,
-    veiled: cellVeiled(cell),
     winning: isWinningCell(cardIndex, cellIndex),
   }
 }
@@ -280,19 +301,27 @@ function onVictoryNext() {
                       : 'REGISTRO'
                 }}
               </h1>
-              <div class="bingo-grid" :class="gridClass" role="grid">
-                <button
-                  v-for="(cell, cellIndex) in board"
-                  :key="cellIndex"
-                  type="button"
-                  class="bingo-number"
-                  :class="cellClass(cell, cellIndex, cardIndex)"
-                  :disabled="isEnded || status === 'idle' || cell.free"
-                  :aria-pressed="cell.marked"
-                  @click="multiCard ? toggleCell(cardIndex, cellIndex) : toggleCell(cellIndex)"
-                >
-                  {{ cell.free ? 'free' : cellVeiled(cell) ? '·' : cell.number }}
-                </button>
+              <div class="grid-nube">
+                <div class="bingo-grid" :class="gridClass" role="grid">
+                  <button
+                    v-for="(cell, cellIndex) in board"
+                    :key="cellIndex"
+                    type="button"
+                    class="bingo-number"
+                    :class="cellClass(cell, cellIndex, cardIndex)"
+                    :disabled="isEnded || status === 'idle' || cell.free"
+                    :aria-pressed="cell.marked"
+                    @click="multiCard ? toggleCell(cardIndex, cellIndex) : toggleCell(cellIndex)"
+                  >
+                    {{ cell.free ? 'free' : cell.number }}
+                  </button>
+                </div>
+                <div
+                  v-if="opacidadNube > 0"
+                  class="nube-oscuridad"
+                  :style="{ opacity: opacidadNube / 100 }"
+                  aria-hidden="true"
+                ></div>
               </div>
               <button
                 type="button"
@@ -518,6 +547,29 @@ function onVictoryNext() {
   text-align: center;
 }
 
+.grid-nube {
+  position: relative;
+}
+
+.nube-oscuridad {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 85%;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: 42% 50% 38% 46% / 22% 28% 18% 24%;
+  background:
+    radial-gradient(ellipse 36% 46% at 16% 58%, rgba(236, 241, 248, 0.95) 0%, rgba(236, 241, 248, 0) 70%),
+    radial-gradient(ellipse 44% 52% at 50% 36%, rgba(198, 208, 222, 0.92) 0%, rgba(198, 208, 222, 0) 72%),
+    radial-gradient(ellipse 38% 48% at 84% 60%, rgba(220, 228, 238, 0.94) 0%, rgba(220, 228, 238, 0) 70%),
+    linear-gradient(180deg, #323c50 0%, #1c2433 46%, #121722 100%);
+  filter: blur(1.4px);
+  box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.16);
+  transition: opacity 0.7s ease;
+}
+
 .bingo-grid {
   display: grid;
   justify-content: center;
@@ -614,20 +666,6 @@ function onVictoryNext() {
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 0 0 2px rgba(46, 200, 232, 0.55),
     0 0 12px rgba(46, 200, 232, 0.35);
-}
-.bingo-number.veiled {
-  color: transparent;
-  background: radial-gradient(circle at 40% 30%, rgba(40, 20, 50, 0.95) 0%, rgba(8, 4, 12, 0.98) 100%);
-  border-color: rgba(80, 40, 90, 0.55);
-  text-shadow: none;
-}
-.bingo-number.veiled::after {
-  content: '';
-  width: 38%;
-  height: 38%;
-  border-radius: 50%;
-  background: rgba(120, 70, 150, 0.35);
-  box-shadow: 0 0 10px rgba(90, 40, 130, 0.4);
 }
 .level-play.is-oscuridad .bingo-panel {
   box-shadow:

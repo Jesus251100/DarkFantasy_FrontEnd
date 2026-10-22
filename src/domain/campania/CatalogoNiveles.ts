@@ -92,9 +92,11 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 5,
     sessionKey: 'level-5',
-    idleHint: 'Pulsa Iniciar: la ruleta elige cruz (+) o letra X.',
+    idleHint: 'Pulsa Iniciar: la ruleta elige cruz (+) o letra X. Oscuridad: si no marcas, una nube tapa el cartón.',
     previews: previewsDe(5, ['plus', 'X']),
-    fases: [fase(5, ['plus', 'X'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz (+) o X.', 3100)],
+    fases: [
+      fase(5, ['plus', 'X'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz (+) o X. Si no marcas, la nube oscurece el cartón.', 3100, 'ruleta', true),
+    ],
     muestraJefe: false,
     fondo: 'gif',
   },
@@ -110,10 +112,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 7,
     sessionKey: 'level-7',
-    idleHint: 'Pulsa Iniciar: la ruleta elige flecha o diamante.',
+    idleHint: 'Pulsa Iniciar: la ruleta elige flecha o diamante. Oscuridad: si no marcas, una nube tapa el cartón.',
     previews: previewsDe(5, ['arrow', 'diamond']),
     fases: [
-      fase(5, ['arrow', 'diamond'], 75, 1, 'Pulsa Iniciar: la ruleta elige flecha o diamante.', 2900),
+      fase(5, ['arrow', 'diamond'], 75, 1, 'Pulsa Iniciar: la ruleta elige flecha o diamante. Si no marcas, la nube oscurece el cartón.', 2900, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -121,10 +123,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 8,
     sessionKey: 'level-8',
-    idleHint: 'Dos cartones. La ruleta elige cruz, T, H o flecha.',
+    idleHint: 'Dos cartones. La ruleta elige cruz, T, H o flecha. Oscuridad: si no marcas, una nube tapa los cartones.',
     previews: previewsDe(5, ['plus', 'T', 'H', 'arrow']),
     fases: [
-      fase(5, ['plus', 'T', 'H', 'arrow'], 75, 2, 'Pulsa Iniciar: la ruleta elige el método. Gana en cualquiera de los cartones.', 2800),
+      fase(5, ['plus', 'T', 'H', 'arrow'], 75, 2, 'Pulsa Iniciar: la ruleta elige el método. Si no marcas, la nube oscurece los cartones.', 2800, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -132,10 +134,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 9,
     sessionKey: 'level-9',
-    idleHint: 'Evento oscuridad: la niebla tapa los números hasta que el oráculo los canta.',
+    idleHint: 'Evento oscuridad: si no marcas, una nube tapa el cartón y se pone más oscura.',
     previews: previewsDe(5, ['zigzag']),
     fases: [
-      fase(5, ['zigzag'], 75, 2, 'Pulsa Iniciar. Oscuridad: solo ves los números que ya salieron.', 2700, 'ruleta', true),
+      fase(5, ['zigzag'], 75, 2, 'Pulsa Iniciar. Si no marcas, la nube oscurece los cartones.', 2700, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -147,7 +149,7 @@ const NIVELES: DefinicionNivel[] = [
     previews: previewsDe(5, ['full']),
     fases: [
       fase(5, ['full'], 75, 1, 'Fase 1: pulsa Iniciar. La ruleta elige cartón completo.', 2600),
-      fase(5, ['zigzag', 'H', 'T', 'arrow'], 75, 2, 'Fase 2: la ruleta elige el método. Gana en cualquiera de los dos cartones.', 2500),
+      fase(5, ['zigzag', 'H', 'T', 'arrow'], 75, 2, 'Fase 2: la ruleta elige el método. Si no marcas, la nube oscurece los cartones.', 2500, 'ruleta', true),
       fase(6, ['crown', 'diamond'], 90, 1, 'Fase 3 FINAL: ruleta + oscuridad. Corona o diamante en 6×6.', 2400, 'ruleta', true),
     ],
     muestraJefe: true,

@@ -4,7 +4,15 @@ import { crearSocketOnline } from '../api/socket'
 import { checkWin } from '../game/bingo'
 import { useProgressStore } from '../stores/progress'
 import type { BingoCell } from '../domain/bingo/tipos'
-import type { FaseOnline, ResumenOnline, VistaSalaOnline } from '../domain/online/tipos'
+import type {
+  FaseOnline,
+  FilaRankingOnline,
+  MensajeChatOnline,
+  ResumenOnline,
+  SalaEsperaOnline,
+  VistaSalaOnline,
+  VueloBoosterOnline,
+} from '../domain/online/tipos'
 
 /**
  * Adaptador Vue del modo online. La autoridad del juego vive en el backend
@@ -26,6 +34,10 @@ export function usePartidaOnline(usuarioId: string) {
   const alerta = ref<string | null>(null)
   const showRuleta = ref(false)
   const errorConexion = ref<string | null>(null)
+  const espera = ref<SalaEsperaOnline | null>(null)
+  const ranking = ref<FilaRankingOnline[]>([])
+  const chat = ref<MensajeChatOnline[]>([])
+  const errorSala = ref<string | null>(null)
 
   let avisoTimer: ReturnType<typeof setTimeout> | null = null
   let alertaTimer: ReturnType<typeof setTimeout> | null = null
@@ -47,22 +59,25 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function aplicarVista(vista: VistaSalaOnline) {
+    if (!vista?.salaId || !Array.isArray(vista.calledList)) return
     const salaNueva = sala.value?.salaId !== vista.salaId
     sala.value = vista
+    const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
     if (salaNueva) {
       marcas.value = new Set()
-      showRuleta.value = vista.estado === 'playing'
+      showRuleta.value = vista.estado !== 'finished' && (pool?.length ?? 0) > 0
     }
     if (vista.calledList.length >= cantadas.value.length) {
       cantadas.value = [...vista.calledList]
     }
     if (vista.lastDrawn !== null) ultimaBola.value = vista.lastDrawn
-    if (vista.estado === 'playing') fase.value = 'jugando'
     if (vista.estado === 'finished') {
       ganadorId.value = vista.ganador
       showRuleta.value = false
       fase.value = 'terminado'
+      return
     }
+    fase.value = 'jugando'
   }
 
   socket.on('connect', () => {
@@ -74,7 +89,10 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('connect_error', (err: Error) => {
     conectado.value = false
-    errorConexion.value = err.message || 'No se pudo conectar al servidor de partidas.'
+    errorConexion.value =
+      !err.message || err.message === 'websocket error'
+        ? 'No se pudo conectar al servidor de partidas.'
+        : err.message
   })
 
   socket.on('queue:joined', () => {
@@ -84,6 +102,7 @@ export function usePartidaOnline(usuarioId: string) {
     if (fase.value === 'cola') fase.value = 'idle'
   })
   socket.on('match:found', () => {
+    espera.value = null
     fase.value = 'jugando'
   })
   socket.on('room:state', (vista: VistaSalaOnline) => aplicarVista(vista))
@@ -102,6 +121,27 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('claim:rejected', (p: { mensaje: string }) => mostrarAviso(p.mensaje))
   socket.on('queue:warning', (p: { mensaje: string }) => mostrarAlerta(p.mensaje))
+  socket.on('room:state', (vista: SalaEsperaOnline) => {
+    if (!vista || !('codigo' in vista)) return
+    espera.value = vista
+    errorSala.value = null
+  })
+  socket.on('room:closed', () => {
+    espera.value = null
+  })
+  socket.on('room:error', (p: { mensaje: string }) => {
+    errorSala.value = p.mensaje
+    mostrarAviso(p.mensaje)
+  })
+  socket.on('ranking:lista', (filas: FilaRankingOnline[]) => {
+    ranking.value = filas
+  })
+  socket.on('chat:message', (mensaje: MensajeChatOnline) => {
+    chat.value = [...chat.value, mensaje].slice(-40)
+  })
+  socket.on('booster:vuelo', (vuelo: VueloBoosterOnline) => {
+    window.dispatchEvent(new CustomEvent('df-booster-vuelo', { detail: vuelo }))
+  })
 
   function conectar() {
     if (!socket.connected) socket.connect()
@@ -109,10 +149,54 @@ export function usePartidaOnline(usuarioId: string) {
 
   function buscar() {
     errorConexion.value = null
+    espera.value = null
     conectar()
     fase.value = 'cola'
     if (socket.connected) socket.emit('queue:join')
     else socket.once('connect', () => socket.emit('queue:join'))
+  }
+
+  function pedirRanking() {
+    const pedir = () => socket.emit('ranking:pedir')
+    if (socket.connected) pedir()
+    else socket.once('connect', pedir)
+  }
+
+  function enviarChat(texto: string) {
+    const limpio = texto.trim()
+    if (!limpio) return
+    socket.emit('chat:send', { texto: limpio })
+  }
+
+  function crearSala() {
+    errorSala.value = null
+    const crear = () => socket.emit('room:create')
+    conectar()
+    if (socket.connected) crear()
+    else socket.once('connect', crear)
+  }
+
+  function unirseSala(codigo: string) {
+    errorSala.value = null
+    const codigoLimpio = codigo.trim().toUpperCase()
+    if (!codigoLimpio) return
+    const unirse = () => socket.emit('room:join', { codigo: codigoLimpio })
+    conectar()
+    if (socket.connected) unirse()
+    else socket.once('connect', unirse)
+  }
+
+  function salirSala() {
+    socket.emit('room:leave')
+    espera.value = null
+  }
+
+  function empezarSala() {
+    socket.emit('room:start')
+  }
+
+  function lanzarBooster(boosterId: number, objetivoId: string) {
+    socket.emit('booster:lanzar', { boosterId, objetivoId })
   }
 
   function cancelar() {
@@ -149,6 +233,7 @@ export function usePartidaOnline(usuarioId: string) {
     aviso.value = null
     alerta.value = null
     showRuleta.value = false
+    espera.value = null
     fase.value = 'idle'
   }
 
@@ -177,7 +262,12 @@ export function usePartidaOnline(usuarioId: string) {
     })),
   )
 
-  const metodosVictoria = computed(() => sala.value?.metodosVictoria ?? [])
+  const metodosVictoria = computed(() => {
+    const actual = sala.value
+    if (!actual) return []
+    if (actual.metodosVictoria?.length) return actual.metodosVictoria
+    return actual.winModes ?? []
+  })
   const metodoVictoria = computed(() => sala.value?.winModes[0] ?? null)
 
   const esGanador = computed(() => !!ganadorId.value && ganadorId.value === usuarioId)
@@ -194,6 +284,7 @@ export function usePartidaOnline(usuarioId: string) {
 
   onMounted(() => {
     conectar()
+    pedirRanking()
   })
 
   onUnmounted(() => {
@@ -225,7 +316,19 @@ export function usePartidaOnline(usuarioId: string) {
     esGanador,
     indicesGanadores,
     ganador,
+    espera,
+    ranking,
+    chat,
+    errorSala,
     buscar,
+    pedirRanking,
+    enviarChat,
+    crearSala,
+    unirseSala,
+    salirSala,
+    empezarSala,
+    lanzarBooster,
+    mostrarAviso,
     cancelar,
     cantar,
     marcarCelda,
