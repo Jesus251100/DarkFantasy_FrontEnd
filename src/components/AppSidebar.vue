@@ -57,7 +57,9 @@ const cerrarSesion = () => {
   flex-shrink: 0;
   position: relative;
   z-index: 20;
-  overflow: hidden;
+  /* Si la pantalla es muy baja, el menú se desplaza en vez de recortarse */
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
 }
 
@@ -143,5 +145,107 @@ const cerrarSesion = () => {
 
 .logout {
   margin-top: auto;
+}
+
+/* ==========================================================================
+   PANTALLAS ESTRECHAS: el menú vertical (634px) pasa a barra horizontal
+   (52px). Sin esto, al apilarse el sidebar ocupaba la pantalla completa
+   y dejaba el contenido de la página debajo del pliegue.
+   ========================================================================== */
+@media (max-width: 900px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    border-radius: 10px;
+  }
+
+  .back-ico {
+    font-size: 1.3rem;
+  }
+
+  .brand-logo {
+    width: auto;
+    height: 26px;
+    max-height: 26px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-nav button,
+  .logout {
+    width: auto;
+    min-width: 78px;
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 0.66rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .logout {
+    margin-top: 0;
+    margin-left: auto;
+  }
+}
+
+/* ==========================================================================
+   PANTALLAS BAJAS (portátiles): el menú vertical se comprime para que
+   quepa sin necesidad de desplazarse.
+   ========================================================================== */
+@media (max-height: 700px) and (min-width: 901px) {
+  .sidebar {
+    gap: 10px;
+    padding: 12px 14px 16px;
+  }
+
+  .brand-logo {
+    max-height: 46px;
+    margin-bottom: 2px;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+  }
+
+  .sidebar-nav {
+    gap: 10px;
+  }
+
+  .sidebar-nav button,
+  .logout {
+    min-height: 36px;
+    padding: 6px 6px;
+    font-size: 0.72rem;
+  }
 }
 </style>

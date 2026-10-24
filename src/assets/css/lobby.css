@@ -12,12 +12,15 @@ body,
   background-size: cover;
   background-position: center;
   height: 100vh;
+  height: 100dvh;
   width: 100%;
   display: flex;
   justify-content: center;
-  align-items: center;
+  /* flex-start + margin-block auto en el panel: centra si cabe y alinea
+     arriba si no, en vez de recortar el contenido por ambos extremos */
+  align-items: flex-start;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Avatar flotante esquina */
@@ -95,11 +98,12 @@ body,
   background-color: rgba(0, 0, 50, 0.6);
   border: 2px solid #00aaff;
   box-shadow: 0 0 25px #00aaff;
-  padding: 40px;
+  padding: 36px;
   border-radius: 10px;
   text-align: center;
   width: 600px;
   max-width: 92vw;
+  margin-block: auto;
   z-index: 2;
 }
 
@@ -108,6 +112,12 @@ body,
   height: auto;
   display: block;
   margin: 0 auto 12px;
+}
+
+/* Selector específico: el .logo global de lobby.css se inyecta después que
+   login.css/register.css y anularía el tamaño del logo de los formularios */
+.menu-panel .logo {
+  max-width: 300px;
 }
 
 .menu button {
@@ -160,6 +170,8 @@ body,
   justify-content: center;
   z-index: 50;
   padding: 20px;
+  /* Si el modal no cabe, se desplaza en vez de recortarse */
+  overflow-y: auto;
   animation: fade-in 0.2s ease;
 }
 
@@ -755,5 +767,42 @@ body,
     right: 16px;
     left: 16px;
     text-align: center;
+  }
+
+  /* Menú del lobby compacto para que quepa entero en pantalla */
+  .menu-panel {
+    padding: 18px 16px;
+  }
+
+  .menu-panel .logo {
+    max-width: 170px;
+    margin-bottom: 8px;
+  }
+
+  .menu button {
+    padding: 8px 0;
+    margin: 6px 0;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+  }
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+    top: 16px;
+    left: 16px;
+  }
+
+  .profile-modal {
+    padding: 14px 16px 18px;
+  }
+
+  .profile-title {
+    font-size: 1.5rem;
+  }
+
+  .profile-avatar-lg {
+    width: 60px;
+    height: 60px;
   }
 }

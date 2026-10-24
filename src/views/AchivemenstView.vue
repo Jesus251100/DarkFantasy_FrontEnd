@@ -58,11 +58,18 @@ function volverAlLobby() {
 <style scoped>
 .logros {
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   background-size: cover;
   background-position: center;
-  padding: 40px 24px 60px;
+  padding: 16px 20px 20px;
   box-sizing: border-box;
+  /* Centra el contenido verticalmente; si no cabe, se alinea arriba
+     (con min-height, el contenedor crece y no se recorta nada) */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
 }
 
 .logros::before {
@@ -136,8 +143,9 @@ function volverAlLobby() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding-top: 40px;
+  gap: 14px;
+  padding-top: 8px;
+  margin-block: auto;
   color: white;
 }
 
@@ -146,28 +154,28 @@ function volverAlLobby() {
 }
 
 h1 {
-  margin: 0 0 8px;
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  margin: 0 0 6px;
+  font-size: clamp(1.75rem, 3.4vw, 2.6rem);
   letter-spacing: 0.06em;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
 }
 
 .encabezado p {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: rgba(230, 240, 255, 0.85);
 }
 
 .resumen {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .resumen-item {
-  min-width: 110px;
-  padding: 12px 20px;
+  min-width: 104px;
+  padding: 10px 18px;
   border-radius: 14px;
   text-align: center;
   background: rgba(5, 25, 70, 0.6);
@@ -177,24 +185,116 @@ h1 {
 
 .resumen-item strong {
   display: block;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   color: #7ff0ff;
 }
 
 .resumen-item small {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(220, 240, 255, 0.8);
 }
 
+/* Pantallas de poca altura: se compacta el encabezado para que la tabla
+   de 10 filas siga entrando completa */
+@media (max-height: 940px) {
+  h1 {
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+  }
+
+  .encabezado p {
+    font-size: 0.92rem;
+  }
+
+  .resumen-item {
+    padding: 8px 16px;
+  }
+
+  .resumen-item strong {
+    font-size: 1.2rem;
+  }
+
+  .resumen-item small {
+    font-size: 0.65rem;
+  }
+}
+
+/* Pantallas muy bajas (portátiles de 768px) */
+@media (max-height: 830px) {
+  .logros {
+    padding: 10px 16px 14px;
+  }
+
+  .contenido {
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  h1 {
+    font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+    margin-bottom: 4px;
+  }
+
+  .encabezado p {
+    font-size: 0.82rem;
+  }
+
+  .resumen-item {
+    padding: 6px 12px;
+  }
+
+  .resumen-item strong {
+    font-size: 1.05rem;
+  }
+
+  .resumen-item small {
+    font-size: 0.6rem;
+  }
+}
+
 @media (max-width: 640px) {
   .logros {
-    padding: 88px 12px 40px;
+    padding: 52px 8px 12px;
   }
+
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    top: 12px;
+    left: 12px;
+  }
+
   .map-hud {
-    font-size: 0.78rem;
-    gap: 10px;
+    top: 12px;
+    right: 12px;
+    font-size: 0.7rem;
+    gap: 7px;
+    padding: 5px 9px;
+  }
+
+  .encabezado p {
+    font-size: 0.8rem;
+  }
+
+  /* Los 3 indicadores deben caber en una sola fila (si no, ocupaban 2 filas) */
+  .resumen {
+    gap: 8px;
+  }
+
+  .resumen-item {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 6px 8px;
+  }
+
+  .resumen-item strong {
+    font-size: 1.05rem;
+  }
+
+  .resumen-item small {
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
   }
 }
 </style>

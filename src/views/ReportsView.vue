@@ -168,6 +168,7 @@ const reports: Report[] = [
 .reports-wrapper {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   background: url('@/assets/img/fondo.png') center center / cover no-repeat;
 }
@@ -175,10 +176,10 @@ const reports: Report[] = [
 .reports-main {
   flex: 1;
   min-width: 0;
-  padding: 40px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 22px;
   background: rgba(0, 0, 0, 0.28);
 }
 
@@ -189,15 +190,16 @@ const reports: Report[] = [
 }
 
 .reports-header p {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: #c3e6ff;
   max-width: 720px;
+  font-size: 15px;
 }
 
 .table-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .btn-activity {
@@ -226,7 +228,7 @@ const reports: Report[] = [
 .table-card {
   border: 1px solid rgba(0, 195, 255, 0.22);
   border-radius: 24px;
-  padding: 24px 28px 18px;
+  padding: 20px 24px 14px;
   background: rgba(5, 25, 70, 0.78);
   box-shadow: 0 0 30px rgba(0, 195, 255, 0.12);
 }
@@ -234,10 +236,10 @@ const reports: Report[] = [
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 2.4fr 1.3fr 1.3fr 0.9fr 1fr;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 1fr);
   gap: 14px;
   align-items: center;
-  padding: 14px 6px;
+  padding: 12px 6px;
 }
 
 .table-head {
@@ -260,8 +262,15 @@ const reports: Report[] = [
 .report-cell {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
+}
+
+/* El bloque de texto es un flex item: sin min-width:0 no se encoge y
+   desbordaba sobre la columna siguiente */
+.report-cell > div {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .icon {
@@ -324,6 +333,7 @@ const reports: Report[] = [
 }
 
 .user-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -372,7 +382,7 @@ const reports: Report[] = [
 @media (max-width: 1000px) {
   .table-head,
   .table-row {
-    grid-template-columns: 2fr 1.2fr 1.2fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
   }
 
   .table-head span:nth-child(4),
@@ -383,13 +393,145 @@ const reports: Report[] = [
   }
 }
 
-@media (max-width: 820px) {
-  .reports-wrapper {
-    flex-direction: column;
+/* ==========================================================================
+   PANTALLAS INTERMEDIAS: se compacta para que todo siga entrando
+   ========================================================================== */
+@media (max-width: 1100px), (max-height: 880px) {
+  .reports-main {
+    padding: 24px;
+    gap: 18px;
   }
 
+  .reports-header h1 {
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+  }
+
+  .reports-header p {
+    margin-top: 6px;
+    font-size: 0.92rem;
+  }
+
+  .table-toolbar {
+    margin-bottom: 10px;
+  }
+
+  .btn-activity {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+
+  .table-card {
+    padding: 16px 20px 12px;
+    border-radius: 20px;
+  }
+
+  .table-head,
+  .table-row {
+    padding: 10px 6px;
+  }
+
+  .table-head {
+    font-size: 0.85rem;
+  }
+
+  .icon {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    border-width: 1px;
+  }
+
+  .report-cell {
+    gap: 10px;
+  }
+}
+
+/* ==========================================================================
+   MÓVIL: el menú pasa a barra horizontal (AppSidebar.vue), así que el
+   contenido puede ocupar el 100% del ancho en lugar de quedar debajo.
+   ========================================================================== */
+@media (max-width: 900px), (max-height: 760px) {
   .reports-main {
-    padding: 20px;
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .reports-header h1 {
+    font-size: 20px;
+  }
+
+  .reports-header p {
+    font-size: 0.82rem;
+    margin-top: 4px;
+  }
+
+  .table-toolbar {
+    margin-bottom: 6px;
+  }
+
+  .btn-activity {
+    padding: 7px 14px;
+    font-size: 0.8rem;
+  }
+
+  .table-card {
+    padding: 8px 6px;
+  }
+
+  .table-head,
+  .table-row {
+    padding: 6px 4px;
+    gap: 6px;
+  }
+
+  .table-head {
+    font-size: 0.68rem;
+    letter-spacing: 0.2px;
+  }
+
+  .icon {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .report-cell {
+    gap: 6px;
+  }
+
+  .report-cell strong {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .report-cell small {
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .avatar-cell {
+    font-size: 10.5px;
+  }
+}
+
+/* El menú pasa a barra horizontal solo por anchura (AppSidebar.vue) */
+@media (max-width: 900px) {
+  .reports-wrapper {
+    flex-direction: column;
   }
 }
 </style>

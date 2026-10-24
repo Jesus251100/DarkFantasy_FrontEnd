@@ -10,25 +10,38 @@ body,
 }
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 
   display: flex;
   justify-content: center;
-  align-items: center;
+  /* flex-start en vez de center: si la tarjeta no cabe, se alinea arriba y
+     se puede desplazar en lugar de recortarse por ambos extremos */
+  align-items: flex-start;
 
   background-image: url('../img/fondo.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 0;
+  padding: 16px 12px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Centra verticalmente solo si cabe; con margen auto no se pierde el
+   borde superior al desbordar */
+.login-page > * {
+  margin-block: auto;
 }
 
 .login-card {
-  width: 430px;
+  width: 100%;
+  max-width: 430px;
 
-  padding: 35px;
+  padding: 32px;
 
-  border-radius: 35px;
+  border-radius: 30px;
 
   background: rgba(4, 15, 35, 0.55);
 
@@ -45,29 +58,33 @@ body,
   text-align: center;
   color: white;
   font-family: 'Cinzel', serif;
-  margin-bottom: 15px;
+  margin-bottom: 14px;
+  font-size: 1.9rem;
 }
 
-.logo {
-  width: 450px;
+/* Selector específico: el .logo global de lobby.css se inyecta después que
+   login.css y anularía el tamaño del logo de la tarjeta */
+.login-card .logo {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
   display: block;
-  margin: auto;
-  margin-bottom: 20px;
+  margin: 0 auto 16px;
 }
 
 .campo {
   display: flex;
   flex-direction: column;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .campo label {
   font-family: 'MedievalSharp', cursive;
   color: white;
 
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 
   text-shadow:
     1px 1px 2px black,
@@ -133,4 +150,42 @@ body,
   transform: translateY(-2px);
 
   box-shadow: 0 0 20px rgba(79, 111, 255, 1);
+}
+
+/* ==========================================================================
+   PANTALLAS PEQUEÑAS: la tarjeta se compacta para que entre completa.
+   En pantallas grandes mantiene los tamaños de diseño (arriba).
+   ========================================================================== */
+@media (max-width: 900px), (max-height: 720px) {
+  .login-page {
+    padding: 12px 10px;
+  }
+
+  .login-card {
+    padding: 20px 18px 22px;
+    border-radius: 22px;
+  }
+
+  .titulo {
+    font-size: 1.35rem;
+    margin-bottom: 10px;
+  }
+
+  .login-card .logo {
+    max-width: 190px;
+    margin-bottom: 10px;
+  }
+
+  .campo {
+    margin-bottom: 10px;
+  }
+
+  .campo label {
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+
+  .olvido {
+    margin-bottom: 14px;
+  }
 }

@@ -434,6 +434,7 @@ function onVictoryNext() {
 .level-play {
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background-size: cover;
@@ -997,6 +998,161 @@ function onVictoryNext() {
     width: 36px;
     height: 36px;
     font-size: 0.8rem;
+  }
+}
+
+/* ==========================================================================
+   PANTALLAS ESTRECHAS: las columnas de bots (240px cada una, sin poder
+   encogerse) exigían 512px y quedaban recortadas. Se ocultan para que el
+   tablero quede centrado y completo.
+   ========================================================================== */
+@media (max-width: 820px) {
+  .content {
+    padding: 48px 12px 24px;
+  }
+
+  .left-section,
+  .right-section {
+    display: none;
+  }
+
+  .main-container {
+    gap: 10px;
+  }
+
+  .bingo-panel {
+    padding: 14px 16px 12px;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(3, 52px);
+    gap: 6px;
+  }
+  .grid-3 .bingo-number {
+    width: 52px;
+    height: 52px;
+    font-size: 1.1rem;
+  }
+  .grid-4 {
+    grid-template-columns: repeat(4, 42px);
+    gap: 5px;
+  }
+  .grid-4 .bingo-number {
+    width: 42px;
+    height: 42px;
+    font-size: 0.95rem;
+  }
+  .grid-5 {
+    grid-template-columns: repeat(5, 38px);
+    gap: 5px;
+  }
+  .grid-5 .bingo-number {
+    width: 38px;
+    height: 38px;
+    font-size: 0.85rem;
+  }
+  .bingo-panels .grid-5 {
+    grid-template-columns: repeat(5, 32px);
+    gap: 4px;
+  }
+  .bingo-panels .grid-5 .bingo-number {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+  .grid-6 {
+    grid-template-columns: repeat(6, 32px);
+    gap: 4px;
+  }
+  .grid-6 .bingo-number {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  .bingo-btn {
+    min-width: 130px;
+    padding: 6px 24px;
+  }
+
+  .oraculo-section {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .oraculo-panel {
+    min-width: 0;
+    padding: 10px 20px 12px;
+  }
+
+  .oraculo-title {
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+  }
+
+  .oracle-slot {
+    min-width: 30px;
+    height: 24px;
+    font-size: 0.85rem;
+  }
+
+  .method {
+    padding: 6px 16px;
+    font-size: 0.8rem;
+  }
+
+  .feedback {
+    max-width: 100%;
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  .phase-tabs {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .phase-tab {
+    padding: 5px 9px;
+    font-size: 0.72rem;
+  }
+
+  .method-preview-wrap {
+    bottom: 12px;
+    left: 12px;
+    max-width: min(70vw, 320px);
+  }
+}
+
+/* ==========================================================================
+   PANTALLAS MUY BAJAS (móvil en horizontal): el juego no cabe a pantalla
+   completa, así que se permite el desplazamiento en vez de recortar el
+   tablero o el botón ¡BINGO!.
+   ========================================================================== */
+@media (max-height: 560px) {
+  .level-play {
+    overflow-y: auto;
+  }
+
+  .content {
+    height: auto;
+    min-height: 100%;
+    justify-content: flex-start;
+    padding: 44px 12px 24px;
+  }
+
+  .oraculo-section {
+    margin-top: 8px;
+  }
+
+  .method-preview-wrap {
+    display: none;
   }
 }
 </style>

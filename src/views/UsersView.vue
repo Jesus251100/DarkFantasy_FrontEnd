@@ -215,13 +215,14 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 .users-wrapper {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   background: url('../assets/img/fondo.png') center center / cover no-repeat;
 }
 
 .users-main {
   flex: 1;
   min-width: 0;
-  padding: 28px 32px 36px;
+  padding: 24px 28px 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -239,7 +240,7 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 .search-input {
   flex: 1;
   display: flex;
-  min-width: 260px;
+  min-width: 0;
   max-width: 420px;
   background: rgba(15, 55, 90, 0.75);
   border: 1px solid rgba(0, 195, 255, 0.28);
@@ -249,6 +250,7 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 
 .search-input input {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   padding: 12px 18px;
@@ -288,7 +290,7 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 }
 
 .page-title {
-  margin: 4px 0 8px;
+  margin: 0;
   color: #eef6ff;
   font-size: clamp(1.1rem, 2vw, 1.45rem);
   font-weight: 600;
@@ -300,21 +302,25 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
   gap: 20px;
   align-items: start;
   flex: 1;
+  min-height: 0;
 }
 
 .players-card {
   background: rgba(5, 25, 70, 0.72);
-  border: 2px solid rgba(0, 195, 255, 0.35);
-  border-radius: 18px;
+  border: 1px solid rgba(0, 195, 255, 0.35);
+  border-radius: 16px;
   padding: 14px 16px 10px;
   box-shadow: 0 0 28px rgba(0, 160, 255, 0.12);
+  /* El número de usuarios es dinámico: la tarjeta tiene su propio scroll
+     interno en vez de crecer sin límite y empujar el resto de la vista */
+  max-height: min(58vh, 520px);
   overflow: auto;
 }
 
 .players-table-head,
 .players-table-row {
   display: grid;
-  grid-template-columns: 2.4fr 0.7fr 1fr 0.9fr 0.7fr 1.2fr 0.7fr;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1.2fr) minmax(0, 0.7fr);
   gap: 8px;
   align-items: center;
   padding: 10px 6px;
@@ -590,6 +596,268 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 
   .profile-panel {
     max-width: 360px;
+  }
+}
+
+/* ==========================================================================
+   PANTALLAS INTERMEDIAS: se compacta para que todo siga entrando
+   ========================================================================== */
+@media (max-width: 1000px), (max-height: 880px) {
+  .users-main {
+    padding: 18px 20px 20px;
+    gap: 12px;
+  }
+
+  .search-input input {
+    padding: 9px 16px;
+  }
+
+  .filter-button {
+    padding: 9px 16px;
+  }
+
+  .page-title {
+    font-size: clamp(1rem, 1.6vw, 1.25rem);
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 16px;
+  }
+
+  .players-card {
+    padding: 10px 12px 8px;
+  }
+
+  .players-table-head,
+  .players-table-row {
+    padding: 6px;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+    border-width: 1px;
+  }
+
+  .level-badge {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border-radius: 7px;
+    font-size: 11px;
+  }
+
+  .coins-cell,
+  .gems-cell {
+    font-size: 12px;
+  }
+
+  .flag {
+    font-size: 1.1rem;
+  }
+
+  .status-cell {
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .profile-panel {
+    padding: 16px 14px;
+  }
+
+  .profile-avatar {
+    width: 76px;
+    height: 76px;
+    margin-bottom: 8px;
+    border-width: 2px;
+  }
+
+  .profile-name {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .profile-xp {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .xp-bar {
+    height: 7px;
+    margin-bottom: 10px;
+  }
+
+  .profile-stats {
+    margin-bottom: 10px;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .profile-stats li {
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .profile-meta {
+    margin-bottom: 10px;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .currency-boxes {
+    gap: 8px;
+  }
+
+  .currency-box {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .currency-box strong {
+    font-size: 12px;
+  }
+}
+
+/* ==========================================================================
+   MÓVIL: el menú pasa a barra horizontal (AppSidebar.vue), así que el
+   contenido puede ocupar el 100% del ancho en lugar de quedar debajo.
+   ========================================================================== */
+@media (max-width: 900px), (max-height: 760px) {
+  .users-main {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .search-section {
+    gap: 8px;
+  }
+
+  .search-input {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .search-input input {
+    padding: 8px 12px;
+  }
+
+  .filter-button {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  .page-title {
+    font-size: 14px;
+  }
+
+  .players-card {
+    padding: 8px;
+    max-height: 240px;
+  }
+
+  .players-table-head,
+  .players-table-row {
+    /* Ancho mínimo para que las 7 columnas sigan siendo legibles:
+       la tarjeta se desplaza en horizontal si no cabe */
+    min-width: 600px;
+    padding: 5px 6px;
+  }
+
+  .user-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .user-meta strong {
+    font-size: 11px;
+  }
+
+  .user-meta span {
+    font-size: 10px;
+  }
+
+  .level-badge {
+    min-width: 22px;
+    height: 22px;
+    font-size: 10px;
+  }
+
+  .coins-cell,
+  .gems-cell {
+    font-size: 11px;
+  }
+
+  .status-cell {
+    font-size: 10px;
+  }
+
+  .action-menu {
+    width: 26px;
+    height: 24px;
+    font-size: 0.95rem;
+  }
+
+  .profile-panel {
+    max-width: none;
+    padding: 10px;
+  }
+
+  .profile-avatar {
+    display: none;
+  }
+
+  .profile-meta {
+    display: none;
+  }
+
+  .profile-name {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .profile-xp {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .xp-bar {
+    height: 6px;
+    margin-bottom: 8px;
+  }
+
+  .profile-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .profile-stats li {
+    font-size: 10px;
+    flex-direction: column;
+    gap: 0;
+    text-align: center;
+  }
+
+  .currency-box {
+    padding: 6px 8px;
+  }
+
+  .currency-box strong {
+    font-size: 12px;
+  }
+}
+
+/* El menú pasa a barra horizontal solo por anchura (AppSidebar.vue) */
+@media (max-width: 900px) {
+  .users-wrapper {
+    flex-direction: column;
   }
 }
 </style>

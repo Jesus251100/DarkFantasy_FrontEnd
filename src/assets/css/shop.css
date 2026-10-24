@@ -1,11 +1,20 @@
 .shop {
   min-height: 100vh;
+  min-height: 100dvh;
 
   background-image: url('../img/fondo.png');
   background-size: cover;
   background-position: center;
 
   padding: 20px;
+
+  /* La barra superior se queda arriba (flex-start) y solo las tarjetas se
+     centran en el espacio libre que queda debajo (margin-block: auto).
+     Con min-height el contenedor crece si no cabe, así que nunca se recorta */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow-y: auto;
 }
 
 /* BARRA SUPERIOR */
@@ -14,6 +23,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
 
   background: rgba(0, 0, 0, 0.65);
   padding: 15px 25px;
@@ -31,6 +43,7 @@
 .top-bar h1 {
   color: #ffe9a0;
   font-size: 42px;
+  margin: 0;
 }
 
 /* BOTON VOLVER */
@@ -70,6 +83,7 @@
   color: white;
 
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .gold {
@@ -85,6 +99,7 @@
 .separator {
   height: 6px;
   margin: 20px 0 40px;
+  flex-shrink: 0;
 }
 
 /* CARTAS */
@@ -97,11 +112,14 @@
   gap: 30px;
 
   flex-wrap: wrap;
+
+  /* Centra las tarjetas en el espacio libre bajo la barra superior */
+  margin: auto;
 }
 
 .card {
   width: 240px;
-  height: 280px;
+  min-height: 280px;
 
   display: flex;
   flex-direction: column;
@@ -129,7 +147,8 @@
 .card h2 {
   color: white;
   font-size: 40px;
-  margin-bottom: 20px;
+  margin: 0 0 20px;
+  text-align: center;
 }
 
 .buy-btn {
@@ -159,6 +178,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 16px;
+  /* Si el modal no cabe, se desplaza en vez de recortarse */
+  overflow-y: auto;
   z-index: 9999;
 }
 
@@ -180,4 +202,152 @@
   font-size: 1.5rem;
   font-weight: 300;
   transform: translate(-1px, -1px);
+}
+
+/* ==========================================================================
+   PANTALLAS INTERMEDIAS: las 4 tarjetas siguen en una fila, algo más
+   pequeñas para no desbordar.
+   ========================================================================== */
+@media (max-width: 1139px) {
+  .shop {
+    padding: 16px;
+  }
+
+  .top-bar {
+    padding: 12px 18px;
+  }
+
+  .top-bar h1 {
+    font-size: 34px;
+  }
+
+  .back-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 32px;
+  }
+
+  .back-btn .back-ico {
+    font-size: 1.3rem;
+  }
+
+  .currencies {
+    gap: 8px;
+  }
+
+  .currency {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .separator {
+    height: 4px;
+    margin: 14px 0 28px;
+  }
+
+  .cards {
+    gap: 20px;
+  }
+
+  .card {
+    width: 210px;
+    min-height: 230px;
+  }
+
+  .icon {
+    width: 72px;
+    margin-bottom: 12px;
+  }
+
+  .card h2 {
+    font-size: 30px;
+    margin-bottom: 14px;
+  }
+
+  .buy-btn {
+    padding: 8px 18px;
+  }
+}
+
+/* ==========================================================================
+   MÓVIL: rejilla 2x2 de tarjetas
+   ========================================================================== */
+@media (max-width: 900px) {
+  .shop {
+    padding: 10px 8px;
+  }
+
+  .top-bar {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .back-btn {
+    grid-row: 1;
+    width: 38px;
+    height: 38px;
+    font-size: 24px;
+  }
+
+  .back-btn .back-ico {
+    font-size: 1.1rem;
+  }
+
+  .top-bar h1 {
+    grid-row: 1;
+    text-align: left;
+    font-size: 22px;
+  }
+
+  .currencies {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .currency {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .separator {
+    height: 3px;
+    margin: 8px 0 12px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .card {
+    width: 100%;
+    min-height: 150px;
+    border-width: 2px;
+    border-radius: 16px;
+    padding: 10px 6px;
+  }
+
+  .icon {
+    width: 44px;
+    margin-bottom: 6px;
+  }
+
+  .card h2 {
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+
+  .buy-btn {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+  }
 }
