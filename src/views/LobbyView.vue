@@ -52,21 +52,22 @@
           <div class="profile-info">
             <p class="profile-line">
               Nombre: {{ progress.displayName }}
-              <span v-if="banderaSrc" class="flag-icon" :aria-label="`Bandera de ${paisNombre}`">
-                <img :src="banderaSrc" :alt="`Bandera de ${paisNombre}`" />
-              </span>
-              <span v-if="paisNombre" class="pais-nombre">{{ paisNombre }}</span>
-              <span
-                v-if="genderSymbol"
-                class="gender-icon"
-                :class="usuario?.genero === 'F' ? 'is-female' : 'is-male'"
-                aria-hidden="true"
-              >
-                {{ genderSymbol }}
+              <span class="marca-perfil">
+                <span v-if="paisNombre" class="pais-nombre">{{ paisNombre }}</span>
+                <span v-if="banderaSrc" class="flag-icon" :aria-label="`Bandera de ${paisNombre}`">
+                  <img :src="banderaSrc" :alt="`Bandera de ${paisNombre}`" />
+                </span>
+                <span
+                  v-if="genderSymbol"
+                  class="gender-icon"
+                  :class="usuario?.genero === 'F' ? 'is-female' : 'is-male'"
+                  :aria-label="generoTexto"
+                >
+                  {{ genderSymbol }}
+                </span>
               </span>
             </p>
             <p v-if="usuario?.correo" class="profile-line">Correo: {{ usuario.correo }}</p>
-            <p v-if="fechaPerfil" class="profile-line">Nacimiento: {{ fechaPerfil }}</p>
             <p class="profile-line">Nivel: {{ progress.campaignLevel }}</p>
             <p class="profile-line xp-line">Experiencia: {{ progress.xp }} XP</p>
             <div class="xp-bar" aria-hidden="true">
@@ -158,61 +159,22 @@
         </section>
 
         <section class="settings-section">
-          <h3>PERFIL</h3>
-          <label class="perfil-campo">
-            <span>NOMBRE</span>
-            <input v-model="draftName" type="text" maxlength="40" autocomplete="username" />
-          </label>
-          <label class="perfil-campo">
-            <span>CORREO</span>
-            <input v-model="draftCorreo" type="text" autocomplete="email" />
-          </label>
-          <label class="perfil-campo">
-            <span>PAÍS</span>
-            <select v-model="draftPais">
-              <option value="">Sin país</option>
-              <optgroup v-for="region in REGIONES" :key="region.nombre" :label="region.nombre">
-                <option v-for="codigo in region.codigos" :key="codigo" :value="codigo">
-                  {{ nombrePais(codigo) }}
-                </option>
-              </optgroup>
-            </select>
-          </label>
-          <label class="perfil-campo">
-            <span>HOMBRE O MUJER</span>
-            <select v-model="draftGenero">
-              <option value="">Sin elegir</option>
-              <option value="M">Hombre</option>
-              <option value="F">Mujer</option>
-            </select>
-          </label>
-          <label class="perfil-campo">
-            <span>FECHA DE NACIMIENTO</span>
-            <input v-model="draftFecha" type="date" />
-          </label>
+          <h3>CUENTA</h3>
+          <div class="name-change-box">
+            <span class="name-change-label">CAMBIO DE NOMBRE</span>
+            <input
+              v-model="draftName"
+              type="text"
+              class="name-input"
+              placeholder="Nuevo Nombre"
+              maxlength="40"
+              autocomplete="username"
+              aria-label="Nuevo nombre de usuario"
+            />
+          </div>
         </section>
 
-        <section class="settings-section">
-          <h3>CONTRASEÑA</h3>
-          <p class="perfil-ayuda">Déjala vacía si no quieres cambiarla. Para cambiar el correo o la contraseña escribe la actual.</p>
-          <label class="perfil-campo">
-            <span>CONTRASEÑA ACTUAL</span>
-            <input v-model="draftClaveActual" type="password" autocomplete="current-password" />
-          </label>
-          <label class="perfil-campo">
-            <span>CONTRASEÑA NUEVA</span>
-            <input v-model="draftClave" type="password" autocomplete="new-password" />
-          </label>
-          <label class="perfil-campo">
-            <span>CONFIRMAR CONTRASEÑA</span>
-            <input v-model="draftClave2" type="password" autocomplete="new-password" />
-          </label>
-        </section>
-
-        <p v-if="errorPerfil" class="perfil-error">{{ errorPerfil }}</p>
-        <button type="button" class="btn-save" :disabled="guardando" @click="saveSettings">
-          {{ guardando ? 'GUARDANDO…' : 'GUARDAR CAMBIOS' }}
-        </button>
+        <button type="button" class="btn-save" @click="saveSettings">GUARDAR CAMBIOS</button>
       </div>
     </div>
 
@@ -229,9 +191,8 @@ import { useRouter } from 'vue-router'
 import '../assets/css/lobby.css'
 import { useProgressStore } from '../stores/progress'
 import { useAuthStore } from '../stores/auth'
-import { ApiError } from '../api/cliente'
 import { useAudioStore } from '../stores/audio'
-import { banderaUrl, codigoPais, nombrePais, REGIONES } from '../domain/identidad/paises'
+import { banderaUrl, nombrePais } from '../domain/identidad/paises'
 
 const router = useRouter()
 const progress = useProgressStore()
@@ -252,39 +213,16 @@ const genderSymbol = computed(() => {
   return g === 'M' ? '♂' : g === 'F' ? '♀' : ''
 })
 
-const fechaPerfil = computed(() => {
-  const iso = fechaCorta(usuario.value?.fechaNacimiento)
-  if (!iso) return ''
-  const [anio, mes, dia] = iso.split('-')
-  return `${dia}/${mes}/${anio}`
+const generoTexto = computed(() => {
+  const g = usuario.value?.genero
+  return g === 'M' ? 'Hombre' : g === 'F' ? 'Mujer' : ''
 })
-
-function fechaCorta(valor: string | null | undefined): string {
-  if (!valor) return ''
-  const directa = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor)
-  if (directa) return `${directa[1]}-${directa[2]}-${directa[3]}`
-  const fecha = new Date(valor)
-  if (Number.isNaN(fecha.getTime())) return ''
-  const anio = fecha.getUTCFullYear()
-  const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0')
-  const dia = String(fecha.getUTCDate()).padStart(2, '0')
-  return `${anio}-${mes}-${dia}`
-}
 
 const showProfile = ref(false)
 const showSettings = ref(false)
 const showToast = ref(false)
-const guardando = ref(false)
-const errorPerfil = ref('')
 
 const draftName = ref(progress.displayName)
-const draftCorreo = ref('')
-const draftPais = ref('')
-const draftGenero = ref('')
-const draftFecha = ref('')
-const draftClaveActual = ref('')
-const draftClave = ref('')
-const draftClave2 = ref('')
 
 const openProfile = () => {
   showSettings.value = false
@@ -297,16 +235,7 @@ const closeProfile = () => {
 
 const openSettings = () => {
   showProfile.value = false
-  const cuenta = usuario.value
-  draftName.value = cuenta?.nombre || progress.displayName
-  draftCorreo.value = cuenta?.correo ?? ''
-  draftPais.value = codigoPais(cuenta?.nacionalidad)
-  draftGenero.value = cuenta?.genero === 'M' || cuenta?.genero === 'F' ? cuenta.genero : ''
-  draftFecha.value = fechaCorta(cuenta?.fechaNacimiento)
-  draftClaveActual.value = ''
-  draftClave.value = ''
-  draftClave2.value = ''
-  errorPerfil.value = ''
+  draftName.value = progress.displayName
   showSettings.value = true
 }
 
@@ -315,58 +244,14 @@ const closeSettings = () => {
 }
 
 const saveSettings = async () => {
-  errorPerfil.value = ''
-  const nombre = draftName.value.trim()
-  const correo = draftCorreo.value.trim()
-  if (!nombre) {
-    errorPerfil.value = 'Escribe un nombre.'
-    return
-  }
-  if (!correo.includes('@')) {
-    errorPerfil.value = 'El correo no es válido.'
-    return
-  }
-  const correoCambia = correo.toLowerCase() !== (usuario.value?.correo ?? '').toLowerCase()
-  if ((draftClave.value || draftClave2.value || correoCambia) && !draftClaveActual.value) {
-    errorPerfil.value = 'Escribe tu contraseña actual para cambiar el correo o la contraseña.'
-    return
-  }
-  if (draftClave.value || draftClave2.value) {
-    if (draftClave.value.length < 4) {
-      errorPerfil.value = 'La contraseña nueva debe tener al menos 4 caracteres.'
-      return
-    }
-    if (draftClave.value !== draftClave2.value) {
-      errorPerfil.value = 'Las contraseñas nuevas no coinciden.'
-      return
-    }
-  }
-  guardando.value = true
-  try {
-    await auth.actualizarPerfil({
-      nombre,
-      correo,
-      nacionalidad: draftPais.value || null,
-      genero: draftGenero.value || null,
-      fechaNacimiento: draftFecha.value || null,
-      claveActual: draftClaveActual.value || undefined,
-      claveNueva: draftClave.value || undefined,
-    })
-    await progress.setDisplayName(nombre)
-    draftClaveActual.value = ''
-    draftClave.value = ''
-    draftClave2.value = ''
+  const next = draftName.value.trim()
+  if (next) await progress.setDisplayName(next)
+  window.setTimeout(() => {
+    showToast.value = true
     window.setTimeout(() => {
-      showToast.value = true
-      window.setTimeout(() => {
-        showToast.value = false
-      }, 2400)
-    }, 350)
-  } catch (error) {
-    errorPerfil.value = error instanceof ApiError ? error.message : 'No se pudo guardar el perfil.'
-  } finally {
-    guardando.value = false
-  }
+      showToast.value = false
+    }, 2400)
+  }, 350)
 }
 
 const switchAccount = () => {

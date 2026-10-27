@@ -41,12 +41,12 @@ const {
       <div class="form-grid">
         <div class="campo">
           <label>Nombre de usuario</label>
-          <input v-model="username" type="text" placeholder="INGRESE SU NOMBRE DE USUARIO" />
+          <input v-model="username" type="text" required placeholder="INGRESE SU NOMBRE DE USUARIO" />
         </div>
 
         <div class="campo">
           <label>Nacionalidad</label>
-          <select v-model="nacionalidad" class="select-pais">
+          <select v-model="nacionalidad" class="select-pais" required>
             <option value="">Selecciona un país</option>
             <optgroup
               v-for="region in REGIONES"
@@ -66,27 +66,27 @@ const {
 
         <div class="campo">
           <label>Correo Electrónico</label>
-          <input v-model="email" type="text" placeholder="INGRESE SU CORREO" />
+          <input v-model="email" type="text" required placeholder="INGRESE SU CORREO" />
         </div>
 
         <div class="campo">
           <label>Confirmar Correo</label>
-          <input v-model="confirmarEmail" type="text" placeholder="CONFIRME SU CORREO" />
+          <input v-model="confirmarEmail" type="text" required placeholder="CONFIRME SU CORREO" />
         </div>
 
         <div class="campo">
           <label>Contraseña</label>
-          <input v-model="password" type="password" placeholder="INGRESE SU CONTRASEÑA" />
+          <input v-model="password" type="password" required placeholder="INGRESE SU CONTRASEÑA" />
         </div>
 
         <div class="campo">
           <label>Confirmar Contraseña</label>
-          <input v-model="confirmPassword" type="password" placeholder="CONFIRME SU CONTRASEÑA" />
+          <input v-model="confirmPassword" type="password" required placeholder="CONFIRME SU CONTRASEÑA" />
         </div>
 
         <div class="campo">
           <label>Género</label>
-          <select v-model="genero" class="select-genero">
+          <select v-model="genero" class="select-genero" required>
             <option value="">Selecciona tu género</option>
             <option value="M">♂️ Hombre</option>
             <option value="F">♀️ Mujer</option>
@@ -95,7 +95,7 @@ const {
 
         <div class="campo">
           <label>Fecha de Nacimiento</label>
-          <input v-model="fechaNacimiento" type="date" />
+          <input v-model="fechaNacimiento" type="date" required />
         </div>
       </div>
 
