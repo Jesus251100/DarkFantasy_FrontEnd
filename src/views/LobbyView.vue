@@ -141,8 +141,8 @@
               Volumen
             </span>
             <div class="slider-control">
-              <input v-model.number="settings.volume" type="range" min="0" max="100" />
-              <em>{{ settings.volume }}%</em>
+              <input v-model.number="audio.volume" type="range" min="0" max="100" />
+              <em>{{ audio.volume }}%</em>
             </div>
           </label>
           <label class="slider-row">
@@ -151,8 +151,8 @@
               Efectos de sonido
             </span>
             <div class="slider-control">
-              <input v-model.number="settings.sfx" type="range" min="0" max="100" />
-              <em>{{ settings.sfx }}%</em>
+              <input v-model.number="audio.sfx" type="range" min="0" max="100" />
+              <em>{{ audio.sfx }}%</em>
             </div>
           </label>
         </section>
@@ -224,17 +224,19 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import '../assets/css/lobby.css'
 import { useProgressStore } from '../stores/progress'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/cliente'
+import { useAudioStore } from '../stores/audio'
 import { banderaUrl, codigoPais, nombrePais, REGIONES } from '../domain/identidad/paises'
 
 const router = useRouter()
 const progress = useProgressStore()
 const auth = useAuthStore()
+const audio = useAudioStore()
 
 const usuario = computed(() => auth.usuario)
 
@@ -274,11 +276,6 @@ const showSettings = ref(false)
 const showToast = ref(false)
 const guardando = ref(false)
 const errorPerfil = ref('')
-
-const settings = reactive({
-  volume: 80,
-  sfx: 80,
-})
 
 const draftName = ref(progress.displayName)
 const draftCorreo = ref('')
