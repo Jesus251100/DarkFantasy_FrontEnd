@@ -66,6 +66,23 @@ export const useAuthStore = defineStore('auth', () => {
     return data.usuario
   }
 
+  async function actualizarPerfil(datos: {
+    nombre: string
+    correo: string
+    nacionalidad?: string | null
+    genero?: string | null
+    fechaNacimiento?: string | null
+    claveActual?: string
+    claveNueva?: string
+  }) {
+    const data = await api<AuthResponse>('/api/auth/perfil', {
+      method: 'PATCH',
+      body: JSON.stringify(datos),
+    })
+    persistir(data.token, data.usuario)
+    return data.usuario
+  }
+
   function setNombre(nombre: string) {
     if (!usuario.value) return
     usuario.value = { ...usuario.value, nombre }
@@ -74,6 +91,13 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       /* ignore */
     }
+  }
+
+  async function refrescar() {
+    if (!leerToken()) return
+    const data = await api<{ usuario: UsuarioSesion }>('/api/auth/me')
+    const token = leerToken()
+    if (token) persistir(token, data.usuario)
   }
 
   function cerrar() {
@@ -87,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  return { usuario, autenticado, esAdmin, login, registrar, setNombre, cerrar }
+  return { usuario, autenticado, esAdmin, login, registrar, actualizarPerfil, setNombre, refrescar, cerrar }
 })
 
 function leerToken() {

@@ -58,21 +58,49 @@ export const REGIONES: PaisRegion[] = [
 /** Todos los códigos de país disponibles, aplastados en un solo array. */
 export const TODOS_LOS_CODIGOS: CodigoPais[] = REGIONES.flatMap((r) => r.codigos)
 
-/** Devuelve la URL de la imagen de bandera de un país, o '' si no existe. */
-export function banderaUrl(codigo: CodigoPais | null | undefined): string {
-  if (!codigo) return ''
-  return `/flags/${codigo.toLowerCase()}.png`
+function sinTildes(valor: string): string {
+  return valor.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 }
 
-/** Devuelve el nombre del país en español, o el código en mayúsculas si no se puede resolver. */
-export function nombrePais(codigo: CodigoPais | null | undefined): string {
-  if (!codigo) return ''
+function nombreDeCodigo(codigo: string): string {
   try {
-    const nombre = new Intl.DisplayNames(['es'], { type: 'region' }).of(
-      codigo.toUpperCase(),
-    )
-    return nombre ?? codigo.toUpperCase()
+    return new Intl.DisplayNames(['es'], { type: 'region' }).of(codigo.toUpperCase()) ?? codigo.toUpperCase()
   } catch {
     return codigo.toUpperCase()
   }
+}
+
+const nombreACodigo = new Map<string, string>()
+let nombresListos = false
+
+function asegurarNombres(): void {
+  if (nombresListos) return
+  nombresListos = true
+  for (const codigo of TODOS_LOS_CODIGOS) {
+    nombreACodigo.set(sinTildes(nombreDeCodigo(codigo)), codigo)
+  }
+  nombreACodigo.set('colombia', 'co')
+}
+
+/** Acepta el código (`co`) o el nombre (`Colombia`). */
+export function codigoPais(valor: CodigoPais | null | undefined): string {
+  if (!valor) return ''
+  const limpio = valor.trim().toLowerCase()
+  if (TODOS_LOS_CODIGOS.includes(limpio)) return limpio
+  asegurarNombres()
+  return nombreACodigo.get(sinTildes(valor)) ?? ''
+}
+
+/** Devuelve la URL de la imagen de bandera de un país, o '' si no existe. */
+export function banderaUrl(codigo: CodigoPais | null | undefined): string {
+  const iso = codigoPais(codigo)
+  if (!iso) return ''
+  return `/flags/${iso}.png`
+}
+
+/** Devuelve el nombre del país en español. */
+export function nombrePais(codigo: CodigoPais | null | undefined): string {
+  const iso = codigoPais(codigo)
+  if (!iso) return ''
+  return nombreDeCodigo(iso)
 }

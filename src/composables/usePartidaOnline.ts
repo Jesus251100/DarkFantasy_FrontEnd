@@ -163,9 +163,12 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function enviarChat(texto: string) {
-    const limpio = texto.trim()
+    const limpio = texto.trim().slice(0, 80)
     if (!limpio) return
-    socket.emit('chat:send', { texto: limpio })
+    const mandar = () => socket.emit('chat:send', { texto: limpio })
+    conectar()
+    if (socket.connected) mandar()
+    else socket.once('connect', mandar)
   }
 
   function crearSala() {

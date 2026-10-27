@@ -21,6 +21,6 @@ const irRegistro = () => {
 }
 
 const irLogin = () => {
-  router.push({ path: '/tipo-user', query: { mode: 'login' } })
+  router.push('/login')
 }
 </script>

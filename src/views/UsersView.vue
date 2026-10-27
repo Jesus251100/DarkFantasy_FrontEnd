@@ -59,7 +59,8 @@
             </div>
 
             <div class="country-cell">
-              <span class="flag">{{ user.countryFlag }}</span>
+              <img v-if="user.countryFlag" class="flag-img" :src="user.countryFlag" alt="" />
+              <span v-else class="flag">—</span>
             </div>
 
             <div class="status-cell">
@@ -133,6 +134,7 @@ import { computed, onMounted, ref } from 'vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { ConsultarAdmin } from '@/application/ConsultarAdmin'
 import { ApiAdminCliente } from '@/infrastructure/ApiAdminCliente'
+import { banderaUrl } from '@/domain/identidad/paises'
 import avMessi from '@/assets/img/avatars/user-messironaldo107.png'
 import avMimami from '@/assets/img/avatars/user-mimami456.png'
 import avDonpollo from '@/assets/img/avatars/user-donpollo67.png'
@@ -182,7 +184,7 @@ onMounted(async () => {
         level: Math.max(1, completed),
         coins: u.coins,
         gems: u.diamonds,
-        countryFlag: u.rol === 'administrador' ? '🛡️' : '🎮',
+        countryFlag: banderaUrl(u.nacionalidad),
         status: 'Conectado',
         avatar: AVATARES[i % AVATARES.length] ?? avMessi,
         xp: completed * 100,
@@ -417,6 +419,15 @@ const selected = computed(() => users.value.find((u) => u.id === selectedId.valu
 .flag {
   font-size: 1.25rem;
   line-height: 1;
+}
+
+.flag-img {
+  width: 36px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  vertical-align: middle;
 }
 
 .country-cell {

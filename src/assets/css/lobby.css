@@ -400,15 +400,21 @@ body,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  border-radius: 50%;
+  width: 36px;
+  height: 24px;
+  min-width: 36px;
+  border-radius: 3px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.35);
   margin-left: 6px;
   vertical-align: middle;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.pais-nombre {
+  margin-left: 6px;
+  color: #d7e6f5;
+  font-size: 0.92rem;
 }
 
 .flag-icon img {
@@ -544,7 +550,9 @@ body,
 }
 
 .settings-modal {
-  width: min(300px, 100%);
+  width: min(380px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
   background: linear-gradient(180deg, #1c222c 0%, #141820 100%);
   border: 2px solid rgba(190, 155, 70, 0.75);
   border-radius: 12px;
@@ -557,8 +565,24 @@ body,
 }
 
 .settings-header {
+  position: relative;
   text-align: center;
   margin-bottom: 14px;
+}
+
+.settings-header .btn-atras {
+  position: absolute;
+  left: 0;
+  top: -4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 200, 255, 0.55);
+  background: rgba(4, 16, 40, 0.8);
+  color: #e8f4ff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .settings-header h2 {
@@ -687,6 +711,50 @@ body,
 .name-input:focus {
   border-bottom-color: #e8c86a;
   box-shadow: 0 1px 0 rgba(232, 200, 106, 0.35);
+}
+
+.perfil-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.perfil-campo span {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: #c8b070;
+}
+
+.perfil-campo input,
+.perfil-campo select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(180, 150, 70, 0.45);
+  border-radius: 8px;
+  background: rgba(12, 14, 18, 0.9);
+  color: #f0e8c8;
+  padding: 8px 10px;
+}
+
+.perfil-ayuda,
+.perfil-error {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.perfil-ayuda {
+  color: #b7c6dc;
+}
+
+.perfil-error {
+  color: #ffb4b4;
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .btn-save {

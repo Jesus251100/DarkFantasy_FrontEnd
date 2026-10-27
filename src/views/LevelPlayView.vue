@@ -122,11 +122,18 @@ const nextLevelNum = computed(() => {
  * Bolas que el jugador no marcó. La última, si está en el cartón, espera
  * al siguiente canto para darle tiempo a pulsarla.
  * Con 5 aparece la nube al 20%. Cada 2 más suma otro 20%, hasta 100%.
+ * Cada número marcado le quita 10% para que el cartón se vea de nuevo.
  */
 const opacidadNube = computed(() => {
   if (!oscuridad.value || (status.value !== 'playing' && status.value !== 'paused')) return 0
   const llamadas = calledList.value
   let sinMarca = 0
+  let marcas = 0
+  for (const board of cards.value) {
+    for (const cell of board) {
+      if (!cell.free && cell.marked) marcas++
+    }
+  }
   for (let i = 0; i < llamadas.length; i++) {
     const numero = llamadas[i]
     let enCarton = false
@@ -142,7 +149,8 @@ const opacidadNube = computed(() => {
     if (!enCarton || i < llamadas.length - 1) sinMarca++
   }
   if (sinMarca < 5) return 0
-  return Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
+  const base = Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
+  return Math.max(0, base - marcas * 10)
 })
 
 function cellClass(cell: BingoCell, cellIndex: number, cardIndex: number) {
@@ -389,7 +397,7 @@ function onVictoryNext() {
           {{ methodLabel
           }}<template v-if="definicion.fases.length > 1">
             · Fase {{ phase }}/{{ definicion.fases.length }}</template
-          ><template v-if="oscuridad"> · Oscuridad</template>
+          ><template v-if="oscuridad"> · Noches de eclipse</template>
         </p>
       </div>
 
@@ -529,6 +537,7 @@ function onVictoryNext() {
   gap: 14px;
   padding: 20px 28px 16px;
   min-width: 0;
+  overflow: visible;
   background: linear-gradient(180deg, rgba(106, 112, 113, 0.78) 0%, rgba(85, 95, 97, 0.84) 100%);
   border: 2px solid rgba(175, 185, 188, 0.55);
   border-radius: 18px;
@@ -549,24 +558,20 @@ function onVictoryNext() {
 
 .grid-nube {
   position: relative;
+  z-index: 2;
 }
 
 .nube-oscuridad {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 85%;
-  z-index: 4;
+  top: -46%;
+  left: -36%;
+  width: 172%;
+  height: 168%;
+  z-index: 6;
   pointer-events: none;
-  border-radius: 42% 50% 38% 46% / 22% 28% 18% 24%;
-  background:
-    radial-gradient(ellipse 36% 46% at 16% 58%, rgba(236, 241, 248, 0.95) 0%, rgba(236, 241, 248, 0) 70%),
-    radial-gradient(ellipse 44% 52% at 50% 36%, rgba(198, 208, 222, 0.92) 0%, rgba(198, 208, 222, 0) 72%),
-    radial-gradient(ellipse 38% 48% at 84% 60%, rgba(220, 228, 238, 0.94) 0%, rgba(220, 228, 238, 0) 70%),
-    linear-gradient(180deg, #323c50 0%, #1c2433 46%, #121722 100%);
-  filter: blur(1.4px);
-  box-shadow: inset 0 0 16px rgba(255, 255, 255, 0.16);
+  background: url('../assets/img/eclipse.jpg') center / cover no-repeat;
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
   transition: opacity 0.7s ease;
 }
 

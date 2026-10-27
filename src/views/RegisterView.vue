@@ -1,9 +1,12 @@
 <script lang="ts" setup>
 import '../assets/css/register.css'
+import { useRouter } from 'vue-router'
 import AccountCreatedOverlay from '../components/AccountCreatedOverlay.vue'
 import VerifyEmailModal from '../components/VerifyEmailModal.vue'
 import { useRegistro } from '../composables/useRegistro'
 import { REGIONES, nombrePais } from '../domain/identidad/paises'
+
+const router = useRouter()
 
 const {
   username,
@@ -31,6 +34,7 @@ const {
 
 <template>
   <div class="login-page">
+    <button type="button" class="btn-atras" aria-label="Volver" @click="router.push('/')">←</button>
     <div class="login-card">
       <img src="../assets/img/logo.png" class="logo" alt="Dark Fantasy" />
 
@@ -121,6 +125,26 @@ const {
 </template>
 
 <style scoped>
+.btn-atras {
+  position: fixed;
+  top: 22px;
+  left: 22px;
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid rgba(0, 200, 255, 0.55);
+  background: rgba(4, 16, 40, 0.8);
+  color: #e8f4ff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-atras:hover {
+  background: rgba(0, 70, 130, 0.9);
+}
+
 .reg-toast {
   position: fixed;
   top: 28px;

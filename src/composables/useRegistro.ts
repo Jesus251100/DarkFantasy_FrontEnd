@@ -1,5 +1,6 @@
 import { computed, onUnmounted, shallowRef } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { destinoTrasLogin } from '../router/destino'
 import { api, ApiError } from '../api/cliente'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
@@ -8,6 +9,7 @@ type SolicitudCodigo = { ok: boolean; bandeja?: string }
 
 export function useRegistro() {
   const router = useRouter()
+  const route = useRoute()
   const auth = useAuthStore()
   const progress = useProgressStore()
 
@@ -155,7 +157,7 @@ export function useRegistro() {
     if (createdTimer) clearTimeout(createdTimer)
     createdTimer = setTimeout(() => {
       showAccountCreated.value = false
-      router.push('/lobby')
+      router.push(destinoTrasLogin(route.query.next))
     }, 4000)
   }
 

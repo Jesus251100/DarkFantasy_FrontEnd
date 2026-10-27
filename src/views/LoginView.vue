@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import '../assets/css/login.css'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { destinoTrasLogin } from '../router/destino'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 import { ApiError } from '../api/cliente'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
@@ -14,7 +16,7 @@ const cargando = ref(false)
 const auth = useAuthStore()
 const progress = useProgressStore()
 
-async function ingresarJugador() {
+async function ingresar() {
   error.value = ''
   if (!email.value.trim() || !password.value) {
     error.value = 'Ingresa correo y contraseña'
@@ -22,25 +24,26 @@ async function ingresarJugador() {
   }
   cargando.value = true
   try {
-    await auth.login(email.value.trim(), password.value, 'jugador')
+    const usuario = await auth.login(email.value.trim(), password.value)
     await progress.hidratarDesdeApi()
-    router.push('/lobby')
+    const next = route.query.next
+    if (usuario.rol === 'administrador' && !next) {
+      router.push('/dashboard')
+      return
+    }
+    router.push(destinoTrasLogin(next))
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'No se pudo conectar con el servidor'
   } finally {
     cargando.value = false
   }
 }
-
-function volverTipoUser() {
-  router.push({ path: '/tipo-user', query: { mode: 'login' } })
-}
 </script>
 
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <p class="role-badge">JUGADOR</p>
+    <button type="button" class="btn-atras" aria-label="Volver" @click="router.push('/')">←</button>
+    <form class="login-card" @submit.prevent="ingresar">
       <h2 class="titulo">INICIO DE SESIÓN</h2>
 
       <img src="../assets/img/logo.png" alt="Dark Fantasy" class="logo" />
@@ -66,15 +69,11 @@ function volverTipoUser() {
       </div>
 
       <p v-if="error" class="login-error">{{ error }}</p>
-      <div class="olvido">¿Olvidaste tu contraseña?</div>
-      <button type="button" class="btn-login" :disabled="cargando" @click="ingresarJugador">
+      <button type="button" class="olvido" @click="router.push('/recuperar')">¿Olvidaste tu contraseña?</button>
+      <button type="submit" class="btn-login" :disabled="cargando">
         {{ cargando ? 'INGRESANDO…' : 'INGRESAR' }}
       </button>
-
-      <button type="button" class="btn-back-role" @click="volverTipoUser">
-        ← Cambiar tipo de perfil
-      </button>
-    </div>
+    </form>
   </div>
 </template>
 
@@ -87,28 +86,39 @@ function volverTipoUser() {
   text-align: center;
 }
 
-.role-badge {
-  margin: 0 0 8px;
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: #7ad7ff;
-  text-transform: uppercase;
-}
-
-.btn-back-role {
-  margin-top: 14px;
-  width: 100%;
+.olvido {
+  display: block;
+  margin: 0 0 18px auto;
+  padding: 0;
   border: none;
-  background: transparent;
-  color: rgba(220, 230, 240, 0.75);
-  font-size: 0.85rem;
+  background: none;
+  color: #d9d9d9;
+  font-size: 12px;
   cursor: pointer;
-  padding: 8px;
+  text-decoration: underline;
 }
 
-.btn-back-role:hover {
+.olvido:hover {
   color: #fff;
+}
+
+.btn-atras {
+  position: fixed;
+  top: 22px;
+  left: 22px;
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid rgba(0, 200, 255, 0.55);
+  background: rgba(4, 16, 40, 0.8);
+  color: #e8f4ff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-atras:hover {
+  background: rgba(0, 70, 130, 0.9);
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
   <div class="online">
+    <button type="button" class="btn-atras" aria-label="Volver" @click="atras">←</button>
     <section v-if="mostrarCarga" class="carga">
       <div
         class="aro-wrap"
@@ -56,6 +57,7 @@
 
         <div class="carton-wrap" :class="{ congelado: estoyCongelado, sabotaje: estoySaboteado, suerte: tengoSuerte }">
           <p class="letras">BINGO</p>
+          <p class="eclipse-nombre">Noches de eclipse</p>
           <div class="board" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
             <button
               v-for="(c, i) in tuCarton"
@@ -69,6 +71,12 @@
               <span v-else>{{ c.number }}</span>
             </button>
           </div>
+          <div
+            v-if="opacidadEclipse > 0"
+            class="eclipse-online"
+            :style="{ opacity: opacidadEclipse / 100 }"
+            aria-hidden="true"
+          ></div>
         </div>
 
         <aside class="lista">
@@ -83,6 +91,7 @@
               <span class="estado">{{ j.conectado ? 'en juego' : 'fuera' }}</span>
             </li>
           </ul>
+          <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
         </aside>
       </div>
 
@@ -133,7 +142,11 @@
       <div class="centro room-centro">
         <p class="titulo">ROOM</p>
         <p class="codigo">{{ espera.codigo }}</p>
-        <p class="hint">Comparte el código para que entren a la sala.</p>
+        <p class="hint">Tu amigo debe abrir este enlace en su portátil. Si lo escribe en su propio localhost, la sala no existe allá.</p>
+        <p class="enlace">{{ enlaceSala || 'Buscando la dirección de esta red…' }}</p>
+        <button type="button" class="accion" :disabled="!enlaceSala" @click="copiarEnlace">
+          {{ copiado ? 'ENLACE COPIADO' : 'COPIAR ENLACE' }}
+        </button>
         <aside class="panel lista-room">
           <h2>LISTA DE JUGADORES</h2>
           <ul>
@@ -149,6 +162,7 @@
         </aside>
         <button v-if="soyAnfitrion" type="button" class="accion" @click="empezar">JUGAR</button>
         <p v-else class="hint">Esperando a que el anfitrión empiece.</p>
+        <ChatSala :mensajes="chat" @enviar="enviarTexto" />
         <button type="button" class="accion suave" @click="volverSala">SALIR</button>
       </div>
     </section>
@@ -161,18 +175,7 @@
       </header>
 
       <div class="cuerpo">
-        <aside class="panel chat">
-          <h2>Chat de jugadores</h2>
-          <ul ref="listaChat">
-            <li v-for="m in chat" :key="m.id">
-              <strong>{{ m.nombre }}:</strong> {{ m.texto }}
-            </li>
-            <li v-if="chat.length === 0" class="vacio">Todavía no hay mensajes.</li>
-          </ul>
-          <form @submit.prevent="enviar">
-            <input v-model="borrador" maxlength="80" placeholder="Escribe un mensaje" />
-          </form>
-        </aside>
+        <ChatSala lleno :mensajes="chat" @enviar="enviarTexto" />
 
         <div class="centro">
           <p class="titulo">MODO ONLINE</p>
@@ -207,7 +210,7 @@
         <h2>UNIRSE</h2>
         <p>Escribe el código de la sala.</p>
         <input v-model="codigo" maxlength="4" placeholder="CÓDIGO" />
-        <p v-if="errorSala" class="error">{{ errorSala }}</p>
+        <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
         <div class="acciones-modal">
           <button type="submit" class="accion">ENTRAR</button>
           <button type="button" class="accion suave" @click="abriendoUnion = false">CANCELAR</button>
@@ -242,13 +245,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 import { usePartidaOnline } from '../composables/usePartidaOnline'
 import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { retratoPorNombre } from '../game/portraits'
+import ChatSala from '../components/ChatSala.vue'
 import MethodPatternPreview from '../components/MethodPatternPreview.vue'
 import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
 import type { BingoCell } from '../domain/bingo/tipos'
@@ -278,6 +282,7 @@ const BOOSTERS = [
 ] as const
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const progress = useProgressStore()
 const usuarioId = auth.usuario?.id ?? ''
@@ -306,11 +311,35 @@ const {
   errorSala,
 } = online
 
+const opacidadEclipse = computed(() => {
+  if (fase.value !== 'jugando') return 0
+  const llamadas = cantadas.value
+  const carton = tuCarton.value
+  let sinMarca = 0
+  let marcasHechas = 0
+  for (const cell of carton) {
+    if (!cell.free && cell.marked) marcasHechas++
+  }
+  for (let i = 0; i < llamadas.length; i++) {
+    const numero = llamadas[i]
+    const celda = carton.find((cell) => !cell.free && cell.number === numero)
+    if (!celda) {
+      if (i < llamadas.length - 1) sinMarca++
+      continue
+    }
+    if (celda.marked) continue
+    if (i < llamadas.length - 1) sinMarca++
+  }
+  if (sinMarca < 5) return 0
+  const base = Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
+  return Math.max(0, base - marcasHechas * 10)
+})
+
 const boosters = BOOSTERS
-const borrador = ref('')
 const codigo = ref('')
 const abriendoUnion = ref(false)
-const listaChat = ref<HTMLUListElement | null>(null)
+const ipRed = ref('')
+const copiado = ref(false)
 const cargaPorcentaje = ref(1)
 const entrada = ref(false)
 const boosterActivo = ref<number | null>(null)
@@ -334,6 +363,18 @@ const metodoNombre = computed(() =>
   metodoVictoria.value ? nombreMetodo(metodoVictoria.value) : 'Elige el método',
 )
 const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
+const enlaceSala = computed(() => {
+  const salaCodigo = espera.value?.codigo
+  if (!salaCodigo || !ipRed.value) return ''
+  const puerto = location.port ? `:${location.port}` : ''
+  return `${location.protocol}//${ipRed.value}${puerto}/online?sala=${salaCodigo}`
+})
+const textoErrorSala = computed(() => {
+  if (errorSala.value === 'Esa sala no existe.') {
+    return 'Esa sala no existe en este computador. Abre el enlace que te pasó tu amigo. El código no sirve si cada uno entra por su propio localhost.'
+  }
+  return errorSala.value
+})
 const apuntando = computed(() => {
   const id = boosterActivo.value
   if (id === null) return false
@@ -395,12 +436,6 @@ watch(fase, (valor, anterior) => {
   }
 })
 
-watch(chat, async () => {
-  await nextTick()
-  const lista = listaChat.value
-  if (lista) lista.scrollTop = lista.scrollHeight
-})
-
 function inicial(nombre: string): string {
   return nombre.trim().charAt(0).toUpperCase() || '?'
 }
@@ -451,7 +486,29 @@ function cancelarBusqueda() {
   online.cancelar()
 }
 
+async function buscarIpRed() {
+  const host = location.hostname
+  if (host !== 'localhost' && host !== '127.0.0.1') {
+    ipRed.value = host
+    return
+  }
+  try {
+    const respuesta = await fetch('/api/red-local')
+    const data = (await respuesta.json()) as { ip?: string }
+    if (data.ip) ipRed.value = data.ip
+  } catch {
+    ipRed.value = ''
+  }
+}
+
+async function copiarEnlace() {
+  if (!enlaceSala.value) return
+  await navigator.clipboard.writeText(enlaceSala.value)
+  copiado.value = true
+}
+
 function crear() {
+  copiado.value = false
   online.crearSala()
 }
 
@@ -490,9 +547,24 @@ function salir() {
   void router.push('/lobby')
 }
 
-function enviar() {
-  online.enviarChat(borrador.value)
-  borrador.value = ''
+function atras() {
+  if (mostrarCarga.value) {
+    cancelarBusqueda()
+    return
+  }
+  if (enPartida.value) {
+    salir()
+    return
+  }
+  if (espera.value) {
+    volverSala()
+    return
+  }
+  salir()
+}
+
+function enviarTexto(texto: string) {
+  online.enviarChat(texto)
 }
 
 function pulsarBooster(id: number) {
@@ -568,6 +640,13 @@ function alVuelo(evento: Event) {
 }
 
 onMounted(() => {
+  buscarIpRed()
+  const salaInvitada = String(route.query.sala ?? '').trim().toUpperCase()
+  if (/^[A-Z0-9]{4}$/.test(salaInvitada)) {
+    codigo.value = salaInvitada
+    abriendoUnion.value = true
+    online.unirseSala(salaInvitada)
+  }
   window.addEventListener('df-booster-vuelo', alVuelo)
   relojEfectos = setInterval(() => {
     ahora.value = Date.now()
@@ -660,6 +739,26 @@ onUnmounted(() => {
 .accion.suave,
 .btn-salir-carga {
   background: linear-gradient(180deg, #31425f, #1c283c);
+}
+
+.btn-atras {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 20;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid rgba(0, 200, 255, 0.55);
+  background: rgba(4, 16, 40, 0.8);
+  color: #e8f4ff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-atras:hover {
+  background: rgba(0, 70, 130, 0.9);
 }
 
 .hub {
@@ -900,6 +999,27 @@ onUnmounted(() => {
 .carton-wrap,
 .lista {
   text-align: center;
+}
+
+.carton-wrap {
+  position: relative;
+}
+
+.eclipse-nombre {
+  margin: 0 0 6px;
+  color: #f0d78c;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+}
+
+.eclipse-online {
+  position: absolute;
+  inset: 22% 6% 8%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: url('../assets/img/eclipse.jpg') center / cover no-repeat;
+  box-shadow: 0 0 36px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.7s ease;
 }
 
 .bola {
@@ -1189,6 +1309,15 @@ onUnmounted(() => {
   font-size: 2.4rem;
   letter-spacing: 0.4em;
   color: #f0d78c;
+}
+
+.enlace {
+  margin: 0;
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: #9fd0ff;
+  word-break: break-all;
 }
 
 .lista-room {

@@ -64,6 +64,7 @@ function confirmar() {
 <template>
   <div class="verify-backdrop" @click.self="emit('close')">
     <div class="verify-modal" role="dialog" aria-labelledby="verify-title">
+      <button type="button" class="btn-atras" aria-label="Volver" @click="emit('close')">←</button>
       <div class="verify-icon" aria-hidden="true">
         <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
           <rect x="8" y="14" width="48" height="36" rx="4" stroke="#7ec8e8" stroke-width="2.5" />
@@ -140,6 +141,7 @@ function confirmar() {
 }
 
 .verify-modal {
+  position: relative;
   width: min(300px, 100%);
   padding: 28px 24px 24px;
   border-radius: 16px;
@@ -150,6 +152,21 @@ function confirmar() {
     0 16px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
   color: #e8eef4;
+}
+
+.btn-atras {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 200, 255, 0.55);
+  background: rgba(4, 16, 40, 0.8);
+  color: #e8f4ff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .verify-icon {

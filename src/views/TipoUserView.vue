@@ -51,8 +51,9 @@ const elegir = (rol: 'jugador' | 'administrador') => {
     return
   }
 
-  // Jugador → registro o login de jugador
-  router.push(mode.value === 'register' ? '/register' : '/login')
+  const next = String(route.query.next ?? '')
+  const query = next.startsWith('/') && !next.startsWith('//') ? { next } : undefined
+  router.push({ path: mode.value === 'register' ? '/register' : '/login', query })
 }
 </script>
 

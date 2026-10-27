@@ -49,10 +49,11 @@ body,
 }
 
 .logo {
-  width: 450px;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
   display: block;
-  margin: auto;
-  margin-bottom: 20px;
+  margin: 0 auto 20px;
 }
 
 .campo {

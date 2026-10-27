@@ -92,10 +92,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 5,
     sessionKey: 'level-5',
-    idleHint: 'Pulsa Iniciar: la ruleta elige cruz (+) o letra X. Oscuridad: si no marcas, una nube tapa el cartón.',
+    idleHint: 'Pulsa Iniciar: la ruleta elige cruz (+) o letra X. Noches de eclipse: si no marcas, un eclipse tapa el cartón.',
     previews: previewsDe(5, ['plus', 'X']),
     fases: [
-      fase(5, ['plus', 'X'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz (+) o X. Si no marcas, la nube oscurece el cartón.', 3100, 'ruleta', true),
+      fase(5, ['plus', 'X'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz (+) o X. Si no marcas, el eclipse cubre el cartón.', 3100, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -112,10 +112,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 7,
     sessionKey: 'level-7',
-    idleHint: 'Pulsa Iniciar: la ruleta elige flecha o diamante. Oscuridad: si no marcas, una nube tapa el cartón.',
+    idleHint: 'Pulsa Iniciar: la ruleta elige flecha o diamante. Noches de eclipse: si no marcas, un eclipse tapa el cartón.',
     previews: previewsDe(5, ['arrow', 'diamond']),
     fases: [
-      fase(5, ['arrow', 'diamond'], 75, 1, 'Pulsa Iniciar: la ruleta elige flecha o diamante. Si no marcas, la nube oscurece el cartón.', 2900, 'ruleta', true),
+      fase(5, ['arrow', 'diamond'], 75, 1, 'Pulsa Iniciar: la ruleta elige flecha o diamante. Si no marcas, el eclipse cubre el cartón.', 2900, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -123,10 +123,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 8,
     sessionKey: 'level-8',
-    idleHint: 'Dos cartones. La ruleta elige cruz, T, H o flecha. Oscuridad: si no marcas, una nube tapa los cartones.',
+    idleHint: 'Dos cartones. La ruleta elige cruz, T, H o flecha. Noches de eclipse: si no marcas, un eclipse tapa los cartones.',
     previews: previewsDe(5, ['plus', 'T', 'H', 'arrow']),
     fases: [
-      fase(5, ['plus', 'T', 'H', 'arrow'], 75, 2, 'Pulsa Iniciar: la ruleta elige el método. Si no marcas, la nube oscurece los cartones.', 2800, 'ruleta', true),
+      fase(5, ['plus', 'T', 'H', 'arrow'], 75, 2, 'Pulsa Iniciar: la ruleta elige el método. Si no marcas, el eclipse cubre los cartones.', 2800, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -134,10 +134,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 9,
     sessionKey: 'level-9',
-    idleHint: 'Evento oscuridad: si no marcas, una nube tapa el cartón y se pone más oscura.',
+    idleHint: 'Noches de eclipse: si no marcas, un eclipse tapa el cartón y se pone más oscuro.',
     previews: previewsDe(5, ['zigzag']),
     fases: [
-      fase(5, ['zigzag'], 75, 2, 'Pulsa Iniciar. Si no marcas, la nube oscurece los cartones.', 2700, 'ruleta', true),
+      fase(5, ['zigzag'], 75, 2, 'Pulsa Iniciar. Si no marcas, el eclipse cubre los cartones.', 2700, 'ruleta', true),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -149,8 +149,8 @@ const NIVELES: DefinicionNivel[] = [
     previews: previewsDe(5, ['full']),
     fases: [
       fase(5, ['full'], 75, 1, 'Fase 1: pulsa Iniciar. La ruleta elige cartón completo.', 2600),
-      fase(5, ['zigzag', 'H', 'T', 'arrow'], 75, 2, 'Fase 2: la ruleta elige el método. Si no marcas, la nube oscurece los cartones.', 2500, 'ruleta', true),
-      fase(6, ['crown', 'diamond'], 90, 1, 'Fase 3 FINAL: ruleta + oscuridad. Corona o diamante en 6×6.', 2400, 'ruleta', true),
+      fase(5, ['zigzag', 'H', 'T', 'arrow'], 75, 2, 'Fase 2: la ruleta elige el método. Si no marcas, el eclipse cubre los cartones.', 2500, 'ruleta', true),
+      fase(6, ['crown', 'diamond'], 90, 1, 'Fase 3 FINAL: ruleta y noches de eclipse. Corona o diamante en 6×6.', 2400, 'ruleta', true),
     ],
     muestraJefe: true,
     fondo: 'final',

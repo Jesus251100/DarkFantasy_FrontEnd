@@ -3,12 +3,12 @@ import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 
 import HomeView from '../views/HomeView.vue'
-import TipoUserView from '../views/TipoUserView.vue'
 import LoginView from '../views/LoginView.vue'
-import LoginAdminView from '../views/LoginAdminView.vue'
+import RecuperarView from '../views/RecuperarView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import LobbyView from '../views/LobbyView.vue'
 import OnlineView from '../views/OnlineView.vue'
+import CazarDragonesView from '../views/CazarDragonesView.vue'
 import InventoryView from '../views/InventoryView.vue'
 import StoreView from '../views/StoreView.vue'
 import LevelView from '../views/LevelView.vue'
@@ -39,8 +39,12 @@ const router = createRouter({
     },
     {
       path: '/tipo-user',
-      name: 'tipo-user',
-      component: TipoUserView,
+      redirect: (to) => {
+        const next = typeof to.query.next === 'string' ? to.query.next : ''
+        const query = next.startsWith('/') && !next.startsWith('//') ? { next } : undefined
+        if (to.query.mode === 'register') return { path: '/register', query }
+        return { path: '/login', query }
+      },
     },
     {
       path: '/login',
@@ -49,8 +53,12 @@ const router = createRouter({
     },
     {
       path: '/login-admin',
-      name: 'login-admin',
-      component: LoginAdminView,
+      redirect: '/login',
+    },
+    {
+      path: '/recuperar',
+      name: 'recuperar',
+      component: RecuperarView,
     },
     {
       path: '/register',
@@ -66,6 +74,11 @@ const router = createRouter({
       path: '/online',
       name: 'online',
       component: OnlineView,
+    },
+    {
+      path: '/cazar-dragones',
+      name: 'cazar-dragones',
+      component: CazarDragonesView,
     },
     {
       path: '/inventory',
@@ -168,6 +181,7 @@ const router = createRouter({
 const rutasPrivadas = new Set([
   '/lobby',
   '/online',
+  '/cazar-dragones',
   '/inventory',
   '/store',
   '/levels',
@@ -184,7 +198,7 @@ router.beforeEach(async (to) => {
   const progress = useProgressStore()
   const privada = rutasPrivadas.has(to.path) || /^\/level\d+$/.test(to.path)
   if (privada && !auth.autenticado) {
-    return { path: '/tipo-user', query: { mode: 'login' } }
+    return { path: '/login', query: { next: to.fullPath } }
   }
   if (auth.autenticado) {
     await progress.asegurarHidratado()
