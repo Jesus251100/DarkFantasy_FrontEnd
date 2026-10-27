@@ -1,8 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap');
 
-.lobby {
+/* Clase propia (.home-page): antes compartía ".lobby" con lobby.css, que se
+   inyecta después y le imponía height:100dvh + overflow:hidden, dejando el
+   contenido fuera de la pantalla. */
+.home-page {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
 
   background-image: url('../img/fondo.png');
   background-size: cover;
@@ -12,6 +16,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
+
+  padding: 16px;
 }
 
 .contenido {
@@ -20,13 +26,16 @@
   align-items: center;
   gap: 25px;
 
-  /* Sube el bloque un poco */
-  transform: translateY(-60px);
+  /* Sin translateY(-60px): sacaba la parte superior del logo fuera de la
+     pantalla en viewports bajos */
 }
 
-.logo {
+/* Selector específico: el .logo de lobby.css se inyecta después que home.css
+   y anularía el tamaño del logo */
+.contenido .logo {
   width: 550px;
   max-width: 90%;
+  height: auto;
 }
 
 .btn {
@@ -39,4 +48,24 @@
   color: rgb(255, 255, 255);
   font-weight: bold;
   cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .home-page {
+    padding: 12px;
+  }
+
+  .contenido {
+    gap: 16px;
+  }
+
+  .contenido .logo {
+    max-width: 80%;
+  }
+
+  .btn {
+    width: min(220px, 100%);
+    height: 50px;
+    font-size: 0.95rem;
+  }
 }

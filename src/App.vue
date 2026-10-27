@@ -14,10 +14,21 @@ body,
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  /* Red de seguridad: si una vista se pasa por poco, el contenido sigue siendo
+     alcanzable en lugar de quedar recortado. Las vistas se compactan para que
+     no aparezca barra de scroll. */
+  overflow-y: auto;
   font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
 }
+
+/* El ancho declarado incluye padding y borde: evita desbordes horizontales */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 button,
 input {
   font-family: inherit;

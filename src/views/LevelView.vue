@@ -23,24 +23,25 @@
       class="nivel"
       :class="nivelClass(nivel.id)"
       :style="{
-        left: nivel.x,
-        top: nivel.y,
+        '--nivel-x': nivel.x,
+        '--nivel-y': nivel.y,
       }"
       :aria-label="labelNivel(nivel.id)"
       @click="abrirNivel(nivel.id)"
     >
+      <SigiloNivel :nivel="nivel.id" />
+
       <span v-if="progress.isCompleted(nivel.id)" class="nivel-mark" aria-hidden="true">✓</span>
       <span v-else-if="!progress.isUnlocked(nivel.id)" class="nivel-mark lock" aria-hidden="true">🔒</span>
       {{ nivel.id }}
     </button>
-
-    <div class="corona">👑</div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import SigiloNivel from '../components/SigiloNivel.vue'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 
@@ -55,14 +56,14 @@ const niveles = [
   { id: 2, x: '38%', y: '35%' },
   { id: 3, x: '58%', y: '42%' },
   { id: 4, x: '77%', y: '40%' },
-  { id: 5, x: '94%', y: '52%' },
+  { id: 5, x: '88%', y: '52%' },
 
-  { id: 6, x: '84%', y: '80%' },
-  { id: 7, x: '64%', y: '76%' },
+  { id: 6, x: '80%', y: '80%' },
+  { id: 7, x: '62%', y: '76%' },
   { id: 8, x: '46%', y: '80%' },
-  { id: 9, x: '26%', y: '70%' },
+  { id: 9, x: '28%', y: '70%' },
 
-  { id: 10, x: '7%', y: '58%' },
+  { id: 10, x: '12%', y: '58%' },
 ]
 
 function nivelClass(id: number) {
@@ -101,6 +102,7 @@ onMounted(() => {
 
   width: 100%;
   height: 100vh;
+  height: 100dvh;
 
   background-image: url('../assets/img/fondo niveles.jpeg');
   background-size: cover;
@@ -210,6 +212,12 @@ onMounted(() => {
 
   cursor: pointer;
 
+  /* El clamp reserva 46px a cada lado para que el círculo de 75px no se
+     salga del contenedor (antes el nivel 5 se salía por la derecha y el 10
+     por la izquierda) */
+  left: clamp(46px, var(--nivel-x), calc(100% - 46px));
+  top: clamp(46px, var(--nivel-y), calc(100% - 46px));
+
   transform: translate(-50%, -50%);
 
   box-shadow:
@@ -277,16 +285,55 @@ onMounted(() => {
     0 0 36px rgba(232, 197, 107, 0.35);
 }
 
-/* CORONA */
+/* El sigilo de un nivel bloqueado se apaga: se intuye lo que viene, pero
+   sin spoilers */
+.nivel.locked :deep(.nivel-sigilo) {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
 
-.corona {
-  position: absolute;
+/* ==========================================================================
+   MÓVIL: los círculos de nivel se reducen para que no se solapen entre sí
+   ni con los bordes del mapa.
+   ========================================================================== */
+@media (max-width: 700px) {
+  .nivel {
+    width: 54px;
+    height: 54px;
+    font-size: 22px;
+    left: clamp(32px, var(--nivel-x), calc(100% - 32px));
+    top: clamp(32px, var(--nivel-y), calc(100% - 32px));
+  }
 
-  left: 5%;
-  top: 48%;
+  .nivel-mark {
+    font-size: 12px;
+  }
 
-  font-size: 50px;
+  .nivel-mark.lock {
+    font-size: 11px;
+  }
 
-  transform: translateY(-50%);
+  .back-btn {
+    width: 42px;
+    height: 42px;
+    top: 14px;
+    left: 14px;
+  }
+
+  .map-hud {
+    top: 14px;
+    right: 14px;
+    font-size: 0.78rem;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+
+  .lock-hint {
+    top: 64px;
+    font-size: 0.82rem;
+    white-space: normal;
+    max-width: calc(100% - 24px);
+    text-align: center;
+  }
 }
 </style>

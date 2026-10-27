@@ -97,7 +97,32 @@ onMounted(async () => {
 .activity-wrapper {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   background: url('@/assets/img/fondo.png') center center / cover no-repeat;
+}
+
+/* Coincide con el breakpoint del sidebar (AppSidebar.vue): a partir de aquí
+   el menú pasa a barra horizontal (100% de ancho), así que el contenido tiene
+   que ir debajo en lugar de al lado. */
+@media (max-width: 900px) {
+  .activity-wrapper {
+    flex-direction: column;
+  }
+
+  .activity-main {
+    padding: 12px 10px;
+  }
+
+  .activity-panel {
+    padding: 14px 14px 12px;
+    max-height: min(78vh, 640px);
+  }
+
+  .activity-title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    letter-spacing: 1px;
+  }
 }
 
 .activity-main {

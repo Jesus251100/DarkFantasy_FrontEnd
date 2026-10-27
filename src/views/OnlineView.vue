@@ -662,8 +662,12 @@ onUnmounted(() => {
 
 <style scoped>
 .online {
-  height: 100%;
-  color: #e7eef8;
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* El ancho del cartón se calcula contra el alto disponible para que el
+     tablero y el botón ¡BINGO! quepan siempre en pantalla */
+  --board-w: min(440px, 86vw);
+  --board-h-reserve: 260px;
   background:
     linear-gradient(180deg, rgba(4, 10, 24, 0.55), rgba(4, 8, 18, 0.78)),
     url('@/assets/img/fondo.png') center / cover no-repeat;
@@ -1093,7 +1097,21 @@ onUnmounted(() => {
 
 .board {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  width: var(--board-w);
+}
+
+.metodo-lbl {
+  text-align: center;
+  color: #9fb0c6;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  margin: 0 0 10px;
+}
+
+.metodo-lbl strong {
+  color: #e8c86a;
 }
 
 .cell {
@@ -1192,67 +1210,26 @@ onUnmounted(() => {
 }
 
 .bingo {
-  min-width: 180px;
-  height: 64px;
-  border: 0;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #2a63d6, #17398a);
-  color: white;
-  letter-spacing: 0.14em;
-  font-weight: 800;
-  cursor: pointer;
+  display: block;
+  margin: 18px auto 0;
+  width: var(--board-w);
+  font-size: 1.1rem;
 }
 
-.pista,
-.aviso,
-.alerta {
-  position: absolute;
+/* El aviso ya no se coloca encima del botón ¡BINGO! (lo tapaba) */
+.aviso {
+  position: fixed;
   left: 50%;
-  bottom: 108px;
+  top: 76px;
   transform: translateX(-50%);
-  margin: 0;
-  background: rgba(8, 16, 32, 0.9);
-  border: 1px solid #7aa2e8;
+  max-width: min(92vw, 520px);
+  text-align: center;
+  background: #4a1f1f;
+  border: 1px solid #a05050;
+  color: #ffd7d7;
+  padding: 12px 20px;
   border-radius: 10px;
-  padding: 8px 14px;
-}
-
-.alerta {
-  position: fixed;
-  top: 16px;
-  bottom: auto;
-  z-index: 30;
-}
-
-.proyectil {
-  position: fixed;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 40;
-  transition: left 0.65s cubic-bezier(0.2, 0.75, 0.2, 1), top 0.65s cubic-bezier(0.2, 0.75, 0.2, 1);
-}
-
-.proyectil.tipo-1 {
-  background: #b9ecff;
-  box-shadow: 0 0 16px #7ad7ff;
-}
-
-.proyectil.tipo-2 {
-  background: #ff8d8d;
-  box-shadow: 0 0 16px #e23b3b;
-}
-
-.proyectil.tipo-3 {
-  background: #ffe08a;
-  box-shadow: 0 0 16px #f0d78c;
-}
-
-.proyectil.tipo-4 {
-  background: #9eb7ff;
-  box-shadow: 0 0 16px #3d7dff;
+  z-index: 10060;
 }
 
 .modal-backdrop {
@@ -1263,6 +1240,9 @@ onUnmounted(() => {
   place-items: center;
   z-index: 60;
   padding: 18px;
+  /* Si el modal no cabe, se desplaza en vez de recortarse */
+  overflow-y: auto;
+  z-index: 50;
 }
 
 .modal {
@@ -1293,46 +1273,112 @@ onUnmounted(() => {
 }
 
 .premio {
-  color: #9be7c4;
+  color: #4fd07a;
+  font-weight: 700;
 }
 
-.error {
-  color: #ffb4b4;
+.mini-board {
+  width: min(340px, 78vw);
+  margin: 18px auto;
+  gap: 5px;
 }
 
-.room-centro {
-  overflow: auto;
+.mini-board .cell {
+  font-size: clamp(0.7rem, 2.6vw, 1rem);
 }
 
-.codigo {
-  margin: 0;
-  font-size: 2.4rem;
-  letter-spacing: 0.4em;
-  color: #f0d78c;
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
-.enlace {
-  margin: 0;
-  max-width: 560px;
-  font-size: 1rem;
-  line-height: 1.45;
-  color: #9fd0ff;
-  word-break: break-all;
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
 }
 
-.lista-room {
-  width: min(420px, 90vw);
-  max-height: 240px;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-@media (max-width: 980px) {
-  .cuerpo,
-  .mesa {
-    grid-template-columns: 1fr;
+/* ==========================================================================
+   El cartón se limita también por el ALTO disponible: así el tablero y el
+   botón ¡BINGO! siempre caben en pantalla sin hacer scroll.
+   ========================================================================== */
+@media (max-height: 820px) {
+  .online {
+    --board-w: min(440px, 86vw, calc(100dvh - var(--board-h-reserve)));
+  }
+}
+
+/* Por debajo de 700px de ancho el oráculo se apila sobre el cartón:
+   el cartón necesita reservado más alto */
+@media (max-width: 700px) {
+  .online {
+    --board-h-reserve: 450px;
+    --board-w: min(440px, 86vw, calc(100dvh - var(--board-h-reserve)));
+    padding: 12px 12px 20px;
   }
 
-  .panel {
-    max-height: 220px;
+  .bar {
+    padding-bottom: 8px;
+  }
+
+  .bar h1 {
+    font-size: 1.1rem;
+    letter-spacing: 0.18em;
+  }
+
+  .players {
+    gap: 6px;
+  }
+
+  .mesa {
+    gap: 12px;
+  }
+
+  .oraculo {
+    min-width: 0;
+  }
+
+  .bola {
+    width: 78px;
+    height: 78px;
+    font-size: 2rem;
+    margin: 4px auto;
+  }
+
+  .recientes {
+    gap: 5px;
+    margin: 6px 0;
+  }
+
+  .mini {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+
+  .bingo {
+    margin-top: 10px;
+    padding: 8px 20px;
+  }
+
+  .aviso {
+    top: 62px;
+    font-size: 0.85rem;
+    padding: 9px 14px;
+  }
+}
+
+/* Pantallas muy bajas (landscape): el cartón se reduce al mínimo usable */
+@media (max-height: 520px) {
+  .online {
+    --board-w: min(300px, 60vw, calc(100dvh - 220px));
   }
 }
 </style>

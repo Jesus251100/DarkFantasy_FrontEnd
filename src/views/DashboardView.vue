@@ -210,25 +210,25 @@ onMounted(async () => {
 .dashboard-wrapper {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   background: url('@/assets/img/fondo.png') center center / cover no-repeat;
 }
 
-
-
 .dashboard-main {
   flex: 1;
-  padding: 32px;
+  min-width: 0;
+  padding: 28px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
   background: rgba(0, 0, 0, 0.45);
 }
 
 .dashboard-top {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .search-filters {
@@ -240,7 +240,7 @@ onMounted(async () => {
 
 .search-box {
   flex: 1;
-  min-width: 260px;
+  min-width: 0;
   display: flex;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -250,7 +250,8 @@ onMounted(async () => {
 
 .search-box input {
   flex: 1;
-  padding: 14px 18px;
+  min-width: 0;
+  padding: 12px 16px;
   border: none;
   background: transparent;
   color: #e8f8ff;
@@ -276,11 +277,12 @@ onMounted(async () => {
   border-radius: 24px;
   padding: 12px 20px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -292,11 +294,13 @@ onMounted(async () => {
   background: rgba(5, 25, 70, 0.55);
   border: 1px solid rgba(0, 195, 255, 0.2);
   border-radius: 20px;
+  min-width: 0;
 }
 
 .stat-icon {
   width: 56px;
   height: 56px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 18px;
@@ -327,7 +331,8 @@ onMounted(async () => {
 .dashboard-bottom {
   display: grid;
   grid-template-columns: 2.2fr 1fr;
-  gap: 24px;
+  gap: 20px;
+  align-items: start;
 }
 
 .activity-panel,
@@ -335,14 +340,15 @@ onMounted(async () => {
   background: rgba(5, 25, 70, 0.55);
   border: 1px solid rgba(0, 195, 255, 0.22);
   border-radius: 24px;
-  padding: 24px;
+  padding: 20px;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .panel-header h3 {
@@ -365,19 +371,21 @@ onMounted(async () => {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .activity-panel li {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   color: #e8f8ff;
   font-size: 14px;
+  min-width: 0;
 }
 
 .activity-dot {
@@ -386,6 +394,7 @@ onMounted(async () => {
   justify-content: center;
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
   border-radius: 50%;
   margin-right: 10px;
 }
@@ -413,7 +422,7 @@ onMounted(async () => {
 
 .country-list {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .country-row {
@@ -421,7 +430,7 @@ onMounted(async () => {
   grid-template-columns: auto 56px 1fr;
   gap: 14px;
   align-items: center;
-  padding: 14px 0;
+  padding: 12px 0;
   color: #e8f8ff;
   font-size: 14px;
 }
@@ -446,11 +455,11 @@ onMounted(async () => {
 
 @media (max-width: 1180px) {
   .dashboard-main {
-    padding: 24px;
+    padding: 22px;
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-bottom {
@@ -458,23 +467,233 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 780px) {
-  .dashboard-wrapper {
-    flex-direction: column;
+/* ==========================================================================
+   PANTALLAS INTERMEDIAS (estrechas O bajas): se compacta para que todo
+   siga entrando
+   ========================================================================== */
+@media (max-width: 1100px), (max-height: 900px) {
+  .dashboard-main {
+    padding: 18px;
+    gap: 20px;
   }
 
+  .dashboard-top {
+    gap: 14px;
+  }
+
+  .search-box input {
+    padding: 10px 14px;
+  }
+
+  .filter-btn {
+    padding: 9px 16px;
+  }
+
+  .stats-grid {
+    gap: 12px;
+  }
+
+  .stat-card {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    border-radius: 14px;
+  }
+
+  .stat-card span {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .stat-card h2 {
+    font-size: 26px;
+  }
+
+  .stat-card p {
+    margin: 2px 0 0;
+    font-size: 12px;
+  }
+
+  .dashboard-bottom {
+    gap: 16px;
+  }
+
+  .activity-panel,
+  .country-panel {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .panel-header {
+    margin-bottom: 12px;
+  }
+
+  .panel-header h3 {
+    font-size: 17px;
+  }
+
+  .panel-header button {
+    padding: 7px 14px;
+    border-radius: 12px;
+  }
+
+  .activity-panel ul {
+    gap: 10px;
+  }
+
+  .activity-panel li {
+    padding: 10px;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .activity-dot {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+  }
+
+  .country-list {
+    gap: 10px;
+  }
+
+  .country-row {
+    grid-template-columns: auto 44px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+  }
+
+  .progress-bar {
+    height: 6px;
+  }
+}
+
+/* ==========================================================================
+   PANTALLAS PEQUEÑAS (muy estrechas O muy bajas): compactación extra
+   ========================================================================== */
+@media (max-width: 900px), (max-height: 840px) {
+  .dashboard-main {
+    padding: 10px 8px;
+    gap: 8px;
+  }
+
+  .dashboard-top {
+    gap: 8px;
+  }
+
+  /* El buscador ocupa su propia fila y los filtros van en la siguiente:
+     en una sola fila el grupo se partía en 3 líneas */
   .search-filters {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 6px;
   }
 
   .search-box {
-    width: 100%;
+    flex: 1 1 100%;
   }
 
-  .filter-btn,
+  .search-box input {
+    padding: 7px 12px;
+  }
+
+  .filter-btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .stats-grid {
+    gap: 6px;
+  }
+
+  .stat-card {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .stat-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    border-radius: 9px;
+  }
+
+  .stat-card span {
+    font-size: 9px;
+    margin-bottom: 1px;
+  }
+
+  .stat-card h2 {
+    font-size: 18px;
+  }
+
+  .stat-card p {
+    display: none;
+  }
+
+  .activity-panel,
+  .country-panel {
+    padding: 8px;
+  }
+
+  .panel-header {
+    margin-bottom: 5px;
+  }
+
+  .panel-header h3 {
+    font-size: 14px;
+  }
+
   .panel-header button {
-    width: 100%;
+    padding: 4px 9px;
+    font-size: 0.7rem;
+  }
+
+  .activity-panel ul {
+    gap: 4px;
+    /* Las listas son de tamaño variable: se acotan para que la página
+       siempre quepa en pantalla */
+    max-height: 132px;
+    overflow-y: auto;
+  }
+
+  .activity-panel li {
+    padding: 5px 7px;
+    font-size: 11px;
+    gap: 5px;
+  }
+
+  .country-list {
+    gap: 4px;
+    max-height: 104px;
+    overflow-y: auto;
+  }
+
+  .country-row {
+    padding: 3px 0;
+    font-size: 11px;
+  }
+
+  .progress-bar {
+    height: 4px;
+  }
+}
+
+/* El menú pasa a barra horizontal solo por anchura (AppSidebar.vue) */
+@media (max-width: 900px) {
+  .dashboard-wrapper {
+    flex-direction: column;
+  }
+}
+
+/* Por debajo de 480px las tarjetas de estadísticas pasan a 1 columna */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

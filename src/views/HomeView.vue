@@ -1,5 +1,5 @@
 <template>
-  <div class="lobby">
+  <div class="home-page">
     <div class="contenido">
       <img src="@/assets/img/logo.png" alt="Dark Fantasy" class="logo" />
 

@@ -61,6 +61,7 @@ const elegir = (rol: 'jugador' | 'administrador') => {
 .tipo-user-page {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   background-image: url('../assets/img/fondo.png');
   background-size: cover;
   background-position: center;
