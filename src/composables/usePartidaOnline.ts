@@ -222,6 +222,13 @@ export function usePartidaOnline(usuarioId: string) {
     marcas.value = siguiente
   }
 
+  function quitarMarca(indice: number) {
+    if (!marcas.value.has(indice)) return
+    const siguiente = new Set(marcas.value)
+    siguiente.delete(indice)
+    marcas.value = siguiente
+  }
+
   function onMetodoElegido() {
     showRuleta.value = false
   }
@@ -335,6 +342,7 @@ export function usePartidaOnline(usuarioId: string) {
     cancelar,
     cantar,
     marcarCelda,
+    quitarMarca,
     onMetodoElegido,
     reiniciar,
     desconectar,

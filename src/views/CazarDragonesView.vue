@@ -12,13 +12,16 @@
       <p class="texto">
         Si los dos le ganan, sale una ruleta. El premio grande son 10.000 diamantes. Las demás recompensas van de 100 a 500.
       </p>
+      <p class="texto">
+        Noches de eclipse: si dejas pasar bolas sin marcar, una nube tapa el cartón y se oscurece de a poco. Al marcar, se aclara.
+      </p>
       <p v-if="error" class="aviso">{{ error }}</p>
       <button type="button" class="accion" :disabled="!conectado" @click="buscar">
         {{ conectado ? 'BUSCAR CAZADOR' : 'CONECTANDO…' }}
       </button>
       <button type="button" class="accion" :disabled="!conectado" @click="crearSala">CREAR SALA</button>
       <button type="button" class="accion" :disabled="!conectado" @click="abriendoUnion = true">UNIRSE</button>
-      <button type="button" class="accion suave" @click="volver">VOLVER AL LOBBY</button>
+      <button type="button" class="accion suave" @click="volver">VOLVER</button>
     </section>
 
     <section v-else-if="fase === 'sala'" class="centro">
@@ -26,7 +29,7 @@
       <h1>Código</h1>
       <p class="codigo">{{ sala?.codigo }}</p>
       <p class="texto">
-        Tu amigo abre Cazar dragones, pulsa UNIRSE y escribe este código. Los dos tienen que estar en el mismo juego.
+        Tu amigo entra a Online, abre Cazar dragones, pulsa UNIRSE y escribe este código. Los dos tienen que estar en el mismo juego.
       </p>
       <p v-if="enlaceSala" class="enlace">{{ enlaceSala }}</p>
       <button type="button" class="accion" @click="copiarCodigo">
@@ -76,23 +79,32 @@
 
         <div class="carton-wrap">
           <p class="letras">BINGO</p>
-          <div class="board">
-            <button
-              v-for="(celda, i) in carton"
-              :key="i"
-              type="button"
-              class="cell"
-              :class="{
-                free: celda.free,
-                marked: celda.marked,
-                win: indicesGanadores.includes(i),
-                llamada: esLlamada(celda),
-              }"
-              @click="marcar(i)"
-            >
-              <span v-if="celda.free">FREE</span>
-              <span v-else>{{ celda.number }}</span>
-            </button>
+          <p class="eclipse-nombre">Noches de eclipse</p>
+          <div class="grid-nube">
+            <div class="board">
+              <button
+                v-for="(celda, i) in carton"
+                :key="i"
+                type="button"
+                class="cell"
+                :class="{
+                  free: celda.free,
+                  marked: celda.marked,
+                  win: indicesGanadores.includes(i),
+                  llamada: esLlamada(celda),
+                }"
+                @click="marcar(i)"
+              >
+                <span v-if="celda.free">FREE</span>
+                <span v-else>{{ celda.number }}</span>
+              </button>
+            </div>
+            <div
+              v-if="opacidadNube > 0"
+              class="nube-oscuridad"
+              :style="{ opacity: opacidadNube / 100 }"
+              aria-hidden="true"
+            ></div>
           </div>
         </div>
 
@@ -156,7 +168,7 @@
               : `La ruleta cayó en ${formato(premioCaido)}, pero no se pudo guardar el premio.`
           }}
         </p>
-        <button v-if="aterrizo" type="button" class="accion" @click="volver">VOLVER AL LOBBY</button>
+        <button v-if="aterrizo" type="button" class="accion" @click="volver">VOLVER</button>
       </div>
     </div>
 
@@ -165,7 +177,7 @@
         <img class="retrato" :src="dragonSrc" alt="" />
         <h2>La caza terminó</h2>
         <p class="texto">{{ mensajeFin }}</p>
-        <button type="button" class="accion" @click="volver">VOLVER AL LOBBY</button>
+        <button type="button" class="accion" @click="volver">VOLVER</button>
       </div>
     </div>
   </div>
@@ -276,6 +288,31 @@ function formato(valor: number): string {
 function esLlamada(celda: BingoCell): boolean {
   return !celda.free && llamadas.value.includes(celda.number)
 }
+
+/** Igual que en la campaña: 5 bolas sin marcar abren la nube al 20%. Cada 2 más suman 20%. Cada marca quita 10%. */
+const opacidadNube = computed(() => {
+  if (fase.value !== 'jugando') return 0
+  const lista = llamadas.value
+  const tablero = carton.value
+  let sinMarca = 0
+  let marcas = 0
+  for (const celda of tablero) {
+    if (!celda.free && celda.marked) marcas++
+  }
+  for (let i = 0; i < lista.length; i++) {
+    const numero = lista[i]
+    const celda = tablero.find((item) => !item.free && item.number === numero)
+    if (!celda) {
+      if (i < lista.length - 1) sinMarca++
+      continue
+    }
+    if (celda.marked) continue
+    if (i < lista.length - 1) sinMarca++
+  }
+  if (sinMarca < 5) return 0
+  const base = Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
+  return Math.max(0, base - marcas * 10)
+})
 
 function fusionarCarton(nuevo: BingoCell[]) {
   const previas = new Set(carton.value.filter((celda) => celda.marked && !celda.free).map((celda) => celda.number))
@@ -421,7 +458,7 @@ function salir() {
 function volver() {
   quiereBuscar = false
   socket.emit('dragon:leave')
-  void router.push('/lobby')
+  void router.push('/online')
 }
 
 function atras() {
@@ -720,6 +757,39 @@ h2 {
 .carton-wrap,
 .panel {
   text-align: center;
+}
+
+.carton-wrap {
+  position: relative;
+  overflow: visible;
+}
+
+.eclipse-nombre {
+  margin: 0 0 6px;
+  color: #f0d78c;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+}
+
+.grid-nube {
+  position: relative;
+  z-index: 1;
+}
+
+.nube-oscuridad {
+  position: absolute;
+  top: -46%;
+  left: -36%;
+  width: 172%;
+  height: 168%;
+  z-index: 6;
+  pointer-events: none;
+  background: url('../assets/img/eclipse.jpg') center / cover no-repeat;
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.55);
+  transition: opacity 0.7s ease;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 46%, transparent 74%);
+  mask-image: radial-gradient(ellipse at center, #000 46%, transparent 74%);
 }
 
 .bola {

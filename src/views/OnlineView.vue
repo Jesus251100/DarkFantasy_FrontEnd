@@ -56,21 +56,28 @@
         </div>
 
         <div class="carton-wrap" :class="{ congelado: estoyCongelado, sabotaje: estoySaboteado, suerte: tengoSuerte }">
-          <p class="letras">BINGO</p>
+          <p class="letras" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
+            <span v-for="(letra, i) in letrasBingo" :key="i">{{ letra }}</span>
+          </p>
           <p class="eclipse-nombre">Noches de eclipse</p>
-          <div class="board" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
-            <button
-              v-for="(c, i) in tuCarton"
-              :key="i"
-              type="button"
-              class="cell"
-              :class="{ free: c.free, marked: c.marked, win: esGanadorIdx(i), llamada: esLlamada(c) }"
-              @click="marcarCelda(i)"
-            >
-              <span v-if="c.free">FREE</span>
-              <span v-else>{{ c.number }}</span>
-            </button>
-          </div>
+          <CartonNiebla
+            :celdas="tuCarton"
+            :columnas="sala?.size ?? 5"
+            :cantadas="cantadas"
+            :ganadores="indicesGanadores"
+            :completa="nieblaCompleta"
+            :saliendo="nieblaSaliendo"
+            :en-casillas="nieblaEnCasillas"
+            :indices="nieblaIndices"
+            :rojas="nieblaRojas"
+            :intentos="nieblaIntentos"
+            :textos="nieblaTextos"
+            :numero-oculto="numeroOculto"
+            :opacidad-subida="opacidadSubida"
+            @marcar="marcarCelda"
+            @escribir="escribirNiebla"
+            @enviar="enviarNiebla"
+          />
           <div
             v-if="opacidadEclipse > 0"
             class="eclipse-online"
@@ -96,30 +103,34 @@
       </div>
 
       <div class="barra">
-        <button
-          v-for="b in boosters"
-          :key="b.id"
-          type="button"
-          class="booster"
-          :data-booster="b.id"
-          :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0 }"
-          :disabled="fase !== 'jugando'"
-          @click="pulsarBooster(b.id)"
-        >
-          <img :src="b.icono" :alt="b.nombre" />
-          <span>{{ cantidad(b.id) }}</span>
-        </button>
+        <div class="barra-lado">
+          <div v-if="metodoVictoria" class="metodo-esquina">
+            <MethodPatternPreview
+              :size="sala?.size ?? 5"
+              :win-modes="[metodoVictoria]"
+              :cell-px="10"
+              :gap-px="2"
+            />
+            <p class="metodo">{{ metodoNombre }}</p>
+          </div>
+          <div class="boosters">
+            <button
+              v-for="b in boosters"
+              :key="b.id"
+              type="button"
+              class="booster"
+              :data-booster="b.id"
+              :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0 }"
+              :disabled="fase !== 'jugando'"
+              @click="pulsarBooster(b.id)"
+            >
+              <img :src="b.icono" :alt="b.nombre" />
+              <span>{{ cantidad(b.id) }}</span>
+            </button>
+          </div>
+        </div>
         <button type="button" class="bingo" :disabled="fase !== 'jugando'" @click="cantar">¡BINGO!</button>
-      </div>
-
-      <div v-if="metodoVictoria" class="metodo-esquina">
-        <MethodPatternPreview
-          :size="sala?.size ?? 5"
-          :win-modes="[metodoVictoria]"
-          :cell-px="10"
-          :gap-px="2"
-        />
-        <p class="metodo">{{ metodoNombre }}</p>
+        <div class="barra-lado" aria-hidden="true"></div>
       </div>
 
       <p v-if="apuntando" class="pista">Elige al enemigo. El poder sale en bola hacia él.</p>
@@ -183,6 +194,7 @@
           <button type="button" class="accion" @click="jugar">JUGAR</button>
           <button type="button" class="accion" @click="abriendoUnion = true">UNIRSE</button>
           <button type="button" class="accion" @click="crear">CREAR</button>
+          <button type="button" class="accion" @click="cazarDragones">CAZAR DRAGONES</button>
           <button type="button" class="accion suave" @click="salir">SALIR</button>
           <p v-if="errorConexion" class="error">{{ errorConexion }}</p>
         </div>
@@ -251,11 +263,19 @@ import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 import { usePartidaOnline } from '../composables/usePartidaOnline'
 import { nombreMetodo } from '../domain/bingo/nombresMetodo'
+import { patronDesdeModo } from '../domain/bingo/patrones/catalogoPatrones'
+import {
+  casillaDeProgreso,
+  marcarBajoNiebla,
+  sincronizarSubida,
+  subidaInicial,
+} from '../domain/online/niebla'
 import { retratoPorNombre } from '../game/portraits'
 import ChatSala from '../components/ChatSala.vue'
+import CartonNiebla from '../components/CartonNiebla.vue'
 import MethodPatternPreview from '../components/MethodPatternPreview.vue'
 import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
-import type { BingoCell } from '../domain/bingo/tipos'
+import { useNieblaOnline } from '../composables/useNieblaOnline'
 import type { VueloBoosterOnline } from '../domain/online/tipos'
 import freezeIcon from '@/assets/img/freeze.png'
 import shieldIcon from '@/assets/img/shield 1.png'
@@ -311,6 +331,54 @@ const {
   errorSala,
 } = online
 
+const nieblaProgramada = ref(false)
+const subida = ref(subidaInicial())
+const {
+  fase: faseNiebla,
+  indices: nieblaIndices,
+  rojas: nieblaRojas,
+  intentos: nieblaIntentos,
+  textos: nieblaTextos,
+  completa: nieblaCompleta,
+  saliendo: nieblaSaliendo,
+  enCasillas: nieblaEnCasillas,
+  startFogEvent,
+  escribir: escribirNiebla,
+  enviar: enviarNiebla,
+  reiniciar: reiniciarNiebla,
+  numeroOculto,
+  bloqueaCarton,
+} = useNieblaOnline({
+  celdas: () => tuCarton.value,
+  cantadas: () => cantadas.value,
+  avisar: (texto) => online.mostrarAviso(texto),
+  penalizar: () => quitarCasillaDeLaFigura(),
+})
+
+const opacidadSubida = computed(() => (faseNiebla.value === 'idle' ? subida.value.opacidad : 0))
+
+const letrasBingo = computed(() => {
+  const total = sala.value?.size ?? 5
+  const base = 'BINGO'
+  return Array.from({ length: total }, (_, i) => base[i] ?? '')
+})
+
+function quitarCasillaDeLaFigura() {
+  const modo = metodoVictoria.value
+  if (!modo) return
+  const indice = casillaDeProgreso(
+    tuCarton.value,
+    patronDesdeModo(modo).indices(sala.value?.size ?? 5),
+    nieblaIndices.value,
+  )
+  if (indice === null) {
+    online.mostrarAviso('Te equivocaste. Tu figura no tenía una casilla marcada para quitar.')
+    return
+  }
+  online.quitarMarca(indice)
+  online.mostrarAviso('Te equivocaste. La niebla te quitó una casilla de la figura.')
+}
+
 const opacidadEclipse = computed(() => {
   if (fase.value !== 'jugando') return 0
   const llamadas = cantadas.value
@@ -362,6 +430,10 @@ const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
 const metodoNombre = computed(() =>
   metodoVictoria.value ? nombreMetodo(metodoVictoria.value) : 'Elige el método',
 )
+function cazarDragones() {
+  router.push('/cazar-dragones')
+}
+
 const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
 const enlaceSala = computed(() => {
   const salaCodigo = espera.value?.codigo
@@ -423,6 +495,9 @@ watch(fase, (valor, anterior) => {
     pulsarCarga(99, 100)
   }
   if (valor === 'jugando' && anterior !== 'jugando') {
+    reiniciarNiebla()
+    nieblaProgramada.value = false
+    subida.value = sincronizarSubida(subidaInicial(), tuCarton.value, cantadas.value)
     entrada.value = true
     pulsarCarga(100, 16, () => {
       cierreCarga = window.setTimeout(() => {
@@ -431,9 +506,33 @@ watch(fase, (valor, anterior) => {
     })
   }
   if (valor === 'idle') {
+    reiniciarNiebla()
+    nieblaProgramada.value = false
+    subida.value = subidaInicial()
     entrada.value = false
     pararCarga()
   }
+})
+
+function intentarEventoNiebla() {
+  if (nieblaProgramada.value || faseNiebla.value !== 'idle') return
+  if (fase.value !== 'jugando' || showRuleta.value || entrada.value) return
+  if (subida.value.opacidad < 100) return
+  const dichas = cantadas.value
+  const listas = tuCarton.value.filter((celda) => !celda.free && dichas.includes(celda.number)).length
+  if (listas < 3) return
+  if (!startFogEvent()) return
+  nieblaProgramada.value = true
+}
+
+watch([() => cantadas.value.length, fase], () => {
+  if (fase.value !== 'jugando' || nieblaProgramada.value) return
+  subida.value = sincronizarSubida(subida.value, tuCarton.value, cantadas.value)
+  intentarEventoNiebla()
+})
+
+watch([() => subida.value.opacidad, fase, showRuleta, entrada], () => {
+  intentarEventoNiebla()
 })
 
 function inicial(nombre: string): string {
@@ -448,19 +547,12 @@ function cantidad(id: number): number {
   return Math.max(0, progress.boosterCount(id) - (gastados.value[id] ?? 0))
 }
 
-function esGanadorIdx(i: number): boolean {
-  return indicesGanadores.value.includes(i)
-}
-
-function esLlamada(c: BingoCell): boolean {
-  return c.free || cantadas.value.includes(c.number)
-}
-
 function puedeApuntar(id: string): boolean {
   return apuntando.value && id !== usuarioId
 }
 
 function marcarCelda(i: number) {
+  if (bloqueaCarton() || nieblaIndices.value.includes(i)) return
   if (estoyCongelado.value) {
     online.mostrarAviso('Estás congelado.')
     return
@@ -469,7 +561,14 @@ function marcarCelda(i: number) {
     online.mostrarAviso('Tu cartón está saboteado.')
     return
   }
+  const antes = tuCarton.value[i]
+  if (!antes || antes.free) return
+  const estabaMarcada = antes.marked
   online.marcarCelda(i)
+  if (!estabaMarcada && tuCarton.value[i]?.marked) {
+    subida.value = marcarBajoNiebla(subida.value)
+    intentarEventoNiebla()
+  }
 }
 
 function onMetodoElegido() {
@@ -531,6 +630,7 @@ function volverSala() {
 }
 
 function cantar() {
+  if (bloqueaCarton()) return
   online.cantar()
 }
 
@@ -917,7 +1017,10 @@ onUnmounted(() => {
 
 .partida {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100dvh;
+  height: 100dvh;
+  box-sizing: border-box;
   padding: 12px 16px 16px;
   gap: 10px;
   position: relative;
@@ -931,7 +1034,7 @@ onUnmounted(() => {
 }
 
 .ficha {
-  width: 110px;
+  width: 132px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -950,10 +1053,11 @@ onUnmounted(() => {
 
 .fnombre,
 .fmeta {
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 132px;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .fmeta {
@@ -992,11 +1096,13 @@ onUnmounted(() => {
 .mesa {
   min-height: 0;
   display: grid;
-  grid-template-columns: 150px minmax(280px, 460px) 230px;
-  column-gap: 72px;
-  row-gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 28px;
   align-items: center;
-  justify-content: center;
+}
+
+.oraculo {
+  justify-self: end;
 }
 
 .oraculo,
@@ -1007,6 +1113,7 @@ onUnmounted(() => {
 
 .carton-wrap {
   position: relative;
+  justify-self: center;
 }
 
 .eclipse-nombre {
@@ -1018,6 +1125,7 @@ onUnmounted(() => {
 
 .eclipse-online {
   position: absolute;
+  z-index: 4;
   inset: 22% 6% 8%;
   border-radius: 50%;
   pointer-events: none;
@@ -1054,13 +1162,11 @@ onUnmounted(() => {
 }
 
 .metodo-esquina {
-  position: absolute;
-  left: 18px;
-  bottom: 16px;
-  z-index: 6;
+  position: static;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
 }
 
@@ -1090,8 +1196,12 @@ onUnmounted(() => {
 }
 
 .letras {
-  margin: 0 0 8px;
-  letter-spacing: 0.55em;
+  display: grid;
+  width: var(--board-w);
+  margin: 0 auto 8px;
+  gap: 8px;
+  letter-spacing: 0;
+  text-align: center;
   color: #f0d78c;
 }
 
@@ -1141,16 +1251,16 @@ onUnmounted(() => {
   color: #1a1305;
 }
 
-.carton-wrap.congelado .board {
+.carton-wrap.congelado :deep(.board) {
   outline: 2px solid #9ad7ff;
   filter: saturate(0.55);
 }
 
-.carton-wrap.sabotaje .board {
+.carton-wrap.sabotaje :deep(.board) {
   outline: 2px solid #e23b3b;
 }
 
-.carton-wrap.suerte .board {
+.carton-wrap.suerte :deep(.board) {
   outline: 2px solid #f0d78c;
 }
 
@@ -1159,10 +1269,25 @@ onUnmounted(() => {
   border: 1px solid rgba(120, 160, 220, 0.35);
   border-radius: 16px;
   padding: 12px;
-  align-self: stretch;
+  justify-self: start;
+  align-self: center;
+  width: min(320px, 100%);
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.lista ul {
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+.lista .lnombre {
+  flex: 1 1 auto;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .estado {
@@ -1171,10 +1296,25 @@ onUnmounted(() => {
 }
 
 .barra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  column-gap: 18px;
+}
+
+.barra-lado {
   display: flex;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.boosters {
+  display: flex;
   align-items: flex-end;
   gap: 14px;
+  flex: 0 0 auto;
 }
 
 .booster {
@@ -1211,7 +1351,8 @@ onUnmounted(() => {
 
 .bingo {
   display: block;
-  margin: 18px auto 0;
+  margin: 0;
+  justify-self: center;
   width: var(--board-w);
   font-size: 1.1rem;
 }

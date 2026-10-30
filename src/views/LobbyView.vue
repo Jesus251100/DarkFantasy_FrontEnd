@@ -14,7 +14,6 @@
       </h1>
       <div class="menu">
         <button type="button" class="btn-full" @click="onOnline">ONLINE</button>
-        <button type="button" class="btn-full" @click="router.push('/cazar-dragones')">CAZAR DRAGONES</button>
         <button type="button" class="btn-full" @click="router.push('/levels')">NIVELES</button>
         <button type="button" class="btn-full" @click="router.push('/inventory')">INVENTARIO</button>
         <div class="row">
