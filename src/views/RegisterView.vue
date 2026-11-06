@@ -35,13 +35,13 @@ const {
 <template>
   <div class="login-page">
     <button type="button" class="btn-atras" aria-label="Volver" @click="router.push('/')">←</button>
-    <div class="login-card">
+    <form class="login-card" @submit.prevent="continuar">
       <img src="../assets/img/logo.png" class="logo" alt="Dark Fantasy" />
 
       <div class="form-grid">
         <div class="campo">
           <label>Nombre de usuario</label>
-          <input v-model="username" type="text" required placeholder="INGRESE SU NOMBRE DE USUARIO" />
+          <input v-model="username" type="text" required minlength="1" maxlength="40" placeholder="INGRESE SU NOMBRE DE USUARIO" />
         </div>
 
         <div class="campo">
@@ -66,22 +66,22 @@ const {
 
         <div class="campo">
           <label>Correo Electrónico</label>
-          <input v-model="email" type="text" required placeholder="INGRESE SU CORREO" />
+          <input v-model="email" type="email" required maxlength="254" autocomplete="email" placeholder="INGRESE SU CORREO" />
         </div>
 
         <div class="campo">
           <label>Confirmar Correo</label>
-          <input v-model="confirmarEmail" type="text" required placeholder="CONFIRME SU CORREO" />
+          <input v-model="confirmarEmail" type="email" required maxlength="254" autocomplete="off" placeholder="CONFIRME SU CORREO" />
         </div>
 
         <div class="campo">
           <label>Contraseña</label>
-          <input v-model="password" type="password" required placeholder="INGRESE SU CONTRASEÑA" />
+          <input v-model="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="Mínimo 8; incluye letras y números" />
         </div>
 
         <div class="campo">
           <label>Confirmar Contraseña</label>
-          <input v-model="confirmPassword" type="password" required placeholder="CONFIRME SU CONTRASEÑA" />
+          <input v-model="confirmPassword" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="CONFIRME SU CONTRASEÑA" />
         </div>
 
         <div class="campo">
@@ -95,14 +95,14 @@ const {
 
         <div class="campo">
           <label>Fecha de Nacimiento</label>
-          <input v-model="fechaNacimiento" type="date" required />
+          <input v-model="fechaNacimiento" type="date" min="1900-01-01" required />
         </div>
       </div>
 
-      <button type="button" class="btn-login" :disabled="cargando" @click="continuar">
+      <button type="submit" class="btn-login" :disabled="cargando">
         {{ cargando && !showVerify ? 'ENVIANDO CÓDIGO…' : 'ENVIAR CÓDIGO' }}
       </button>
-    </div>
+    </form>
 
     <VerifyEmailModal
       v-if="showVerify"

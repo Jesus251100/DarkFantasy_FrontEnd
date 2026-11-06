@@ -1,6 +1,10 @@
 import { api } from '../api/cliente'
-import type { ResultadoClear } from '../domain/campania/Campania'
-import type { IClienteCampania } from '../domain/campania/IClienteCampania'
+import type {
+  ConfirmacionVictoriaRemota,
+  IClienteCampania,
+  RondaCampaniaRemota,
+} from '../domain/campania/IClienteCampania'
+import type { WinMode } from '../domain/bingo/tipos'
 import type { DatosCampania } from '../domain/campania/IRepositorioCampania'
 import type { LogroVista } from '../domain/logros/Logros'
 
@@ -16,11 +20,30 @@ export class ApiCampaniaCliente implements IClienteCampania {
     return data.logros
   }
 
-  async completarNivel(nivel: number) {
-    return api<{ resultado: ResultadoClear; campania: DatosCampania }>('/api/campania/completar-nivel', {
+  async iniciarRonda(nivel: number, fase: number, modo?: WinMode, runId?: string) {
+    const data = await api<{ ronda: RondaCampaniaRemota }>('/api/campania/rondas', {
       method: 'POST',
-      body: JSON.stringify({ nivel }),
+      body: JSON.stringify({ nivel, fase, modo, runId }),
     })
+    return data.ronda
+  }
+
+  async siguienteBola(rondaId: string): Promise<number> {
+    const data = await api<{ numero: number }>(`/api/campania/rondas/${encodeURIComponent(rondaId)}/bola`, {
+      method: 'POST',
+    })
+    return data.numero
+  }
+
+  async cerrarRonda(rondaId: string): Promise<void> {
+    await api(`/api/campania/rondas/${encodeURIComponent(rondaId)}/cerrar`, { method: 'POST' })
+  }
+
+  async reclamarVictoria(rondaId: string, cartonIndex: number): Promise<ConfirmacionVictoriaRemota> {
+    return api<ConfirmacionVictoriaRemota>(
+      `/api/campania/rondas/${encodeURIComponent(rondaId)}/reclamar`,
+      { method: 'POST', body: JSON.stringify({ cartonIndex }) },
+    )
   }
 
   async registrarPartida(nivel: number, gano: boolean): Promise<void> {

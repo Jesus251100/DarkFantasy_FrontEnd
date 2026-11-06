@@ -27,6 +27,9 @@ export interface SnapPartida {
   maxNumber: number
   phase?: 1 | 2 | 3
   bots?: BotRuntime[]
+  /** Identificadores de la ronda autoritativa; no son credenciales. */
+  serverRoundId?: string | null
+  serverRunId?: string | null
   savedAt: number
 }
 
@@ -211,7 +214,11 @@ export class Partida {
   }
 
   iniciar(): void {
-    this.layouts = this.generarLayouts()
+    this.iniciarConCartones(this.generarLayouts())
+  }
+
+  iniciarConCartones(layouts: CardValue[][]): void {
+    this.layouts = layouts.map((carton) => [...carton])
     this.cartones = this.layouts.map((v) => Carton.desdeValores(v))
     this.oraculo = Oraculo.nuevo(this.config.maxNumber, this.pool())
     this.bots = FabricaBots.roster(this.config.size, this.config.maxNumber)
@@ -222,6 +229,33 @@ export class Partida {
     this.lastClaim = null
     this.winningIndices = []
     this.winningCardIndex = null
+  }
+
+  /** Añade al oráculo local una bola que ya fue cantada y autorizada por el backend. */
+  registrarBolaCantada(numero: number): boolean {
+    if (this.estado !== 'playing' && this.estado !== 'paused') return false
+    return this.oraculo.registrar(numero)
+  }
+
+  rechazarReclamo(mensaje: string): void {
+    this.estado = 'playing'
+    this.winningIndices = []
+    this.winningCardIndex = null
+    this.lastClaim = { type: 'error', message: mensaje }
+    for (const bot of this.bots) {
+      if (!bot.won) {
+        bot.busy = false
+        bot.statusText = 'En espera…'
+      }
+    }
+  }
+
+  mostrarError(mensaje: string): void {
+    this.lastClaim = { type: 'error', message: mensaje }
+  }
+
+  mostrarInfo(mensaje: string): void {
+    this.lastClaim = { type: 'info', message: mensaje }
   }
 
   pausar(): void {

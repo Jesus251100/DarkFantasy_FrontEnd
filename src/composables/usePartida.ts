@@ -1,7 +1,9 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { CatalogoNiveles } from '../domain/campania/CatalogoNiveles'
+import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { useProgressStore } from '../stores/progress'
 import type { BingoCell, WinMode } from '../domain/bingo/tipos'
+import type { ConfirmacionVictoriaRemota } from '../domain/campania/IClienteCampania'
 import type { BotRuntime } from '../domain/bots/Bot'
 import { Partida } from '../domain/partida/Partida'
 import type { ConfigPartida } from '../domain/partida/ConfigPartida'
@@ -35,7 +37,10 @@ function syncFrom(partida: Partida) {
  */
 export function usePartida(levelNumber: number) {
   const definicion = CatalogoNiveles.obtener(levelNumber)
-  const saved = repo.cargar(definicion.sessionKey)
+  const guardada = repo.cargar(definicion.sessionKey)
+  // Las sesiones anteriores a la validación del servidor no se pueden reanudar con seguridad.
+  const saved = guardada?.serverRoundId || guardada?.serverRunId ? guardada : null
+  if (guardada && !saved) repo.borrar(definicion.sessionKey)
   const faseInicial = Math.min(Math.max((saved?.phase ?? 1) - 1, 0), definicion.fases.length - 1)
 
   let config: ConfigPartida = CatalogoNiveles.configPartida(levelNumber, faseInicial)
@@ -57,14 +62,15 @@ export function usePartida(levelNumber: number) {
   const winnerIndices = ref<number[]>([])
   const playerWon = ref(true)
 
-  const canClear = computed(() => {
-    if (definicion.fases.length <= 1) return true
-    return ui.value.phase === definicion.fases.length
-  })
+  const { lastClear, registrarVictoria, registrarDerrota } = useLevelClear(levelNumber)
 
-  const { lastClear, registrarVictoria, registrarDerrota } = useLevelClear(levelNumber, canClear)
-
-  let timerId: ReturnType<typeof setInterval> | null = null
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  let serverRoundId: string | null = saved?.serverRoundId ?? null
+  let serverRunId: string | null = saved?.serverRunId ?? null
+  let modoElegido: WinMode | null = null
+  let solicitudBolaEnCurso = false
+  let bolaPendienteBots: number | null = null
+  let timerGeneration = 0
   const pending = new Map<string, ReturnType<typeof setTimeout>>()
   const colas = new Map<string, number[]>()
 
@@ -74,12 +80,17 @@ export function usePartida(levelNumber: number) {
   }
 
   function persist() {
-    repo.guardar(definicion.sessionKey, partida.toSnap())
+    repo.guardar(definicion.sessionKey, {
+      ...partida.toSnap(),
+      serverRoundId,
+      serverRunId,
+    })
   }
 
   function stopTimer() {
+    timerGeneration += 1
     if (timerId !== null) {
-      clearInterval(timerId)
+      clearTimeout(timerId)
       timerId = null
     }
   }
@@ -92,11 +103,45 @@ export function usePartida(levelNumber: number) {
 
   function startTimer() {
     stopTimer()
-    timerId = setInterval(() => {
-      const n = partida.cantarSiguiente()
-      refresh()
-      if (n !== null) onNumberCalled(n)
-    }, partida.drawIntervalMs)
+    const generation = timerGeneration
+    const programarBola = () => {
+      if (generation !== timerGeneration || partida.status !== 'playing' || !serverRoundId) return
+      timerId = setTimeout(() => {
+        const rondaId = serverRoundId
+        if (!rondaId || generation !== timerGeneration) return
+        if (solicitudBolaEnCurso) {
+          programarBola()
+          return
+        }
+        solicitudBolaEnCurso = true
+        void progress
+          .siguienteBola(rondaId)
+          .then((numero) => {
+            if (serverRoundId !== rondaId) return
+            if (!partida.registrarBolaCantada(numero)) {
+              throw new Error('El servidor y el juego dejaron de estar sincronizados. Vuelve a abrir el nivel.')
+            }
+            refresh()
+            if (partida.status === 'playing') onNumberCalled(numero)
+            else bolaPendienteBots = numero
+          })
+          .catch((error: unknown) => {
+            if (serverRoundId !== rondaId) return
+            const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : 0
+            if (status !== 429) {
+              stopTimer()
+              partida.pausar()
+              partida.mostrarError(error instanceof Error ? error.message : 'No se pudo conectar con la partida.')
+              refresh()
+            }
+          })
+          .finally(() => {
+            solicitudBolaEnCurso = false
+            if (generation === timerGeneration) programarBola()
+          })
+      }, partida.drawIntervalMs)
+    }
+    programarBola()
   }
 
   function openVictory(opts: {
@@ -184,7 +229,7 @@ export function usePartida(levelNumber: number) {
             const runtime = partida.confirmarBingoBot(botId)
             if (!runtime) return
             partida.perderContra(runtime.name)
-            await registrarDerrota()
+            await registrarDerrota(serverRoundId ?? undefined)
             openVictory({
               message: `¡${runtime.name} gritó BINGO primero!`,
               name: runtime.name,
@@ -213,24 +258,73 @@ export function usePartida(levelNumber: number) {
     refresh()
   }
 
-  function beginPlaying() {
-    partida.iniciar()
+  async function beginPlaying() {
+    try {
+      if (serverRoundId && (partida.status === 'playing' || partida.status === 'paused')) {
+        await progress.cerrarRonda(serverRoundId).catch(() => undefined)
+      }
+      const ronda = await progress.iniciarRonda(
+        levelNumber,
+        partida.phase,
+        modoElegido ?? undefined,
+        serverRunId ?? undefined,
+      )
+      serverRoundId = ronda.id
+      serverRunId = ronda.runId
+      config = {
+        ...config,
+        level: levelNumber,
+        phase: ronda.fase as 1 | 2 | 3,
+        size: ronda.tamano,
+        maxNumber: ronda.maxNumero,
+        randomCardCount: ronda.cartones.length,
+        drawIntervalMs: ronda.intervaloMs,
+        winModes: [...ronda.modos],
+        methodLabel:
+          ronda.modos.length === 1 && ronda.modos[0]
+            ? `Método: ${nombreMetodo(ronda.modos[0])}`
+            : config.methodLabel,
+      }
+      partida.reconfigurar(config)
+      if (modoElegido) partida.fijarModoVictoria(modoElegido)
+      partida.iniciarConCartones(ronda.cartones)
+      if (levelNumber <= 9 && !modoElegido && ronda.modos.length === 1 && ronda.modos[0]) {
+        partida.mostrarInfo(`Forma de ganar: ${nombreMetodo(ronda.modos[0])}.`)
+      }
+      modoElegido = null
+    } catch (error) {
+      partida.mostrarError(error instanceof Error ? error.message : 'No se pudo iniciar una ronda validada por el servidor.')
+      refresh()
+      return
+    }
     startTimer()
     refresh()
   }
 
   function maybeRuletaThenStart() {
     const faseDef = definicion.fases[partida.phase - 1]
-    if ((faseDef?.evento ?? 'ruleta') === 'ruleta' && partida.winModes.length > 0) {
+    const requiereRuleta =
+      levelNumber === 10
+        ? (faseDef?.evento ?? 'ruleta') === 'ruleta' && partida.winModes.length > 0
+        : partida.winModes.length > 1
+    if (requiereRuleta) {
       showRuleta.value = true
       refresh()
       return
     }
-    beginPlaying()
+    if (levelNumber <= 9 && partida.winModes.length === 1 && partida.winModes[0]) {
+      partida.mostrarInfo(`Forma de ganar: ${nombreMetodo(partida.winModes[0])}.`)
+      refresh()
+    }
+    void beginPlaying()
   }
 
   function startMatch() {
     if (showRuleta.value) return
+    if (serverRoundId && (partida.status === 'playing' || partida.status === 'paused')) {
+      void progress.cerrarRonda(serverRoundId).catch(() => undefined)
+      serverRoundId = null
+    }
     clearPending()
     stopTimer()
     let faseIdx = Math.max(0, partida.phase - 1)
@@ -238,20 +332,24 @@ export function usePartida(levelNumber: number) {
       faseIdx = ui.value.phase
     } else if (ui.value.status === 'won' && definicion.fases.length > 1 && ui.value.phase === definicion.fases.length) {
       faseIdx = 0
+      serverRunId = null
     }
+    modoElegido = null
     aplicarFase(faseIdx)
     maybeRuletaThenStart()
   }
 
   function onRuletaElegido(mode: WinMode) {
     showRuleta.value = false
+    modoElegido = mode
     partida.fijarModoVictoria(mode)
-    beginPlaying()
+    void beginPlaying()
   }
 
   function prepararSiguienteFase() {
     showVictoryOverlay.value = false
     if (definicion.fases.length <= 1 || partida.phase >= definicion.fases.length) return
+    serverRoundId = null
     aplicarFase(partida.phase)
     refresh()
   }
@@ -263,6 +361,10 @@ export function usePartida(levelNumber: number) {
       partida.pausar()
     } else if (partida.status === 'paused') {
       partida.reanudar()
+      if (bolaPendienteBots !== null) {
+        onNumberCalled(bolaPendienteBots)
+        bolaPendienteBots = null
+      }
       startTimer()
     }
     refresh()
@@ -274,10 +376,42 @@ export function usePartida(levelNumber: number) {
   }
 
   async function claimBingo(cardIndex = 0) {
+    if (solicitudBolaEnCurso) {
+      partida.mostrarError('Espera a que termine de llegar la bola del oráculo y vuelve a reclamar.')
+      refresh()
+      return { won: false, winningIndices: [], reason: 'no-line' as const }
+    }
     const result = partida.reclamarBingo(cardIndex)
     if (result.won) {
       stopTimer()
       clearPending()
+      if (!serverRoundId) {
+        partida.rechazarReclamo('No hay una ronda activa en el servidor. Inicia la partida de nuevo.')
+        refresh()
+        return { won: false, winningIndices: [], reason: 'no-line' as const }
+      }
+      try {
+        let confirmacion: ConfirmacionVictoriaRemota
+        try {
+          confirmacion = await registrarVictoria(serverRoundId, cardIndex)
+        } catch (primerError) {
+          const status = primerError && typeof primerError === 'object' && 'status' in primerError
+            ? Number(primerError.status)
+            : 0
+          if (status !== 0) throw primerError
+          // Si se perdió la respuesta luego de guardar la victoria, el segundo
+          // intento devuelve la confirmación de forma segura e idempotente.
+          confirmacion = await registrarVictoria(serverRoundId, cardIndex)
+        }
+        if (!confirmacion.ok) throw new Error('El servidor no confirmó esta victoria.')
+        if (confirmacion.nivelCompleto) serverRunId = null
+      } catch (error) {
+        partida.rechazarReclamo(error instanceof Error ? error.message : 'El servidor no confirmó esta victoria.')
+        const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : 0
+        if (status !== 0) startTimer()
+        refresh()
+        return { won: false, winningIndices: [], reason: 'no-line' as const }
+      }
       if (definicion.fases.length > 1 && partida.phase < definicion.fases.length) {
         partida.setWinMessage(`¡Fase ${partida.phase} superada! Pulsa → para la siguiente.`)
       } else if (definicion.fases.length > 1) {
@@ -286,7 +420,6 @@ export function usePartida(levelNumber: number) {
     }
     refresh()
     if (result.won) {
-      await registrarVictoria()
       const board = partida.snapshotCarton(partida.cartonGanador ?? 0)
       const msg =
         definicion.fases.length > 1 && partida.phase < definicion.fases.length
@@ -326,6 +459,9 @@ export function usePartida(levelNumber: number) {
   }
 
   function clearSession() {
+    if (serverRoundId && (partida.status === 'playing' || partida.status === 'paused')) {
+      void progress.cerrarRonda(serverRoundId).catch(() => undefined)
+    }
     repo.borrar(definicion.sessionKey)
   }
 
@@ -360,6 +496,9 @@ export function usePartida(levelNumber: number) {
 
   const idleHint = computed(() => {
     const f = definicion.fases[phase.value - 1]
+    if (levelNumber <= 9 && f?.winModes.length === 1 && f.winModes[0]) {
+      return `Forma de ganar: ${nombreMetodo(f.winModes[0])}.`
+    }
     return f?.idleHint ?? definicion.idleHint
   })
 

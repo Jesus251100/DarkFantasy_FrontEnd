@@ -7,6 +7,24 @@ import { useProgressStore } from '../stores/progress'
 
 type SolicitudCodigo = { ok: boolean; bandeja?: string }
 
+const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CLAVE_ALFANUMERICA = /^(?=.*\p{L})(?=.*\p{N})/u
+
+function fechaValida(texto: string): boolean {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(texto)
+  if (!partes) return false
+  const anio = Number(partes[1])
+  const mes = Number(partes[2])
+  const dia = Number(partes[3])
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia))
+  return (
+    anio >= 1900 &&
+    fecha.getUTCFullYear() === anio &&
+    fecha.getUTCMonth() === mes - 1 &&
+    fecha.getUTCDate() === dia
+  )
+}
+
 export function useRegistro() {
   const router = useRouter()
   const route = useRoute()
@@ -67,16 +85,24 @@ export function useRegistro() {
 
   function validarFormulario(): string | null {
     if (!username.value.trim()) return 'Ingresa un nombre de usuario'
-    if (!email.value.includes('@')) return 'Ingresa un correo válido'
+    if (username.value.trim().length > 40) return 'El nombre no puede superar 40 caracteres'
+    if (!CORREO_VALIDO.test(email.value.trim())) return 'Ingresa un correo válido'
     if (!confirmarEmail.value.trim()) return 'Confirma tu correo electrónico'
+    if (!CORREO_VALIDO.test(confirmarEmail.value.trim())) return 'Confirma un correo válido'
     if (email.value.trim().toLowerCase() !== confirmarEmail.value.trim().toLowerCase()) {
       return 'Los correos no coinciden'
     }
-    if (password.value.length < 12) return 'La contraseña debe tener al menos 12 caracteres'
+    if (password.value.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
+    if (password.value.length > 128) return 'La contraseña no puede superar 128 caracteres'
+    if (!CLAVE_ALFANUMERICA.test(password.value)) {
+      return 'La contraseña debe incluir al menos una letra y un número'
+    }
     if (password.value !== confirmPassword.value) return 'Las contraseñas no coinciden'
-    if (!nacionalidad.value.trim()) return 'Selecciona tu nacionalidad'
-    if (!genero.value) return 'Selecciona tu género'
-    if (!fechaNacimiento.value) return 'Selecciona tu fecha de nacimiento'
+    if (!/^[A-Za-z]{2}$/.test(nacionalidad.value.trim())) return 'Selecciona tu nacionalidad'
+    if (genero.value !== 'M' && genero.value !== 'F') return 'Selecciona tu género'
+    if (!fechaNacimiento.value || !fechaValida(fechaNacimiento.value)) {
+      return 'Ingresa una fecha de nacimiento válida'
+    }
     return null
   }
 
@@ -126,8 +152,13 @@ export function useRegistro() {
   }
 
   async function verificarCodigo(codigo: string) {
-    if (codigo.length < 6) {
+    if (!/^\d{6}$/.test(codigo)) {
       showToast('Ingresa los 6 dígitos')
+      return
+    }
+    const fallo = validarFormulario()
+    if (fallo) {
+      showToast(fallo)
       return
     }
     cargando.value = true

@@ -27,6 +27,17 @@ export class Oraculo {
     return n
   }
 
+  /** Registra una bola cantada por el servidor sin sortear otra localmente. */
+  registrar(numero: number): boolean {
+    if (!Number.isInteger(numero) || this.conjunto.has(numero)) return false
+    const restantes = this.bolsa.toArray()
+    if (!restantes.includes(numero)) return false
+    this.bolsa = Bolsa.desdeRestantes(restantes.filter((n) => n !== numero))
+    this.cantadas.push(numero)
+    this.ultima = numero
+    return true
+  }
+
   yaCanto(n: number): boolean {
     return this.conjunto.has(n)
   }

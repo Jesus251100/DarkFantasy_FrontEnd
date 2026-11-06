@@ -44,14 +44,31 @@ function fase(
   }
 }
 
+/** Cada nivel conserva los métodos previos y agrega los que presenta por primera vez. */
+const METODOS_ACUMULADOS: Record<number, WinMode[]> = {
+  1: ['row', 'column'],
+  2: ['row', 'column', 'diagonal'],
+  3: ['row', 'column', 'diagonal', 'L', 'O'],
+  4: ['row', 'column', 'diagonal', 'L', 'O'],
+  5: ['row', 'column', 'diagonal', 'L', 'O', 'plus', 'X'],
+  6: ['row', 'column', 'diagonal', 'L', 'O', 'plus', 'X', 'H', 'T'],
+  7: ['row', 'column', 'diagonal', 'L', 'O', 'plus', 'X', 'H', 'T', 'arrow', 'diamond'],
+  8: ['row', 'column', 'diagonal', 'L', 'O', 'plus', 'X', 'H', 'T', 'arrow', 'diamond'],
+  9: ['row', 'column', 'diagonal', 'L', 'O', 'plus', 'X', 'H', 'T', 'arrow', 'diamond', 'zigzag'],
+}
+
+function metodosAcumulados(nivel: number): WinMode[] {
+  return [...(METODOS_ACUMULADOS[nivel] ?? [])]
+}
+
 const NIVELES: DefinicionNivel[] = [
   {
     numero: 1,
     sessionKey: 'level-1',
     idleHint: 'Pulsa Iniciar: la ruleta elige fila horizontal o columna vertical.',
-    previews: previewsDe(3, ['row', 'column']),
+    previews: previewsDe(3, metodosAcumulados(1)),
     fases: [
-      fase(3, ['row', 'column'], 35, 1, 'Pulsa Iniciar: la ruleta elige fila o columna.', 3800),
+      fase(3, metodosAcumulados(1), 35, 1, 'Pulsa Iniciar: la ruleta elige fila o columna.', 3800),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -60,9 +77,9 @@ const NIVELES: DefinicionNivel[] = [
     numero: 2,
     sessionKey: 'level-2',
     idleHint: 'Pulsa Iniciar: la ruleta elige fila, columna o diagonal.',
-    previews: previewsDe(3, ['row', 'column', 'diagonal']),
+    previews: previewsDe(3, metodosAcumulados(2)),
     fases: [
-      fase(3, ['row', 'column', 'diagonal'], 35, 1, 'Pulsa Iniciar: la ruleta elige fila, columna o diagonal.', 3600),
+      fase(3, metodosAcumulados(2), 35, 1, 'Pulsa Iniciar: la ruleta elige entre los métodos disponibles.', 3600),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -71,9 +88,9 @@ const NIVELES: DefinicionNivel[] = [
     numero: 3,
     sessionKey: 'level-3',
     idleHint: 'Pulsa Iniciar: la ruleta elige línea, L u O en el cartón 4×4.',
-    previews: previewsDe(4, ['row', 'column', 'diagonal', 'L', 'O']),
+    previews: previewsDe(4, metodosAcumulados(3)),
     fases: [
-      fase(4, ['row', 'column', 'diagonal', 'L', 'O'], 50, 1, 'Pulsa Iniciar: la ruleta elige el método 4×4.', 3400),
+      fase(4, metodosAcumulados(3), 50, 1, 'Pulsa Iniciar: la ruleta elige entre los métodos disponibles en el cartón 4×4.', 3400),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -82,9 +99,9 @@ const NIVELES: DefinicionNivel[] = [
     numero: 4,
     sessionKey: 'level-4',
     idleHint: 'Dos cartones. La ruleta elige línea, L u O.',
-    previews: previewsDe(4, ['row', 'column', 'diagonal', 'L', 'O']),
+    previews: previewsDe(4, metodosAcumulados(4)),
     fases: [
-      fase(4, ['row', 'column', 'diagonal', 'L', 'O'], 50, 2, 'Pulsa Iniciar: la ruleta elige el método. Gana en cualquiera de los dos cartones.', 3300),
+      fase(4, metodosAcumulados(4), 50, 2, 'Dos cartones: la ruleta elige el método. Gana en cualquiera de ellos.', 3300),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -92,10 +109,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 5,
     sessionKey: 'level-5',
-    idleHint: 'Pulsa Iniciar: la ruleta elige cruz (+) o letra X. Noches de eclipse: si no marcas, un eclipse tapa el cartón.',
-    previews: previewsDe(5, ['plus', 'X']),
+    idleHint: 'Pulsa Iniciar: la ruleta elige entre los métodos acumulados.',
+    previews: previewsDe(5, metodosAcumulados(5)),
     fases: [
-      fase(5, ['plus', 'X'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz (+) o X. Si no marcas, el eclipse cubre el cartón.', 3100, 'ruleta', true),
+      fase(5, metodosAcumulados(5), 75, 1, 'Pulsa Iniciar: la ruleta elige entre los métodos acumulados.', 3100),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -104,18 +121,18 @@ const NIVELES: DefinicionNivel[] = [
     numero: 6,
     sessionKey: 'level-6',
     idleHint: 'Pulsa Iniciar: la ruleta elige cruz, H o T.',
-    previews: previewsDe(5, ['plus', 'H', 'T']),
-    fases: [fase(5, ['plus', 'H', 'T'], 75, 1, 'Pulsa Iniciar: la ruleta elige cruz, H o T.', 3000)],
+    previews: previewsDe(5, metodosAcumulados(6)),
+    fases: [fase(5, metodosAcumulados(6), 75, 1, 'Pulsa Iniciar: la ruleta elige entre los métodos acumulados.', 3000)],
     muestraJefe: false,
     fondo: 'gif',
   },
   {
     numero: 7,
     sessionKey: 'level-7',
-    idleHint: 'Pulsa Iniciar: la ruleta elige flecha o diamante. Noches de eclipse: si no marcas, un eclipse tapa el cartón.',
-    previews: previewsDe(5, ['arrow', 'diamond']),
+    idleHint: 'Pulsa Iniciar: la ruleta elige entre los métodos acumulados.',
+    previews: previewsDe(5, metodosAcumulados(7)),
     fases: [
-      fase(5, ['arrow', 'diamond'], 75, 1, 'Pulsa Iniciar: la ruleta elige flecha o diamante. Si no marcas, el eclipse cubre el cartón.', 2900, 'ruleta', true),
+      fase(5, metodosAcumulados(7), 75, 1, 'Pulsa Iniciar: la ruleta elige entre los métodos acumulados.', 2900),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -123,10 +140,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 8,
     sessionKey: 'level-8',
-    idleHint: 'Dos cartones. La ruleta elige cruz, T, H o flecha. Noches de eclipse: si no marcas, un eclipse tapa los cartones.',
-    previews: previewsDe(5, ['plus', 'T', 'H', 'arrow']),
+    idleHint: 'Dos cartones. La ruleta elige entre los métodos acumulados.',
+    previews: previewsDe(5, metodosAcumulados(8)),
     fases: [
-      fase(5, ['plus', 'T', 'H', 'arrow'], 75, 2, 'Pulsa Iniciar: la ruleta elige el método. Si no marcas, el eclipse cubre los cartones.', 2800, 'ruleta', true),
+      fase(5, metodosAcumulados(8), 75, 2, 'Dos cartones: la ruleta elige entre los métodos acumulados.', 2800),
     ],
     muestraJefe: false,
     fondo: 'gif',
@@ -134,10 +151,10 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 9,
     sessionKey: 'level-9',
-    idleHint: 'Noches de eclipse: si no marcas, un eclipse tapa el cartón y se pone más oscuro.',
-    previews: previewsDe(5, ['zigzag']),
+    idleHint: 'Dos cartones. La ruleta elige entre los métodos acumulados.',
+    previews: previewsDe(5, metodosAcumulados(9)),
     fases: [
-      fase(5, ['zigzag'], 75, 2, 'Pulsa Iniciar. Si no marcas, el eclipse cubre los cartones.', 2700, 'ruleta', true),
+      fase(5, metodosAcumulados(9), 75, 2, 'Dos cartones: la ruleta elige entre los métodos acumulados.', 2700),
     ],
     muestraJefe: false,
     fondo: 'gif',

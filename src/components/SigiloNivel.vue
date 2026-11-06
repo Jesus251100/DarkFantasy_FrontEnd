@@ -23,7 +23,7 @@ const props = defineProps<{ nivel: number }>()
 /**
  * Glifos del mapa de campaña. Cada uno alude a lo que el nivel trae de
  * nuevo (sacado de CatalogoNiveles): el 1 abre la ruleta, el 4 mete un
- * segundo cartón, el 9 introduce la oscuridad y el 10 al jefe final.
+ * segundo cartón, el 9 incorpora zigzag y el 10 presenta al jefe final.
  */
 const SIGILOS: Record<number, string[]> = {
   // 1 · 3x3, fila o columna -> llama
@@ -50,7 +50,7 @@ const SIGILOS: Record<number, string[]> = {
     'M14.7 9.5a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8Z',
     'M12 14.5v4.5',
   ],
-  // 9 · oscuridad (niebla) -> luna creciente
+  // 9 · métodos acumulados con zigzag -> luna creciente
   9: [
     'M15.5 2.5a9.5 9.5 0 1 0 6 14.5A7.5 7.5 0 0 1 15.5 2.5Z',
     'M5 3.5l.9 2.3 2.3.9-2.3.9L5 9.9l-.9-2.3-2.3-.9 2.3-.9L5 3.5Z',

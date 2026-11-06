@@ -57,13 +57,14 @@ function onDigitPaste(event: ClipboardEvent) {
 }
 
 function confirmar() {
+  if (!/^\d{6}$/.test(codeValue.value)) return
   emit('verify', codeValue.value)
 }
 </script>
 
 <template>
   <div class="verify-backdrop" @click.self="emit('close')">
-    <div class="verify-modal" role="dialog" aria-labelledby="verify-title">
+    <form class="verify-modal" role="dialog" aria-labelledby="verify-title" @submit.prevent="confirmar">
       <button type="button" class="btn-atras" aria-label="Volver" @click="emit('close')">←</button>
       <div class="verify-icon" aria-hidden="true">
         <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
@@ -90,6 +91,8 @@ function confirmar() {
           type="text"
           inputmode="numeric"
           maxlength="1"
+          pattern="[0-9]"
+          required
           :value="digits[i]"
           autocomplete="one-time-code"
           :disabled="cargando"
@@ -111,10 +114,10 @@ function confirmar() {
         </button>
       </p>
 
-      <button type="button" class="btn-verify" :disabled="cargando" @click="confirmar">
+      <button type="submit" class="btn-verify" :disabled="cargando">
         {{ cargando ? 'Verificando…' : 'verificar código' }}
       </button>
-    </div>
+    </form>
   </div>
 </template>
 

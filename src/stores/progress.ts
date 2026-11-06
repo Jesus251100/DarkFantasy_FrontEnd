@@ -1,6 +1,5 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { CompletarNivelRemoto } from '../application/CompletarNivelRemoto'
 import { RegistrarPartidaRemota } from '../application/RegistrarPartidaRemota'
 import { aplicarDatosEnCampania, SincronizarCampania } from '../application/SincronizarCampania'
 import { Campania, type ResultadoClear } from '../domain/campania/Campania'
@@ -12,6 +11,11 @@ import {
 } from '../domain/campania/IRepositorioCampania'
 import { COIN_REWARD, DIAMOND_REWARD } from '../domain/campania/Recompensa'
 import { ApiCampaniaCliente } from '../infrastructure/ApiCampaniaCliente'
+import type {
+  ConfirmacionVictoriaRemota,
+  RondaCampaniaRemota,
+} from '../domain/campania/IClienteCampania'
+import type { WinMode } from '../domain/bingo/tipos'
 import { LocalStorageCampaniaRepo } from '../infrastructure/LocalStorageCampaniaRepo'
 import { useAuthStore } from './auth'
 
@@ -27,7 +31,6 @@ export const useProgressStore = defineStore('progress', () => {
   const campania = new Campania(cache)
   const cliente = new ApiCampaniaCliente()
   const sincronizar = new SincronizarCampania(cliente)
-  const completarRemoto = new CompletarNivelRemoto(cliente)
   const registrarRemota = new RegistrarPartidaRemota(cliente)
 
   const highestUnlocked = ref(campania.highestUnlocked)
@@ -95,14 +98,26 @@ export const useProgressStore = defineStore('progress', () => {
     hidratado.value = false
   }
 
-  async function completeLevel(level: number): Promise<ResultadoClear> {
-    const data = await completarRemoto.ejecutar(level, campania)
-    aplicarDatos(data.campania)
-    return data.resultado
-  }
-
   async function registrarPartida(nivel: number, gano: boolean) {
     await registrarRemota.ejecutar(nivel, gano)
+  }
+
+  function iniciarRonda(nivel: number, fase: number, modo?: WinMode, runId?: string): Promise<RondaCampaniaRemota> {
+    return cliente.iniciarRonda(nivel, fase, modo, runId)
+  }
+
+  function siguienteBola(rondaId: string): Promise<number> {
+    return cliente.siguienteBola(rondaId)
+  }
+
+  function cerrarRonda(rondaId: string): Promise<void> {
+    return cliente.cerrarRonda(rondaId)
+  }
+
+  async function reclamarVictoria(rondaId: string, cartonIndex: number): Promise<ConfirmacionVictoriaRemota> {
+    const confirmacion = await cliente.reclamarVictoria(rondaId, cartonIndex)
+    if (confirmacion.campania) aplicarDatos(confirmacion.campania)
+    return confirmacion
   }
 
   async function comprarEnServidor(id: number, cantidad: number) {
@@ -152,8 +167,11 @@ export const useProgressStore = defineStore('progress', () => {
     hidratado,
     isUnlocked,
     isCompleted,
-    completeLevel,
     registrarPartida,
+    iniciarRonda,
+    siguienteBola,
+    cerrarRonda,
+    reclamarVictoria,
     boosterCount,
     setDisplayName,
     dominio,

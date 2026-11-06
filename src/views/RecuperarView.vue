@@ -14,11 +14,13 @@ const aviso = ref('')
 const bandeja = ref('')
 const cargando = ref(false)
 const enviado = ref(false)
+const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CLAVE_ALFANUMERICA = /^(?=.*\p{L})(?=.*\p{N})/u
 
 async function pedirCodigo() {
   error.value = ''
   aviso.value = ''
-  if (!correo.value.includes('@')) {
+  if (!CORREO_VALIDO.test(correo.value.trim())) {
     error.value = 'Ingresa un correo válido'
     return
   }
@@ -44,8 +46,16 @@ async function guardar() {
     error.value = 'El código tiene 6 números'
     return
   }
-  if (clave.value.length < 12) {
-    error.value = 'La contraseña debe tener al menos 12 caracteres'
+  if (clave.value.length < 8) {
+    error.value = 'La contraseña debe tener al menos 8 caracteres'
+    return
+  }
+  if (clave.value.length > 128) {
+    error.value = 'La contraseña no puede superar 128 caracteres'
+    return
+  }
+  if (!CLAVE_ALFANUMERICA.test(clave.value)) {
+    error.value = 'La contraseña debe incluir al menos una letra y un número'
     return
   }
   if (clave.value !== confirmar.value) {
@@ -85,21 +95,21 @@ async function guardar() {
 
       <div class="campo">
         <label>Correo</label>
-        <input v-model="correo" type="text" placeholder="Ingrese su correo" autocomplete="username" :disabled="enviado" />
+        <input v-model="correo" type="email" required maxlength="254" placeholder="Ingrese su correo" autocomplete="username" :disabled="enviado" />
       </div>
 
       <template v-if="enviado">
         <div class="campo">
           <label>Código</label>
-          <input v-model="codigo" type="text" inputmode="numeric" maxlength="6" placeholder="6 números" autocomplete="one-time-code" />
+          <input v-model="codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" placeholder="6 números" autocomplete="one-time-code" />
         </div>
         <div class="campo">
           <label>Nueva contraseña</label>
-          <input v-model="clave" type="password" placeholder="Ingrese la nueva contraseña" autocomplete="new-password" />
+          <input v-model="clave" type="password" required minlength="8" maxlength="128" placeholder="Mínimo 8; incluye letras y números" autocomplete="new-password" />
         </div>
         <div class="campo">
           <label>Confirmar contraseña</label>
-          <input v-model="confirmar" type="password" placeholder="Confirme la contraseña" autocomplete="new-password" />
+          <input v-model="confirmar" type="password" required minlength="8" maxlength="128" placeholder="Confirme la contraseña" autocomplete="new-password" />
         </div>
         <p v-if="bandeja" class="pista">
           En este computador el código sale en

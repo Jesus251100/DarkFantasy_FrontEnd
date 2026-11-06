@@ -99,8 +99,10 @@ const gridClass = computed(() => `grid-${size.value}`)
 const previewItems = computed(() => {
   const modes = winModes.value
   const s = size.value
-  if (modes.length <= 1) return [{ size: s, winModes: modes }]
-  return modes.map((m) => ({ size: s, winModes: [m] as WinMode[] }))
+  const fase = definicion.fases[phase.value - 1]
+  const nivelDeUnMetodo = props.levelNumber <= 9 && fase?.winModes.length === 1
+  if (status.value === 'idle' || modes.length !== 1 || nivelDeUnMetodo) return []
+  return [{ size: s, winModes: [modes[0] as WinMode] }]
 })
 
 const nextPhaseNum = computed(() => {
@@ -402,6 +404,7 @@ function onVictoryNext() {
       </div>
 
       <div
+        v-if="previewItems.length > 0"
         class="method-preview-wrap"
         :class="{ 'method-preview-wrap--many': previewItems.length > 1 }"
       >

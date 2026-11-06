@@ -1,27 +1,20 @@
-import { ref, toValue, type MaybeRefOrGetter } from 'vue'
+import { ref } from 'vue'
 import { useProgressStore, type LevelClearResult } from '../stores/progress'
+import type { ConfirmacionVictoriaRemota } from '../domain/campania/IClienteCampania'
 
-/**
- * Registra victoria/derrota en PostgreSQL (campaña + historial de partidas).
- */
-export function useLevelClear(
-  level: number,
-  canClear: MaybeRefOrGetter<boolean> = true,
-) {
+/** Registra solo victorias confirmadas por el backend. */
+export function useLevelClear(level: number) {
   const progress = useProgressStore()
   const lastClear = ref<LevelClearResult | null>(null)
 
-  async function registrarVictoria() {
-    if (toValue(canClear)) {
-      lastClear.value = await progress.completeLevel(level)
-    } else {
-      lastClear.value = null
-      await progress.registrarPartida(level, true)
-    }
-    return lastClear.value
+  async function registrarVictoria(rondaId: string, cartonIndex: number): Promise<ConfirmacionVictoriaRemota> {
+    const confirmacion = await progress.reclamarVictoria(rondaId, cartonIndex)
+    lastClear.value = confirmacion.resultado ?? null
+    return confirmacion
   }
 
-  async function registrarDerrota() {
+  async function registrarDerrota(rondaId?: string) {
+    if (rondaId) await progress.cerrarRonda(rondaId).catch(() => undefined)
     await progress.registrarPartida(level, false)
   }
 
