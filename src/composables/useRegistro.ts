@@ -72,7 +72,7 @@ export function useRegistro() {
     if (email.value.trim().toLowerCase() !== confirmarEmail.value.trim().toLowerCase()) {
       return 'Los correos no coinciden'
     }
-    if (password.value.length < 4) return 'La contraseña debe tener al menos 4 caracteres'
+    if (password.value.length < 12) return 'La contraseña debe tener al menos 12 caracteres'
     if (password.value !== confirmPassword.value) return 'Las contraseñas no coinciden'
     if (!nacionalidad.value.trim()) return 'Selecciona tu nacionalidad'
     if (!genero.value) return 'Selecciona tu género'

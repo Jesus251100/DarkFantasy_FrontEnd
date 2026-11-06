@@ -44,8 +44,8 @@ async function guardar() {
     error.value = 'El código tiene 6 números'
     return
   }
-  if (clave.value.length < 4) {
-    error.value = 'La contraseña debe tener al menos 4 caracteres'
+  if (clave.value.length < 12) {
+    error.value = 'La contraseña debe tener al menos 12 caracteres'
     return
   }
   if (clave.value !== confirmar.value) {
