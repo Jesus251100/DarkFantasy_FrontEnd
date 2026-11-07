@@ -5,6 +5,7 @@ import type { DificultadNivel } from './DificultadNivel'
 
 export type BotId = 'pereza' | 'espada' | 'envidia' | 'dragon'
 export type LadoBot = 'left' | 'right'
+export type MomentoBot = 'pensar' | 'dudar' | 'marcar' | 'cerca' | 'bingo' | 'jugador'
 
 /** Snapshot para la UI (Vue no instancia clases en el template). */
 export interface BotRuntime {
@@ -16,6 +17,8 @@ export interface BotRuntime {
   card: BingoCell[]
   statusText: string
   progress: number
+  progressMarked: number
+  progressTotal: number
   won: boolean
   busy: boolean
 }
@@ -33,9 +36,12 @@ export abstract class Bot {
   abstract readonly multVelocidad: number
   abstract readonly multFallo: number
   abstract readonly lado: LadoBot
+  abstract reaccion(momento: MomentoBot): string
 
   statusText = 'En espera…'
   progress = 0
+  progressMarked = 0
+  progressTotal = 1
   won = false
   busy = false
 
@@ -50,7 +56,7 @@ export abstract class Bot {
     const cierra = this.carton.celdaCierraPatron(indice, patrones)
     const ayuda = cierra || this.carton.celdaAyudaPatron(indice, patrones)
     if (!cierra && !dificultad.debeMarcar(this.multFallo, ayuda)) {
-      this.statusText = 'Dudando…'
+      this.statusText = this.reaccion('dudar')
       return { marcar: false, delayMs: 0, indiceCelda: indice }
     }
     return {
@@ -63,15 +69,27 @@ export abstract class Bot {
   aplicarMarca(indice: number, patrones: IPatronVictoria[]): void {
     const celda = this.carton.celdaEn(indice)
     celda?.marcar()
-    this.progress = this.carton.progresoMejorPatron(patrones)
-    this.statusText = estadoTrasMarca(this.progress)
+    this.actualizarProgreso(patrones)
+    this.statusText = this.reaccion(this.progress >= 0.75 ? 'cerca' : 'marcar')
     this.busy = false
+  }
+
+  actualizarProgreso(patrones: IPatronVictoria[]): void {
+    const avance = this.carton.avanceMejorPatron(patrones)
+    this.progress = avance.progreso
+    this.progressMarked = avance.marcadas
+    this.progressTotal = avance.total
+  }
+
+  protected elegirFrase(opciones: string[]): string {
+    return opciones[Math.floor(Math.random() * opciones.length)] ?? ''
   }
 
   gritarBingo(): void {
     this.won = true
     this.progress = 1
-    this.statusText = '¡BINGO!'
+    this.progressMarked = this.progressTotal
+    this.statusText = this.reaccion('bingo')
     this.busy = false
   }
 
@@ -85,6 +103,8 @@ export abstract class Bot {
       card: this.carton.toSnapshot(),
       statusText: this.statusText,
       progress: this.progress,
+      progressMarked: this.progressMarked,
+      progressTotal: this.progressTotal,
       won: this.won,
       busy: this.busy,
     }
@@ -94,15 +114,9 @@ export abstract class Bot {
     this.carton = Carton.desdeSnapshot(snap.card)
     this.statusText = snap.statusText
     this.progress = snap.progress
+    this.progressMarked = snap.progressMarked ?? 0
+    this.progressTotal = snap.progressTotal ?? 1
     this.won = snap.won
     this.busy = false
   }
-}
-
-function estadoTrasMarca(progress: number): string {
-  if (progress >= 0.99) return '¡Casi BINGO!'
-  if (progress >= 0.66) return 'Muy cerca…'
-  if (progress >= 0.33) return 'Marcando…'
-  const lines = ['Anotado', 'Interesante…', 'Sigo el oráculo', 'Hmm…']
-  return lines[Math.floor(Math.random() * lines.length)] ?? 'Marcando…'
 }

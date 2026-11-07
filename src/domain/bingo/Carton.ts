@@ -75,7 +75,12 @@ export class Carton {
   }
 
   progresoMejorPatron(patrones: IPatronVictoria[]): number {
-    let best = 0
+    return this.avanceMejorPatron(patrones).progreso
+  }
+
+  /** Avance real del patrón más cercano, contando únicamente casillas del cartón. */
+  avanceMejorPatron(patrones: IPatronVictoria[]): { progreso: number; marcadas: number; total: number } {
+    let best = { progreso: 0, marcadas: 0, total: 1 }
     for (const patron of patrones) {
       for (const indices of patron.indices(this.tamano)) {
         if (indices.length === 0) continue
@@ -84,7 +89,10 @@ export class Carton {
           const celda = this.celdas[i]
           if (celda?.estaMarcada || celda?.libre) hit++
         }
-        best = Math.max(best, hit / indices.length)
+        const progreso = hit / indices.length
+        if (progreso > best.progreso || (progreso === best.progreso && hit > best.marcadas)) {
+          best = { progreso, marcadas: hit, total: indices.length }
+        }
       }
     }
     return best

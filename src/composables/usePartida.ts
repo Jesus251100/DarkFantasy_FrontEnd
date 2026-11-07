@@ -71,6 +71,7 @@ export function usePartida(levelNumber: number) {
   let solicitudBolaEnCurso = false
   let bolaPendienteBots: number | null = null
   let timerGeneration = 0
+  let ultimaReaccionJugador = 0
   const pending = new Map<string, ReturnType<typeof setTimeout>>()
   const colas = new Map<string, number[]>()
 
@@ -208,7 +209,7 @@ export function usePartida(levelNumber: number) {
       siguienteDeCola(botId)
       return
     }
-    partida.setBotBusy(botId, true, 'Pensando…')
+    partida.setBotBusy(botId, true, partida.reaccionBot(botId, 'pensar'))
     refresh()
     const timer = setTimeout(() => {
       pending.delete(key)
@@ -221,7 +222,7 @@ export function usePartida(levelNumber: number) {
       refresh()
       if (bingo) {
         colas.delete(botId)
-        partida.setBotBusy(botId, true, '¡BINGO!')
+        partida.setBotBusy(botId, true, partida.reaccionBot(botId, 'bingo'))
         refresh()
         const winTimer = setTimeout(() => {
           void (async () => {
@@ -371,7 +372,16 @@ export function usePartida(levelNumber: number) {
   }
 
   function toggleCell(a: number, b?: number) {
-    partida.marcarCelda(a, b)
+    const cardIndex = b === undefined ? 0 : a
+    const cellIndex = b === undefined ? a : b
+    const yaMarcada = partida.snapshotCarton(cardIndex)[cellIndex]?.marked === true
+    const cambio = partida.marcarCelda(a, b)
+    const marcadaAhora = partida.snapshotCarton(cardIndex)[cellIndex]?.marked === true
+    const ahora = Date.now()
+    if (cambio && !yaMarcada && marcadaAhora && ahora - ultimaReaccionJugador >= 4500) {
+      partida.reaccionarAlJugador()
+      ultimaReaccionJugador = ahora
+    }
     refresh()
   }
 

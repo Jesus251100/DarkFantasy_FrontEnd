@@ -935,15 +935,20 @@ function onVictoryNext() {
   text-overflow: ellipsis;
 }
 .jefe-rival-track {
-  height: 6px;
+  height: 9px;
   border-radius: 999px;
-  background: rgba(20, 12, 16, 0.7);
+  background: linear-gradient(180deg, rgba(16, 12, 16, 0.92), rgba(40, 28, 30, 0.9));
   overflow: hidden;
+  border: 1px solid rgba(190, 143, 103, 0.45);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6);
 }
 .jefe-rival-fill {
+  position: relative;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1a6cff 0%, #4dc4ff 100%);
+  background: linear-gradient(90deg, #285eac 0%, #479cc9 56%, #a6d9dc 100%);
+  box-shadow: 0 0 8px rgba(90, 175, 220, 0.65);
+  transition: width 0.7s cubic-bezier(0.22, 0.8, 0.25, 1);
 }
 .jefe-rival.won .jefe-rival-fill {
   background: linear-gradient(90deg, #c9a227 0%, #f0e68c 100%);

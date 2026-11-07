@@ -4,7 +4,7 @@ import { Oraculo } from '../bingo/Oraculo'
 import { patronesDesdeModos } from '../bingo/patrones/catalogoPatrones'
 import type { IPatronVictoria } from '../bingo/patrones/IPatronVictoria'
 import type { BingoCell, CardValue, EstadoPartida, WinMode, WinResult } from '../bingo/tipos'
-import { Bot, type BotRuntime } from '../bots/Bot'
+import { Bot, type BotRuntime, type MomentoBot } from '../bots/Bot'
 import { DificultadNivel } from '../bots/DificultadNivel'
 import { FabricaBots } from '../bots/FabricaBots'
 import type { ConfigPartida, FeedbackPartida } from './ConfigPartida'
@@ -74,6 +74,7 @@ export class Partida {
   private winningCardIndex: number | null = null
   private dificultad: DificultadNivel
   private fase: 1 | 2 | 3
+  private siguienteBotRespuesta = 0
 
   private constructor(private config: ConfigPartida) {
     this.patrones = patronesDesdeModos(config.winModes)
@@ -84,7 +85,7 @@ export class Partida {
     this.oraculo = Oraculo.nuevo(config.maxNumber, this.pool())
     this.bots = FabricaBots.roster(config.size, config.maxNumber)
     for (const b of this.bots) {
-      b.progress = b.carton.progresoMejorPatron(this.patrones)
+      b.actualizarProgreso(this.patrones)
     }
   }
 
@@ -195,8 +196,12 @@ export class Partida {
 
   snapshotsBots(): BotRuntime[] {
     return this.bots.map((b) => {
+      b.actualizarProgreso(this.patrones)
       const snap = b.toRuntime()
-      snap.progress = b.won ? 1 : b.carton.progresoMejorPatron(this.patrones)
+      if (b.won) {
+        snap.progress = 1
+        snap.progressMarked = snap.progressTotal
+      }
       return snap
     })
   }
@@ -223,7 +228,7 @@ export class Partida {
     this.oraculo = Oraculo.nuevo(this.config.maxNumber, this.pool())
     this.bots = FabricaBots.roster(this.config.size, this.config.maxNumber)
     for (const b of this.bots) {
-      b.progress = b.carton.progresoMejorPatron(this.patrones)
+      b.actualizarProgreso(this.patrones)
     }
     this.estado = 'playing'
     this.lastClaim = null
@@ -285,15 +290,17 @@ export class Partida {
     else if (this.estado === 'paused') this.reanudar()
   }
 
-  marcarCelda(a: number, b?: number): void {
-    if (this.estado !== 'playing') return
+  marcarCelda(a: number, b?: number): boolean {
+    if (this.estado !== 'playing') return false
     const cardIndex = b === undefined ? 0 : a
     const cellIndex = b === undefined ? a : b
     const carton = this.cartones[cardIndex]
-    if (!carton) return
+    if (!carton) return false
     if (carton.toggleCelda(cellIndex, this.oraculo.conjunto)) {
       this.lastClaim = null
+      return true
     }
+    return false
   }
 
   cantarSiguiente(): number | null {
@@ -381,7 +388,7 @@ export class Partida {
     this.oraculo = Oraculo.nuevo(config.maxNumber, this.pool())
     this.bots = FabricaBots.roster(config.size, config.maxNumber)
     for (const b of this.bots) {
-      b.progress = b.carton.progresoMejorPatron(this.patrones)
+      b.actualizarProgreso(this.patrones)
     }
     this.estado = 'idle'
     this.lastClaim = null
@@ -429,6 +436,21 @@ export class Partida {
     if (!bot) return
     bot.busy = busy
     if (status !== undefined) bot.statusText = status
+  }
+
+  reaccionBot(botId: string, momento: MomentoBot): string {
+    return this.botPorId(botId)?.reaccion(momento) ?? 'El oráculo sigue cantando…'
+  }
+
+  reaccionarAlJugador(): void {
+    for (let paso = 0; paso < this.bots.length; paso++) {
+      const indice = (this.siguienteBotRespuesta + paso) % this.bots.length
+      const bot = this.bots[indice]
+      if (!bot || bot.won || bot.busy) continue
+      bot.statusText = bot.reaccion('jugador')
+      this.siguienteBotRespuesta = (indice + 1) % this.bots.length
+      return
+    }
   }
 
   esCeldaCantada(numero: number): boolean {
