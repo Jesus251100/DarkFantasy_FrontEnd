@@ -1,7 +1,7 @@
 import type { Pinia } from 'pinia'
 import type { Router } from 'vue-router'
 import { watch } from 'vue'
-import menuTheme from '@/assets/audio/menu-theme.mp3'
+import menuTheme from '@/assets/audio/requiem of silence.mp3'
 import { useAudioStore } from '@/stores/audio'
 
 const RUTA_NIVEL = /^\/level\d+$/
