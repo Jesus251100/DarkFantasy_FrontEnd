@@ -1,10 +1,15 @@
 <template>
   <router-view />
   <ReloadBlockedOverlay />
+  <RouteLoadingOverlay :show="cargandoRuta" :progress="progresoRuta" :datos="datosCarga" />
 </template>
 
 <script setup lang="ts">
 import ReloadBlockedOverlay from './components/ReloadBlockedOverlay.vue'
+import RouteLoadingOverlay from './components/RouteLoadingOverlay.vue'
+import { useRouteTransition } from './composables/useRouteTransition'
+
+const { cargandoRuta, progresoRuta, datosCarga } = useRouteTransition()
 </script>
 
 <style>

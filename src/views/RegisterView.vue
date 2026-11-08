@@ -5,6 +5,10 @@ import AccountCreatedOverlay from '../components/AccountCreatedOverlay.vue'
 import VerifyEmailModal from '../components/VerifyEmailModal.vue'
 import { useRegistro } from '../composables/useRegistro'
 import { REGIONES, nombrePais } from '../domain/identidad/paises'
+import GoogleIdentityButton from '../components/GoogleIdentityButton.vue'
+import { ApiError } from '../api/cliente'
+import { useAuthStore } from '../stores/auth'
+import { useProgressStore } from '../stores/progress'
 
 const router = useRouter()
 
@@ -30,6 +34,32 @@ const {
   verificarCodigo,
   cerrarVerify,
 } = useRegistro()
+
+const auth = useAuthStore()
+const progress = useProgressStore()
+
+async function registrarConGoogle(idToken: string) {
+  toast.value = ''
+  if (!username.value.trim() || !nacionalidad.value || !genero.value || !fechaNacimiento.value) {
+    toast.value = 'Completa nombre, país, género y fecha de nacimiento para crear tu perfil.'
+    return
+  }
+  cargando.value = true
+  try {
+    await auth.ingresarConGoogle(idToken, username.value.trim() ? {
+      nombre: username.value.trim(),
+      nacionalidad: nacionalidad.value,
+      genero: genero.value as 'M' | 'F',
+      fechaNacimiento: fechaNacimiento.value,
+    } : undefined)
+    await progress.hidratarDesdeApi()
+    router.push('/lobby')
+  } catch (error) {
+    toast.value = error instanceof ApiError ? error.message : 'No se pudo crear la cuenta con Google.'
+  } finally {
+    cargando.value = false
+  }
+}
 </script>
 
 <template>
@@ -102,6 +132,9 @@ const {
       <button type="submit" class="btn-login" :disabled="cargando">
         {{ cargando && !showVerify ? 'ENVIANDO CÓDIGO…' : 'ENVIAR CÓDIGO' }}
       </button>
+      <div class="google-separator"><span>o</span></div>
+      <p class="google-help">También puedes entrar con Google. Para una cuenta nueva, completa nombre, país, género y fecha de nacimiento; Google confirmará el correo y usará su foto de perfil.</p>
+      <GoogleIdentityButton @credential="registrarConGoogle" />
     </form>
 
     <VerifyEmailModal
@@ -163,6 +196,10 @@ const {
     0 6px 20px rgba(0, 0, 0, 0.45);
   animation: toast-in 0.25s ease;
 }
+
+.google-separator { display: flex; align-items: center; gap: 12px; margin-top: 16px; color: rgba(232, 220, 195, 0.65); }
+.google-separator::before, .google-separator::after { content: ''; flex: 1; height: 1px; background: rgba(190, 160, 70, 0.3); }
+.google-help { margin: 10px auto 0; max-width: 430px; color: rgba(235, 227, 210, 0.75); font-size: 0.78rem; line-height: 1.5; text-align: center; }
 
 @keyframes toast-in {
   from {

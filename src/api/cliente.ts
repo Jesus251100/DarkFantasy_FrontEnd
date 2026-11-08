@@ -19,7 +19,11 @@ function token(): string {
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  headers.set('Content-Type', 'application/json')
+  if (init.body instanceof Blob) {
+    headers.set('Content-Type', init.body.type || 'application/octet-stream')
+  } else if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   const t = token()
   if (t) headers.set('Authorization', `Bearer ${t}`)
   let res: Response

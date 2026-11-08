@@ -2,11 +2,17 @@
   <div class="lobby">
     <!-- Avatar perfil (abre overlay) -->
     <button type="button" class="profile-avatar" aria-label="Abrir perfil" @click="openProfile">
-      <span class="avatar-face figma" aria-hidden="true">
+      <img v-if="usuario?.avatarUrl" :src="usuario.avatarUrl" :alt="`Foto de ${usuario.nombre}`" />
+      <span v-else class="avatar-face figma" aria-hidden="true">
         <span class="eye-slot left"></span>
         <span class="eye-slot right"></span>
       </span>
     </button>
+
+    <div class="lobby-currency" aria-label="Saldo del jugador">
+      <span><span aria-hidden="true">🪙</span> {{ formatoSaldo(progress.coins) }}</span>
+      <span><span aria-hidden="true">💎</span> {{ formatoSaldo(progress.diamonds) }}</span>
+    </div>
 
     <div class="menu-panel">
       <h1>
@@ -42,11 +48,18 @@
         </header>
 
         <div class="profile-body">
-          <div class="profile-avatar-lg" aria-hidden="true">
-            <span class="avatar-face figma">
+          <div class="profile-avatar-tools">
+            <div class="profile-avatar-lg">
+              <img v-if="usuario?.avatarUrl" :src="usuario.avatarUrl" :alt="`Foto de ${usuario.nombre}`" />
+              <span v-else class="avatar-face figma" aria-hidden="true">
               <span class="eye-slot left"></span>
               <span class="eye-slot right"></span>
-            </span>
+              </span>
+            </div>
+            <input ref="avatarInput" class="avatar-input" type="file" accept="image/png,image/jpeg,image/webp" @change="alElegirAvatar" />
+            <button type="button" class="avatar-upload" :disabled="subiendoAvatar" @click="avatarInput?.click()">
+              {{ subiendoAvatar ? 'SUBIENDO…' : 'CAMBIAR FOTO' }}
+            </button>
           </div>
           <div class="profile-info">
             <p class="profile-line">
@@ -179,7 +192,7 @@
 
     <!-- Toast cambios guardados (estilo Figma) -->
     <div v-if="showToast" class="toast toast-saved" role="status">
-      CAMBIOS GUARDADOS
+      {{ toastText }}
     </div>
   </div>
 </template>
@@ -192,6 +205,7 @@ import { useProgressStore } from '../stores/progress'
 import { useAuthStore } from '../stores/auth'
 import { useAudioStore } from '../stores/audio'
 import { banderaUrl, nombrePais } from '../domain/identidad/paises'
+import { ApiError } from '../api/cliente'
 
 const router = useRouter()
 const progress = useProgressStore()
@@ -202,6 +216,10 @@ const usuario = computed(() => auth.usuario)
 
 const banderaSrc = computed(() => banderaUrl(usuario.value?.nacionalidad))
 const paisNombre = computed(() => nombrePais(usuario.value?.nacionalidad))
+
+function formatoSaldo(cantidad: number): string {
+  return cantidad.toLocaleString('es-CO')
+}
 
 onMounted(() => {
   void auth.refrescar()
@@ -220,6 +238,9 @@ const generoTexto = computed(() => {
 const showProfile = ref(false)
 const showSettings = ref(false)
 const showToast = ref(false)
+const toastText = ref('CAMBIOS GUARDADOS')
+const avatarInput = ref<HTMLInputElement | null>(null)
+const subiendoAvatar = ref(false)
 
 const draftName = ref(progress.displayName)
 
@@ -246,11 +267,42 @@ const saveSettings = async () => {
   const next = draftName.value.trim()
   if (next) await progress.setDisplayName(next)
   window.setTimeout(() => {
+    toastText.value = 'CAMBIOS GUARDADOS'
     showToast.value = true
     window.setTimeout(() => {
       showToast.value = false
     }, 2400)
   }, 350)
+}
+
+async function alElegirAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const archivo = input.files?.[0]
+  input.value = ''
+  if (!archivo) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)) {
+    toastText.value = 'USA UNA IMAGEN JPG, PNG O WEBP'
+    showToast.value = true
+    return
+  }
+  if (archivo.size > 5 * 1024 * 1024) {
+    toastText.value = 'LA IMAGEN DEBE PESAR MENOS DE 5 MB'
+    showToast.value = true
+    return
+  }
+  subiendoAvatar.value = true
+  try {
+    await auth.subirAvatar(archivo)
+    toastText.value = 'FOTO DE PERFIL ACTUALIZADA'
+    showToast.value = true
+    window.setTimeout(() => { showToast.value = false }, 2400)
+  } catch (error) {
+    toastText.value = error instanceof ApiError ? error.message.toUpperCase() : 'NO SE PUDO SUBIR LA FOTO'
+    showToast.value = true
+    window.setTimeout(() => { showToast.value = false }, 3200)
+  } finally {
+    subiendoAvatar.value = false
+  }
 }
 
 const switchAccount = () => {

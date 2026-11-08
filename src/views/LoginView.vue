@@ -6,6 +6,7 @@ import { destinoTrasLogin } from '../router/destino'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 import { ApiError } from '../api/cliente'
+import GoogleIdentityButton from '../components/GoogleIdentityButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -34,6 +35,25 @@ async function ingresar() {
     router.push(destinoTrasLogin(next))
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'No se pudo conectar con el servidor'
+  } finally {
+    cargando.value = false
+  }
+}
+
+async function ingresarConGoogle(idToken: string) {
+  error.value = ''
+  cargando.value = true
+  try {
+    const usuario = await auth.ingresarConGoogle(idToken)
+    await progress.hidratarDesdeApi()
+    const next = route.query.next
+    if (usuario.rol === 'administrador' && !next) {
+      router.push('/dashboard')
+      return
+    }
+    router.push(destinoTrasLogin(next))
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'No se pudo iniciar sesión con Google'
   } finally {
     cargando.value = false
   }
@@ -73,6 +93,7 @@ async function ingresar() {
       <button type="submit" class="btn-login" :disabled="cargando">
         {{ cargando ? 'INGRESANDO…' : 'INGRESAR' }}
       </button>
+      <GoogleIdentityButton @credential="ingresarConGoogle" />
     </form>
   </div>
 </template>

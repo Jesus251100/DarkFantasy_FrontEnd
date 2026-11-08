@@ -8,9 +8,11 @@
         role="dialog"
         aria-live="assertive"
         aria-label="Animación de victoria"
-        @click="tryDismiss"
       >
-        <!-- Fase animación (5s): garras + texto -->
+        <!-- La niebla solo aparece durante la secuencia de derrota. -->
+        <div v-if="!playerWon && stage === 'anim'" class="defeat-mist" aria-hidden="true" />
+
+        <!-- Secuencia de garras y texto. La derrota dura 5s; la victoria conserva su duración. -->
         <template v-if="stage === 'anim'">
           <div class="claws-layer" aria-hidden="true">
             <img
@@ -139,12 +141,15 @@ import victorySfx from '@/assets/audio/victory-bingo.mp3'
 import BossQteOverlay from './BossQteOverlay.vue'
 import type { BingoCell } from '../game/bingo'
 import { PLAYER_PORTRAIT } from '../game/portraits'
+import { useAudioStore } from '../stores/audio'
 
 const clawHand = `${clawHandUrl}?v=clean5`
 const fallbackImage = PLAYER_PORTRAIT
 
-/** Duración total de la animación de garras + sonido antes de la ficha. */
-const ANIM_MS = 8000
+/** La duración de victoria se conserva; la derrota tiene una secuencia de cinco segundos. */
+const ANIM_VICTORIA_MS = 8000
+const ANIM_DERROTA_MS = 5000
+const audioSettings = useAudioStore()
 
 const props = withDefaults(
   defineProps<{
@@ -224,15 +229,22 @@ function stopAudio() {
   audio = null
 }
 
-function playVictoryAudio() {
+function playSequenceAudio() {
   stopAudio()
   audio = new Audio(victorySfx)
-  audio.volume = 0.9
+  audio.volume = props.playerWon ? 0.9 : Math.min(1, Math.max(0, audioSettings.sfx / 100))
   audio.preload = 'auto'
   void audio.play().catch(() => {
     /* autoplay bloqueado */
   })
 }
+
+watch(
+  () => audioSettings.sfx,
+  (volumen) => {
+    if (audio && !props.playerWon) audio.volume = Math.min(1, Math.max(0, volumen / 100))
+  },
+)
 
 function showPortrait() {
   if (closed) return
@@ -259,8 +271,7 @@ function onQteDone() {
 
 /**
  * Secuencia:
- * 0–8s: animación garras + texto + sonido
- * 8s+: ficha del ganador (foto, nombre, cartón)
+ * La animación de derrota termina a los 5s; la secuencia de victoria se conserva.
  */
 function runSequence() {
   clearTimers()
@@ -271,7 +282,7 @@ function runSequence() {
   handsVisible.value = false
   visible.value = true
 
-  playVictoryAudio()
+  playSequenceAudio()
 
   timers.push(
     window.setTimeout(() => {
@@ -291,7 +302,7 @@ function runSequence() {
   timers.push(
     window.setTimeout(() => {
       startQteOrPortrait()
-    }, ANIM_MS),
+    }, props.playerWon ? ANIM_VICTORIA_MS : ANIM_DERROTA_MS),
   )
 }
 
@@ -306,12 +317,6 @@ function close() {
   phase.value = 'checking'
   emit('update:show', false)
   emit('done')
-}
-
-function tryDismiss() {
-  if (stage.value !== 'portrait') return
-  if (props.playerWon) return
-  close()
 }
 
 function goLevels() {
@@ -364,6 +369,51 @@ onUnmounted(() => {
   cursor: default;
   user-select: none;
   overflow: hidden;
+}
+
+.defeat-mist {
+  position: absolute;
+  inset: -8%;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 105%, rgba(6, 5, 14, 0.88) 0%, transparent 58%),
+    linear-gradient(180deg, rgba(13, 11, 25, 0.34), rgba(3, 3, 9, 0.78));
+  animation: defeat-mist-rise 5s ease-in-out both;
+}
+
+.defeat-mist::before,
+.defeat-mist::after {
+  position: absolute;
+  inset: -16%;
+  background:
+    radial-gradient(ellipse at 18% 76%, rgba(49, 42, 67, 0.62) 0%, transparent 36%),
+    radial-gradient(ellipse at 78% 62%, rgba(37, 34, 56, 0.68) 0%, transparent 40%),
+    radial-gradient(ellipse at 48% 92%, rgba(23, 22, 35, 0.82) 0%, transparent 48%);
+  content: '';
+  filter: blur(22px);
+  transform: translate3d(-4%, 10%, 0) scale(1.06);
+  animation: mist-drift 5s ease-in-out both;
+}
+
+.defeat-mist::after {
+  opacity: 0.68;
+  transform: translate3d(5%, 14%, 0) scale(1.12);
+  animation-delay: 0.2s;
+}
+
+@keyframes defeat-mist-rise {
+  0% { opacity: 0; }
+  18% { opacity: 0.92; }
+  88% { opacity: 0.82; }
+  100% { opacity: 0; }
+}
+
+@keyframes mist-drift {
+  0% { transform: translate3d(-5%, 18%, 0) scale(0.96); }
+  48% { transform: translate3d(3%, -2%, 0) scale(1.1); }
+  100% { transform: translate3d(7%, -16%, 0) scale(1.22); }
 }
 
 .victory-overlay.portrait {
@@ -758,6 +808,18 @@ onUnmounted(() => {
   .portrait-frame {
     width: 112px;
     height: 112px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .defeat-mist,
+  .defeat-mist::before,
+  .defeat-mist::after {
+    animation: none;
+  }
+
+  .defeat-mist {
+    opacity: 0.82;
   }
 }
 </style>

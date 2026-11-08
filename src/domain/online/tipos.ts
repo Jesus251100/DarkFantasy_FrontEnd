@@ -5,6 +5,7 @@ export type EstadoSalaOnline = 'waiting' | 'playing' | 'finished'
 export interface JugadorVistaOnline {
   id: string
   nombre: string
+  avatarUrl?: string | null
   esBot: boolean
   conectado: boolean
   ganador: boolean
@@ -42,6 +43,7 @@ export interface MensajeChatOnline {
 export interface JugadorEsperaOnline {
   id: string
   nombre: string
+  avatarUrl?: string | null
 }
 
 export interface SalaEsperaOnline {
@@ -52,6 +54,7 @@ export interface SalaEsperaOnline {
 
 export interface FilaRankingOnline {
   nombre: string
+  avatarUrl?: string | null
   puntos: number
   victorias: number
 }

@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { installPreventLevelReload } from './composables/usePreventLevelReload'
 import { installMenuMusic } from './composables/useMenuMusic'
+import { installRouteTransition } from './composables/useRouteTransition'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -12,8 +13,9 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Música del menú en todos los apartados menos en los niveles
-installMenuMusic(router, pinia)
+// Música por interfaz y cortina breve de transición entre rutas
+const prepararMusica = installMenuMusic(pinia)
+installRouteTransition(router, prepararMusica)
 
 // En niveles: bloquear F5/Ctrl+R y mostrar overlay custom (sin diálogo del navegador)
 installPreventLevelReload(router)

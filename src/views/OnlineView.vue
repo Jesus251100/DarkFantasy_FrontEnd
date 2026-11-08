@@ -38,7 +38,7 @@
           @click="elegirObjetivo(j.id)"
         >
           <span class="foto">
-            <img v-if="retrato(j.nombre)" :src="retrato(j.nombre) || ''" :alt="j.nombre" />
+            <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" :alt="j.nombre" />
             <span v-else>{{ inicial(j.nombre) }}</span>
           </span>
           <span class="fnombre">{{ j.nombre }}</span>
@@ -91,7 +91,7 @@
           <ul>
             <li v-for="j in jugadores" :key="j.id">
               <span class="mini-foto">
-                <img v-if="retrato(j.nombre)" :src="retrato(j.nombre) || ''" alt="" />
+                <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" alt="" />
                 <span v-else>{{ inicial(j.nombre) }}</span>
               </span>
               <span class="lnombre">{{ j.nombre }}</span>
@@ -163,7 +163,7 @@
           <ul>
             <li v-for="j in espera.jugadores" :key="j.id">
               <span class="mini-foto">
-                <img v-if="retrato(j.nombre)" :src="retrato(j.nombre) || ''" alt="" />
+                <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" alt="" />
                 <span v-else>{{ inicial(j.nombre) }}</span>
               </span>
               <span>{{ j.nombre }}</span>
@@ -206,7 +206,7 @@
             <li v-for="(fila, i) in rankingVisible" :key="fila.nombre + i">
               <span class="puesto">{{ i + 1 }}</span>
               <span class="mini-foto">
-                <img v-if="retrato(fila.nombre)" :src="retrato(fila.nombre) || ''" alt="" />
+                <img v-if="retrato(fila.nombre, fila.avatarUrl)" :src="retrato(fila.nombre, fila.avatarUrl) || ''" alt="" />
                 <span v-else>{{ inicial(fila.nombre) }}</span>
               </span>
               <span class="rnombre">{{ fila.nombre }}</span>
@@ -539,8 +539,8 @@ function inicial(nombre: string): string {
   return nombre.trim().charAt(0).toUpperCase() || '?'
 }
 
-function retrato(nombre: string): string | null {
-  return retratoPorNombre(nombre)
+function retrato(nombre: string, avatarUrl?: string | null): string | null {
+  return avatarUrl || retratoPorNombre(nombre)
 }
 
 function cantidad(id: number): number {

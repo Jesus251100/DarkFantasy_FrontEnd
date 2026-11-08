@@ -12,6 +12,7 @@ export interface UsuarioSesion {
   nacionalidad?: string | null
   genero?: string | null
   fechaNacimiento?: string | null
+  avatarUrl?: string | null
 }
 
 type AuthResponse = { token: string; usuario: UsuarioSesion }
@@ -66,6 +67,20 @@ export const useAuthStore = defineStore('auth', () => {
     return data.usuario
   }
 
+  async function ingresarConGoogle(idToken: string, perfil?: {
+    nombre?: string
+    nacionalidad?: string
+    genero?: 'M' | 'F'
+    fechaNacimiento?: string
+  }) {
+    const data = await api<AuthResponse>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken, ...perfil }),
+    })
+    persistir(data.token, data.usuario)
+    return data.usuario
+  }
+
   async function actualizarPerfil(datos: {
     nombre: string
     correo: string
@@ -80,6 +95,19 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify(datos),
     })
     persistir(data.token, data.usuario)
+    return data.usuario
+  }
+
+  async function subirAvatar(archivo: File) {
+    const data = await api<{ usuario: UsuarioSesion }>('/api/auth/perfil/avatar', {
+      method: 'PUT',
+      body: archivo,
+    })
+    const actual = usuario.value
+    if (actual) {
+      usuario.value = { ...actual, ...data.usuario }
+      localStorage.setItem('df_user', JSON.stringify(usuario.value))
+    }
     return data.usuario
   }
 
@@ -111,7 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  return { usuario, autenticado, esAdmin, login, registrar, actualizarPerfil, setNombre, refrescar, cerrar }
+  return { usuario, autenticado, esAdmin, login, registrar, ingresarConGoogle, actualizarPerfil, subirAvatar, setNombre, refrescar, cerrar }
 })
 
 function leerToken() {
