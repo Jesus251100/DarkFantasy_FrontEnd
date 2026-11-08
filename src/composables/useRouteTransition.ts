@@ -1,8 +1,10 @@
 import { computed, nextTick, ref } from 'vue'
 import type { Router } from 'vue-router'
 import { DificultadNivel } from '../domain/bots/DificultadNivel'
+import type { ControlMusicaNavegacion } from './useMenuMusic'
 
 const DURACION_MINIMA_MS = 3000
+const DURACION_SALIDA_CARGA_MS = 250
 const visible = ref(false)
 const progreso = ref(0)
 const rutaActual = ref('')
@@ -77,19 +79,22 @@ export function useRouteTransition() {
 
 export function installRouteTransition(
   router: Router,
-  prepararMusica: (ruta: string) => Promise<void>,
+  musica: ControlMusicaNavegacion,
 ): void {
   let generacion = 0
   let inicio = 0
 
-  router.beforeEach((to) => {
+  router.beforeEach((to, from) => {
     generacion += 1
     if (timer !== undefined) window.clearInterval(timer)
     inicio = performance.now()
     rutaActual.value = to.path
-    visible.value = destinoConCarga(to.path)
+    // La primera navegación del router sucede tanto al abrir como al recargar
+    // la página. En ese caso no hay transición entre interfaces que mostrar.
+    visible.value = from.matched.length > 0 && destinoConCarga(to.path)
     progreso.value = 0
     if (visible.value) {
+      musica.pausarParaTransicion()
       timer = window.setInterval(() => {
         const transcurrido = performance.now() - inicio
         // Llega gradualmente al 90%; el último tramo espera a que la ruta y el audio estén listos.
@@ -102,21 +107,23 @@ export function installRouteTransition(
   router.afterEach(async (to, _from, failure) => {
     const actual = generacion
     const horaInicio = inicio
-    if (!failure) {
-      await Promise.all([nextTick(), prepararMusica(to.path).catch(() => undefined)])
-    }
-
-    if (!visible.value) return
-    const restante = Math.max(0, DURACION_MINIMA_MS - (performance.now() - horaInicio))
-    if (restante > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, restante))
-    await nextTick()
-    if (actual === generacion) {
+    const mostrarCargador = visible.value
+    if (mostrarCargador) {
+      const restante = Math.max(0, DURACION_MINIMA_MS - (performance.now() - horaInicio))
+      if (restante > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, restante))
+      await nextTick()
+      if (actual !== generacion) return
       if (timer !== undefined) window.clearInterval(timer)
       progreso.value = 100
       await new Promise<void>((resolve) => window.setTimeout(resolve, 180))
       visible.value = false
       progreso.value = 0
+      // Espera a que termine el fundido de salida del overlay antes de iniciar audio.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, DURACION_SALIDA_CARGA_MS))
     }
+    if (actual !== generacion) return
+    await nextTick()
+    await musica.preparar(failure ? _from.path : to.path).catch(() => undefined)
   })
 
   router.onError(() => {
@@ -124,5 +131,7 @@ export function installRouteTransition(
     if (timer !== undefined) window.clearInterval(timer)
     visible.value = false
     progreso.value = 0
+    const rutaActual = router.currentRoute.value.path
+    window.setTimeout(() => void musica.preparar(rutaActual).catch(() => undefined), DURACION_SALIDA_CARGA_MS)
   })
 }

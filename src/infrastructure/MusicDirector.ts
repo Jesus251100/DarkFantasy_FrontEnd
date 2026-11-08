@@ -12,6 +12,7 @@ export class MusicDirector {
   private readonly pistas: Record<PistaId, HTMLAudioElement>
   private activa: HTMLAudioElement | null = null
   private desbloqueada = false
+  private pausaDeTransicion = false
 
   constructor(private readonly obtenerVolumen: () => number) {
     this.pistas = {
@@ -43,11 +44,17 @@ export class MusicDirector {
     }
 
     this.activa = objetivo
+    this.pausaDeTransicion = false
     this.aplicarVolumen()
     objetivo.load()
     if (this.desbloqueada) this.reproducir(objetivo)
 
     await this.esperarCargaBreve(objetivo)
+  }
+
+  pausarParaTransicion(): void {
+    this.pausaDeTransicion = true
+    for (const pista of Object.values(this.pistas)) pista.pause()
   }
 
   private crearPista(src: string): HTMLAudioElement {
@@ -71,6 +78,7 @@ export class MusicDirector {
 
   private readonly alInteractuar = (): void => {
     this.desbloqueada = true
+    if (this.pausaDeTransicion) return
     if (this.activa?.paused) this.reproducir(this.activa)
   }
 

@@ -3,11 +3,19 @@ import { watch } from 'vue'
 import { MusicDirector } from '@/infrastructure/MusicDirector'
 import { useAudioStore } from '@/stores/audio'
 
-export function installMenuMusic(pinia: Pinia): (ruta: string) => Promise<void> {
+export interface ControlMusicaNavegacion {
+  preparar(ruta: string): Promise<void>
+  pausarParaTransicion(): void
+}
+
+export function installMenuMusic(pinia: Pinia): ControlMusicaNavegacion {
   const store = useAudioStore(pinia)
   const director = new MusicDirector(() => store.volume)
   director.instalar()
   watch(() => store.volume, () => director.aplicarVolumen())
 
-  return (ruta) => director.cambiarInterfaz(ruta)
+  return {
+    preparar: (ruta) => director.cambiarInterfaz(ruta),
+    pausarParaTransicion: () => director.pausarParaTransicion(),
+  }
 }

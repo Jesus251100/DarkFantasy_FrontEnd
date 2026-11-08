@@ -14,8 +14,8 @@ app.use(pinia)
 app.use(router)
 
 // Música por interfaz y cortina breve de transición entre rutas
-const prepararMusica = installMenuMusic(pinia)
-installRouteTransition(router, prepararMusica)
+const musica = installMenuMusic(pinia)
+installRouteTransition(router, musica)
 
 // En niveles: bloquear F5/Ctrl+R y mostrar overlay custom (sin diálogo del navegador)
 installPreventLevelReload(router)
