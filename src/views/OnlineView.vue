@@ -446,8 +446,10 @@ const metodoNombre = computed(() =>
 const cantoListo = computed(() => {
   const modo = metodoVictoria.value
   if (fase.value !== 'jugando' || !modo) return false
-  const indices = patronDesdeModo(modo).indices(sala.value?.size ?? 5)
-  return indices.length > 0 && indices.every((indice) => tuCarton.value[indice]?.marked)
+  const figuras = patronDesdeModo(modo).indices(sala.value?.size ?? 5)
+  return figuras.some(
+    (figura) => figura.length > 0 && figura.every((indice) => tuCarton.value[indice]?.marked === true),
+  )
 })
 const progresoMetodo = computed(() => {
   const modo = metodoVictoria.value
