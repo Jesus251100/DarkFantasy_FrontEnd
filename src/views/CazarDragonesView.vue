@@ -1,27 +1,24 @@
 <template>
   <div class="caza">
     <button type="button" class="btn-atras" aria-label="Volver" @click="atras">←</button>
-    <section v-if="fase === 'hub'" class="centro">
+    <section v-if="fase === 'hub'" class="centro hub-caza">
       <p class="kicker">Evento</p>
       <h1>Cazar dragones</h1>
       <img class="retrato" :src="dragonSrc" alt="Dragón Ancestral" />
-      <p class="texto">
-        Tú y otro cazador se enfrentan al Dragón Ancestral. El cartón es de 5 por 5, con números del 1 al 75.
-        Ganan con fila, columna o diagonal. Si el dragón completa el cartón antes, pierden los dos.
-      </p>
-      <p class="texto">
-        Si los dos le ganan, sale una ruleta. El premio grande son 10.000 diamantes. Las demás recompensas van de 100 a 500.
-      </p>
-      <p class="texto">
-        Noches de eclipse: si dejas pasar bolas sin marcar, una nube tapa el cartón y se oscurece de a poco. Al marcar, se aclara.
-      </p>
+      <div class="reglas-caza">
+        <p class="texto"><strong>La cacería:</strong> tú y otro cazador se enfrentan al Dragón Ancestral en un cartón de 5 por 5. Ganan con fila, columna o diagonal; si el dragón lo completa antes, pierden ambos.</p>
+        <p class="texto"><strong>La recompensa:</strong> si ambos cazadores vencen, la ruleta reparte diamantes: el premio mayor es 10.000.</p>
+        <p class="texto"><strong>La amenaza:</strong> las bolas sin marcar invocan Noches de eclipse y oscurecen el cartón.</p>
+      </div>
       <p v-if="error" class="aviso">{{ error }}</p>
-      <button type="button" class="accion" :disabled="!conectado" @click="buscar">
-        {{ conectado ? 'BUSCAR CAZADOR' : 'CONECTANDO…' }}
-      </button>
-      <button type="button" class="accion" :disabled="!conectado" @click="crearSala">CREAR SALA</button>
-      <button type="button" class="accion" :disabled="!conectado" @click="abriendoUnion = true">UNIRSE</button>
-      <button type="button" class="accion suave" @click="volver">VOLVER</button>
+      <div class="acciones-caza">
+        <button type="button" class="accion accion-principal" :disabled="!conectado" @click="buscar">
+          {{ conectado ? 'BUSCAR CAZADOR' : 'CONECTANDO…' }}
+        </button>
+        <button type="button" class="accion" :disabled="!conectado" @click="crearSala">CREAR SALA</button>
+        <button type="button" class="accion" :disabled="!conectado" @click="abriendoUnion = true">UNIRSE A UNA SALA</button>
+        <button type="button" class="accion suave accion-volver" @click="volver">VOLVER</button>
+      </div>
     </section>
 
     <section v-else-if="fase === 'sala'" class="centro">
@@ -59,9 +56,16 @@
     </section>
 
     <section v-else-if="fase === 'esperando'" class="centro">
-      <img class="retrato" :src="dragonSrc" alt="" />
+      <div class="dragon-busqueda" role="img" aria-label="Dragón Ancestral explorando la niebla">
+        <span class="brasa brasa-una"></span>
+        <span class="brasa brasa-dos"></span>
+        <img class="retrato" :src="dragonSrc" alt="" />
+        <span class="anillo-busqueda"></span>
+      </div>
+      <p class="kicker">La cacería comienza</p>
       <h1>Buscando cazador</h1>
-      <p class="texto">{{ esperando }} de 2 en la cola. Hace falta otro jugador real.</p>
+      <p class="texto estado-busqueda">{{ esperando }} de 2 cazadores reunidos. El dragón rastrea a otro rival…</p>
+      <div class="progreso-busqueda" role="status" aria-label="Buscando otro cazador"><span></span></div>
       <button type="button" class="accion suave" @click="salir">SALIR</button>
     </section>
 
@@ -571,12 +575,15 @@ onUnmounted(() => {
 
 <style scoped>
 .caza {
-  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   color: #e7eef8;
   background:
     linear-gradient(180deg, rgba(4, 10, 24, 0.62), rgba(4, 8, 18, 0.82)),
     url('@/assets/img/fondo.png') center / cover no-repeat;
   font-family: Georgia, 'Times New Roman', serif;
+  --oro: #e6c875;
+  --borde-oro: rgba(205, 169, 89, 0.38);
 }
 
 .centro,
@@ -585,9 +592,10 @@ onUnmounted(() => {
 }
 
 .centro {
-  max-width: 640px;
+  width: min(680px, 100%);
+  max-height: 100dvh;
   margin: 0 auto;
-  padding: 72px 20px 28px;
+  padding: max(76px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -597,6 +605,43 @@ onUnmounted(() => {
   overflow: auto;
   box-sizing: border-box;
 }
+
+.hub-caza {
+  width: min(920px, 100%);
+  justify-content: flex-start;
+  margin: 0 auto;
+  padding-top: max(74px, env(safe-area-inset-top));
+}
+
+.reglas-caza {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.reglas-caza .texto {
+  padding: 14px;
+  border: 1px solid rgba(205, 169, 89, 0.22);
+  border-radius: 12px;
+  background: rgba(10, 14, 22, 0.78);
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.reglas-caza strong { display: block; color: var(--oro); margin-bottom: 5px; }
+
+.acciones-caza {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: min(100%, 520px);
+  margin-top: 4px;
+}
+
+.acciones-caza .accion { min-width: 0; width: 100%; }
+.acciones-caza .accion-principal { grid-column: 1 / -1; min-height: 54px; }
+.acciones-caza .accion-volver { grid-column: 1 / -1; justify-self: center; width: min(100%, 240px); }
 
 .kicker {
   margin: 0;
@@ -687,14 +732,75 @@ h2 {
   filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
 }
 
+.dragon-busqueda {
+  position: relative;
+  width: 230px;
+  height: 230px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.dragon-busqueda::before {
+  content: '';
+  position: absolute;
+  inset: 18%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(219, 87, 35, 0.3), rgba(98, 35, 24, 0.12) 48%, transparent 72%);
+  filter: blur(8px);
+  animation: aliento-dragon 2.8s ease-in-out infinite;
+}
+
+.dragon-busqueda .retrato {
+  width: 180px;
+  height: 180px;
+  animation: vigilia-dragon 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(204, 91, 45, 0.34));
+}
+
+.anillo-busqueda {
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(230, 200, 117, 0.34);
+  border-radius: 50%;
+  border-top-color: var(--oro);
+  animation: rastreo 5s linear infinite;
+}
+
+.brasa {
+  position: absolute;
+  bottom: 24%;
+  left: 54%;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffb347;
+  box-shadow: 0 0 12px 4px rgba(255, 112, 37, 0.58);
+  animation: ascua 1.7s ease-out infinite;
+}
+
+.brasa-dos { animation-delay: 0.85s; left: 48%; }
+.estado-busqueda { text-align: center; }
+.progreso-busqueda { width: min(280px, 80vw); height: 3px; overflow: hidden; background: rgba(230, 200, 117, .18); border-radius: 99px; }
+.progreso-busqueda span { display: block; width: 38%; height: 100%; background: linear-gradient(90deg, transparent, #e6c875, #ed7c3b, transparent); animation: rastreo-barra 1.8s ease-in-out infinite; }
+
+@keyframes vigilia-dragon { 0%, 100% { transform: translateY(3px) scale(.98); } 50% { transform: translateY(-5px) scale(1.02); } }
+@keyframes aliento-dragon { 0%, 100% { opacity: .45; transform: scale(.86); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes rastreo { to { transform: rotate(1turn); } }
+@keyframes ascua { 0% { opacity: 0; transform: translateY(10px) scale(.5); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-34px) scale(0); } }
+@keyframes rastreo-barra { 0% { transform: translateX(-120%); } 100% { transform: translateX(360%); } }
+
 .accion,
 .bingo {
   min-width: 220px;
   border: 0;
   border-radius: 12px;
   padding: 14px 18px;
-  background: linear-gradient(180deg, #2a63d6, #17398a);
-  color: white;
+  background: linear-gradient(180deg, #68522a, #3b2c18);
+  border: 1px solid rgba(230, 200, 117, 0.42);
+  color: #fff3d0;
   letter-spacing: 0.12em;
   font-weight: 800;
   cursor: pointer;
@@ -707,8 +813,10 @@ h2 {
 
 .accion.suave {
   background: transparent;
-  border: 1px solid rgba(214, 226, 245, 0.45);
+  border: 1px solid rgba(214, 196, 145, 0.42);
 }
+
+.accion-principal { background: linear-gradient(180deg, #9b542e, #5c2f20); box-shadow: 0 0 24px rgba(202, 94, 44, .2); }
 
 .btn-atras {
   position: fixed;
@@ -854,8 +962,8 @@ h2 {
 }
 
 .panel {
-  background: rgba(8, 16, 32, 0.72);
-  border: 1px solid rgba(120, 160, 220, 0.35);
+  background: linear-gradient(155deg, rgba(17, 23, 34, 0.94), rgba(7, 12, 22, 0.9));
+  border: 1px solid var(--borde-oro);
   border-radius: 16px;
   padding: 12px;
 }
@@ -976,9 +1084,25 @@ h2 {
 }
 
 @media (max-width: 860px) {
+  .hub-caza { justify-content: flex-start; }
+  .reglas-caza { grid-template-columns: 1fr; }
+  .reglas-caza .texto { padding: 11px 13px; }
   .mesa {
     grid-template-columns: 1fr;
     overflow: auto;
   }
+  .partida { min-height: 100dvh; height: auto; padding: max(72px, env(safe-area-inset-top)) 14px max(20px, env(safe-area-inset-bottom)); gap: 14px; }
+  .mesa { gap: 16px; }
+  .oraculo { order: 0; }
+  .carton-wrap { order: 1; }
+  .panel { order: 2; }
+  .barra { position: sticky; bottom: max(8px, env(safe-area-inset-bottom)); z-index: 8; padding: 8px; border: 1px solid var(--borde-oro); border-radius: 14px; background: rgba(8, 12, 19, .94); }
+  .barra .bingo { flex: 1; min-width: 0; min-height: 52px; }
+  .barra .accion { min-width: 90px; }
+  .dragon-busqueda { width: 200px; height: 200px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 </style>

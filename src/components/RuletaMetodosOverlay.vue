@@ -4,11 +4,12 @@
       <div
         v-if="visible"
         class="ruleta-overlay"
+        :class="{ 'con-fondo-nivel': fondo }"
         role="dialog"
         aria-modal="true"
         aria-label="Ruleta de método de victoria"
       >
-        <div class="ruleta-panel">
+        <div class="ruleta-panel" :style="estiloFondo">
           <p class="ruleta-kicker">{{ kicker }}</p>
           <h2 class="ruleta-title">LA RULETA</h2>
           <p class="ruleta-sub">El método que caiga bajo la lanza será la victoria</p>
@@ -26,6 +27,7 @@
                 :class="{
                   winner: landed && i === indiceElegido,
                   wide: n <= 2,
+                  crowded: n > 10,
                 }"
                 :style="{ transform: `rotate(${midAngle(i)}deg)` }"
               >
@@ -89,6 +91,7 @@ const props = withDefaults(
     /** Si se indica, la ruleta cae siempre en este método (lo decide el servidor). */
     resultado?: WinMode | null
     kicker?: string
+    fondo?: string | null
   }>(),
   { kicker: 'Evento de campaña' },
 )
@@ -115,6 +118,15 @@ const pool = computed<WinMode[]>(() =>
 const n = computed(() => Math.max(1, pool.value.length))
 const angle = computed(() => 360 / n.value)
 const hubCell = computed(() => (props.size >= 6 ? 11 : 14))
+const estiloFondo = computed(() =>
+  props.fondo
+    ? {
+        backgroundImage: `linear-gradient(165deg, rgba(35, 10, 10, .88), rgba(9, 3, 3, .94)), url("${props.fondo}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : undefined,
+)
 
 const discFill = computed(() => {
   const parts: string[] = []
@@ -333,6 +345,11 @@ onUnmounted(stopAnim)
 .slice-label.wide span {
   font-size: 0.78rem;
   letter-spacing: 0.1em;
+}
+
+.slice-label.crowded span {
+  font-size: 0.43rem;
+  letter-spacing: 0;
 }
 
 .slice-label.winner span {

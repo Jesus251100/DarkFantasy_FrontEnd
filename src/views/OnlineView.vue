@@ -1,21 +1,35 @@
 <template>
   <div class="online">
     <button type="button" class="btn-atras" aria-label="Volver" @click="atras">←</button>
-    <section v-if="mostrarCarga" class="carga">
-      <div
-        class="aro-wrap"
-        :style="{ '--p': cargaPorcentaje }"
-        role="progressbar"
-        :aria-valuenow="cargaPorcentaje"
-        aria-valuemin="1"
-        aria-valuemax="100"
-        aria-label="Cargando partida"
-      >
-        <span class="aro"></span>
-        <span class="nucleo"></span>
+    <section v-if="mostrarCarga" class="carga" :class="{ preparando: entrada }">
+      <div class="panel-carga">
+        <div class="emblema-carga" aria-hidden="true">
+          <span class="sello-aro aro-exterior"></span>
+          <span class="sello-aro aro-interior"></span>
+          <img src="@/assets/img/dragon.png" alt="" class="dragon-carga" />
+          <span class="runa runa-uno">✦</span>
+          <span class="runa runa-dos">✧</span>
+          <span class="runa runa-tres">✦</span>
+        </div>
+        <div class="mensaje-carga" role="status" aria-live="polite">
+          <p class="cargando">
+            {{ entrada ? 'PREPARANDO LA PARTIDA' : conectado ? 'BUSCANDO RIVAL' : 'RECONECTANDO' }}
+          </p>
+          <p class="carga-detalle">
+            {{
+              entrada
+                ? 'Las runas sellan la mesa de juego…'
+                : conectado
+                  ? 'El oráculo busca un rival en las sombras…'
+                  : 'Restableciendo la conexión con el servidor…'
+            }}
+          </p>
+        </div>
+        <div class="rastreo-carga" aria-hidden="true"><span></span></div>
+        <button v-if="fase === 'cola'" type="button" class="btn-salir-carga" @click="cancelarBusqueda">
+          CANCELAR BÚSQUEDA
+        </button>
       </div>
-      <p class="cargando">CARGANDO... {{ cargaPorcentaje }}%</p>
-      <button type="button" class="btn-salir-carga" @click="cancelarBusqueda">SALIR</button>
     </section>
 
     <section v-else-if="enPartida" class="partida">
@@ -59,7 +73,6 @@
           <p class="letras" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
             <span v-for="(letra, i) in letrasBingo" :key="i">{{ letra }}</span>
           </p>
-          <p class="eclipse-nombre">Noches de eclipse</p>
           <CartonNiebla
             :celdas="tuCarton"
             :columnas="sala?.size ?? 5"
@@ -73,17 +86,10 @@
             :intentos="nieblaIntentos"
             :textos="nieblaTextos"
             :numero-oculto="numeroOculto"
-            :opacidad-subida="opacidadSubida"
             @marcar="marcarCelda"
             @escribir="escribirNiebla"
             @enviar="enviarNiebla"
           />
-          <div
-            v-if="opacidadEclipse > 0"
-            class="eclipse-online"
-            :style="{ opacity: opacidadEclipse / 100 }"
-            aria-hidden="true"
-          ></div>
         </div>
 
         <aside class="lista">
@@ -129,7 +135,16 @@
             </button>
           </div>
         </div>
-        <button type="button" class="bingo" :disabled="fase !== 'jugando'" @click="cantar">¡BINGO!</button>
+        <button
+          type="button"
+          class="bingo"
+          :class="{ listo: cantoListo }"
+          :disabled="fase !== 'jugando'"
+          :aria-label="cantoListo ? '¡Bingo! Método completado, canta ahora' : 'Cantar bingo'"
+          @click="cantar"
+        >
+          {{ cantoListo ? '¡CANTA BINGO!' : '¡BINGO!' }}
+        </button>
         <div class="barra-lado" aria-hidden="true"></div>
       </div>
 
@@ -189,13 +204,19 @@
         <ChatSala lleno :mensajes="chat" @enviar="enviarTexto" />
 
         <div class="centro">
-          <p class="titulo">MODO ONLINE</p>
+          <div class="encabezado-online">
+            <p class="sobrelinea">EL REINO TE ESPERA</p>
+            <p class="titulo">MODO ONLINE</p>
+            <p class="subtitulo-online">Forma equipo, desafía rivales y conquista la mesa.</p>
+          </div>
           <img src="@/assets/img/logo.png" alt="Dark Fantasy" class="logo" />
-          <button type="button" class="accion" @click="jugar">JUGAR</button>
-          <button type="button" class="accion" @click="abriendoUnion = true">UNIRSE</button>
-          <button type="button" class="accion" @click="crear">CREAR</button>
-          <button type="button" class="accion" @click="cazarDragones">CAZAR DRAGONES</button>
-          <button type="button" class="accion suave" @click="salir">SALIR</button>
+          <div class="acciones-online">
+            <button type="button" class="accion accion-principal" @click="jugar">JUGAR PARTIDA</button>
+            <button type="button" class="accion accion-secundaria" @click="abriendoUnion = true">UNIRSE A UNA SALA</button>
+            <button type="button" class="accion accion-secundaria" @click="crear">CREAR SALA</button>
+            <button type="button" class="accion accion-caza" @click="cazarDragones">CAZAR DRAGONES</button>
+            <button type="button" class="accion suave accion-salir" @click="salir">SALIR</button>
+          </div>
           <p v-if="errorConexion" class="error">{{ errorConexion }}</p>
         </div>
 
@@ -250,6 +271,7 @@
       :metodos="metodosVictoria"
       :size="sala?.size ?? 5"
       :resultado="metodoVictoria"
+      :fondo="fondoRuleta"
       kicker="Modo online"
       @elegido="onMetodoElegido"
     />
@@ -266,9 +288,8 @@ import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { patronDesdeModo } from '../domain/bingo/patrones/catalogoPatrones'
 import {
   casillaDeProgreso,
-  marcarBajoNiebla,
-  sincronizarSubida,
-  subidaInicial,
+  progresoDeFigura,
+  UMBRAL_PROGRESO_NIEBLA,
 } from '../domain/online/niebla'
 import { retratoPorNombre } from '../game/portraits'
 import ChatSala from '../components/ChatSala.vue'
@@ -281,6 +302,15 @@ import freezeIcon from '@/assets/img/freeze.png'
 import shieldIcon from '@/assets/img/shield 1.png'
 import luckIcon from '@/assets/img/goodluck 2.png'
 import sabotageIcon from '@/assets/img/sabotage 2.png'
+import fondoNivel1 from '@/assets/img/level1 1.png'
+import fondoNivel2 from '@/assets/img/level2 1.png'
+import fondoNivel3 from '@/assets/img/level3 1.png'
+import fondoNivel4 from '@/assets/img/level4 1.png'
+import fondoNivel5 from '@/assets/img/level5.gif'
+import fondoNivel6 from '@/assets/img/level6.gif'
+import fondoNivel7 from '@/assets/img/level7.gif'
+import fondoNivel8 from '@/assets/img/level8.gif'
+import fondoNivel9 from '@/assets/img/level9.gif'
 
 interface Proyectil {
   id: number
@@ -300,6 +330,18 @@ const BOOSTERS = [
   { id: 1, nombre: 'Freeze', icono: freezeIcon, propio: false },
   { id: 2, nombre: 'Sabotage', icono: sabotageIcon, propio: false },
 ] as const
+
+const FONDOS_NIVELES = [
+  fondoNivel1,
+  fondoNivel2,
+  fondoNivel3,
+  fondoNivel4,
+  fondoNivel5,
+  fondoNivel6,
+  fondoNivel7,
+  fondoNivel8,
+  fondoNivel9,
+]
 
 const router = useRouter()
 const route = useRoute()
@@ -332,7 +374,6 @@ const {
 } = online
 
 const nieblaProgramada = ref(false)
-const subida = ref(subidaInicial())
 const {
   fase: faseNiebla,
   indices: nieblaIndices,
@@ -354,8 +395,6 @@ const {
   avisar: (texto) => online.mostrarAviso(texto),
   penalizar: () => quitarCasillaDeLaFigura(),
 })
-
-const opacidadSubida = computed(() => (faseNiebla.value === 'idle' ? subida.value.opacidad : 0))
 
 const letrasBingo = computed(() => {
   const total = sala.value?.size ?? 5
@@ -379,36 +418,11 @@ function quitarCasillaDeLaFigura() {
   online.mostrarAviso('Te equivocaste. La niebla te quitó una casilla de la figura.')
 }
 
-const opacidadEclipse = computed(() => {
-  if (fase.value !== 'jugando') return 0
-  const llamadas = cantadas.value
-  const carton = tuCarton.value
-  let sinMarca = 0
-  let marcasHechas = 0
-  for (const cell of carton) {
-    if (!cell.free && cell.marked) marcasHechas++
-  }
-  for (let i = 0; i < llamadas.length; i++) {
-    const numero = llamadas[i]
-    const celda = carton.find((cell) => !cell.free && cell.number === numero)
-    if (!celda) {
-      if (i < llamadas.length - 1) sinMarca++
-      continue
-    }
-    if (celda.marked) continue
-    if (i < llamadas.length - 1) sinMarca++
-  }
-  if (sinMarca < 5) return 0
-  const base = Math.min(100, 20 + Math.floor((sinMarca - 5) / 2) * 20)
-  return Math.max(0, base - marcasHechas * 10)
-})
-
 const boosters = BOOSTERS
 const codigo = ref('')
 const abriendoUnion = ref(false)
 const ipRed = ref('')
 const copiado = ref(false)
-const cargaPorcentaje = ref(1)
 const entrada = ref(false)
 const boosterActivo = ref<number | null>(null)
 const gastados = ref<Record<number, number>>({})
@@ -416,7 +430,6 @@ const proyectiles = ref<Proyectil[]>([])
 const efectos = ref<Record<string, Efecto>>({})
 let proyectilSeq = 0
 let relojEfectos: ReturnType<typeof setInterval> | null = null
-let relojCarga: ReturnType<typeof setInterval> | null = null
 let cierreCarga: ReturnType<typeof setTimeout> | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
@@ -430,6 +443,21 @@ const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
 const metodoNombre = computed(() =>
   metodoVictoria.value ? nombreMetodo(metodoVictoria.value) : 'Elige el método',
 )
+const cantoListo = computed(() => {
+  const modo = metodoVictoria.value
+  if (fase.value !== 'jugando' || !modo) return false
+  const indices = patronDesdeModo(modo).indices(sala.value?.size ?? 5)
+  return indices.length > 0 && indices.every((indice) => tuCarton.value[indice]?.marked)
+})
+const progresoMetodo = computed(() => {
+  const modo = metodoVictoria.value
+  if (!modo) return 0
+  return progresoDeFigura(tuCarton.value, patronDesdeModo(modo).indices(sala.value?.size ?? 5))
+})
+const fondoRuleta = computed(() => {
+  const nivel = sala.value?.fondoNivel ?? 1
+  return FONDOS_NIVELES[nivel - 1] ?? FONDOS_NIVELES[0]
+})
 function cazarDragones() {
   router.push('/cazar-dragones')
 }
@@ -467,48 +495,28 @@ const tengoSuerte = computed(() => efectoDe(usuarioId) === 'suerte')
 const tengoEscudo = computed(() => efectoDe(usuarioId) === 'escudo')
 
 function pararCarga() {
-  if (relojCarga) clearInterval(relojCarga)
-  relojCarga = null
   if (cierreCarga) clearTimeout(cierreCarga)
   cierreCarga = null
-}
-
-function pulsarCarga(hasta: number, cadaMs: number, alLlegar?: () => void) {
-  pararCarga()
-  if (cargaPorcentaje.value >= hasta) {
-    alLlegar?.()
-    return
-  }
-  relojCarga = setInterval(() => {
-    cargaPorcentaje.value += 1
-    if (cargaPorcentaje.value < hasta) return
-    if (relojCarga) clearInterval(relojCarga)
-    relojCarga = null
-    alLlegar?.()
-  }, cadaMs)
 }
 
 watch(fase, (valor, anterior) => {
   if (valor === 'cola' && anterior !== 'cola') {
     entrada.value = false
-    cargaPorcentaje.value = 1
-    pulsarCarga(99, 100)
+    pararCarga()
   }
   if (valor === 'jugando' && anterior !== 'jugando') {
     reiniciarNiebla()
     nieblaProgramada.value = false
-    subida.value = sincronizarSubida(subidaInicial(), tuCarton.value, cantadas.value)
     entrada.value = true
-    pulsarCarga(100, 16, () => {
-      cierreCarga = window.setTimeout(() => {
-        entrada.value = false
-      }, 280)
-    })
+    pararCarga()
+    cierreCarga = window.setTimeout(() => {
+      entrada.value = false
+      cierreCarga = null
+    }, 900)
   }
   if (valor === 'idle') {
     reiniciarNiebla()
     nieblaProgramada.value = false
-    subida.value = subidaInicial()
     entrada.value = false
     pararCarga()
   }
@@ -517,21 +525,12 @@ watch(fase, (valor, anterior) => {
 function intentarEventoNiebla() {
   if (nieblaProgramada.value || faseNiebla.value !== 'idle') return
   if (fase.value !== 'jugando' || showRuleta.value || entrada.value) return
-  if (subida.value.opacidad < 100) return
-  const dichas = cantadas.value
-  const listas = tuCarton.value.filter((celda) => !celda.free && dichas.includes(celda.number)).length
-  if (listas < 3) return
+  if (progresoMetodo.value < UMBRAL_PROGRESO_NIEBLA) return
   if (!startFogEvent()) return
   nieblaProgramada.value = true
 }
 
-watch([() => cantadas.value.length, fase], () => {
-  if (fase.value !== 'jugando' || nieblaProgramada.value) return
-  subida.value = sincronizarSubida(subida.value, tuCarton.value, cantadas.value)
-  intentarEventoNiebla()
-})
-
-watch([() => subida.value.opacidad, fase, showRuleta, entrada], () => {
+watch([progresoMetodo, fase, showRuleta, entrada], () => {
   intentarEventoNiebla()
 })
 
@@ -565,10 +564,7 @@ function marcarCelda(i: number) {
   if (!antes || antes.free) return
   const estabaMarcada = antes.marked
   online.marcarCelda(i)
-  if (!estabaMarcada && tuCarton.value[i]?.marked) {
-    subida.value = marcarBajoNiebla(subida.value)
-    intentarEventoNiebla()
-  }
+  if (!estabaMarcada && tuCarton.value[i]?.marked) intentarEventoNiebla()
 }
 
 function onMetodoElegido() {
@@ -648,8 +644,12 @@ function salir() {
 }
 
 function atras() {
-  if (mostrarCarga.value) {
+  if (fase.value === 'cola') {
     cancelarBusqueda()
+    return
+  }
+  if (entrada.value) {
+    salir()
     return
   }
   if (enPartida.value) {
@@ -772,6 +772,9 @@ onUnmounted(() => {
     linear-gradient(180deg, rgba(4, 10, 24, 0.55), rgba(4, 8, 18, 0.78)),
     url('@/assets/img/fondo.png') center / cover no-repeat;
   font-family: Georgia, 'Times New Roman', serif;
+  color: #e8e0c8;
+  --noche-borde: rgba(191, 157, 83, 0.38);
+  --oro-brillo: rgba(211, 171, 83, 0.24);
 }
 
 .carga,
@@ -781,49 +784,115 @@ onUnmounted(() => {
 }
 
 .carga {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(82px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+}
+
+.panel-carga {
+  width: min(440px, 100%);
+  min-height: 430px;
+  box-sizing: border-box;
+  padding: 32px clamp(18px, 5vw, 42px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 18px;
+  text-align: center;
+  border: 1px solid var(--noche-borde);
+  border-radius: 22px;
+  background: radial-gradient(ellipse at 50% 28%, rgba(31, 54, 91, .3), transparent 58%), rgba(5, 10, 21, .86);
+  box-shadow: inset 0 0 36px rgba(211, 171, 83, .06), 0 22px 65px rgba(0, 0, 0, .5), 0 0 30px rgba(50, 85, 143, .16);
+  backdrop-filter: blur(8px);
 }
 
-.aro-wrap {
-  --p: 1;
+.emblema-carga {
   position: relative;
-  width: 148px;
-  height: 148px;
+  width: 210px;
+  height: 210px;
   display: grid;
   place-items: center;
+  isolation: isolate;
 }
 
-.aro {
+.emblema-carga::before {
+  content: '';
   position: absolute;
-  inset: 0;
+  inset: 26%;
+  z-index: -1;
   border-radius: 50%;
-  background: conic-gradient(
-    from -90deg,
-    #3b82f6 calc(var(--p) * 1%),
-    rgba(255, 255, 255, 0.88) 0
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 11px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 12px), #000 calc(100% - 11px));
-  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.45));
+  background: radial-gradient(circle, rgba(232, 200, 106, .25), rgba(48, 76, 123, .2) 50%, transparent 74%);
+  filter: blur(10px);
+  animation: resplandor-runa 3s ease-in-out infinite;
 }
 
-.nucleo {
-  width: calc(18px + (var(--p) - 1) * 0.96px);
-  height: calc(18px + (var(--p) - 1) * 0.96px);
+.sello-aro {
+  position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 34%, #93c5fd, #1d4ed8 62%, #1e3a8a);
-  box-shadow: 0 0 18px #3b82f6;
-  transition: width 90ms linear, height 90ms linear;
+  border: 1px solid rgba(232, 200, 106, .48);
 }
+
+.aro-exterior { inset: 8px; border-top-color: #f0d78c; border-bottom-color: rgba(122, 162, 232, .5); animation: sello-gira 14s linear infinite; }
+.aro-interior { inset: 23px; border-style: dashed; border-color: rgba(142, 176, 232, .52); animation: sello-gira 22s linear infinite reverse; }
+
+.dragon-carga {
+  width: 132px;
+  height: 132px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(232, 200, 106, .28)) drop-shadow(0 12px 15px rgba(0, 0, 0, .55));
+  animation: dragon-respira 3.2s ease-in-out infinite;
+}
+
+.runa { position: absolute; color: #f0d78c; text-shadow: 0 0 12px rgba(232, 200, 106, .7); }
+.runa-uno { top: 16px; left: 52%; animation: runa-pulsa 2.4s ease-in-out infinite; }
+.runa-dos { right: 10px; top: 52%; color: #a9c6f4; animation: runa-pulsa 2.4s ease-in-out .8s infinite; }
+.runa-tres { bottom: 17px; left: 29%; animation: runa-pulsa 2.4s ease-in-out 1.5s infinite; }
 
 .cargando {
   margin: 0;
-  letter-spacing: 0.18em;
-  color: #dbe7ff;
+  letter-spacing: 0.2em;
+  color: #f0d78c;
+  font-weight: 700;
+  font-size: clamp(.86rem, 3vw, 1.05rem);
+}
+
+.carga-detalle {
+  margin: 8px 0 0;
+  max-width: 30ch;
+  color: #c6d2e5;
+  line-height: 1.5;
+}
+
+.rastreo-carga {
+  width: min(250px, 74vw);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(142, 176, 232, .2);
+}
+
+.rastreo-carga span {
+  display: block;
+  width: 36%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, #e8c86a, #8eb0e8, transparent);
+  animation: rastreo-magico 1.8s ease-in-out infinite;
+}
+
+@keyframes sello-gira { to { transform: rotate(1turn); } }
+@keyframes dragon-respira { 0%, 100% { transform: translateY(3px) scale(.98); } 50% { transform: translateY(-5px) scale(1.025); } }
+@keyframes resplandor-runa { 0%, 100% { opacity: .48; transform: scale(.88); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes runa-pulsa { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes rastreo-magico { from { transform: translateX(-125%); } to { transform: translateX(380%); } }
+
+.carga.preparando .panel-carga {
+  border-color: rgba(142, 176, 232, .52);
 }
 
 .btn-salir-carga,
@@ -832,8 +901,8 @@ onUnmounted(() => {
   border: 0;
   border-radius: 12px;
   padding: 12px 18px;
-  background: linear-gradient(180deg, #2450b8, #17398a);
-  color: #f4f7ff;
+  background: linear-gradient(180deg, #263d68, #172747);
+  color: #f0d78c;
   letter-spacing: 0.16em;
   font-weight: 700;
   cursor: pointer;
@@ -842,7 +911,9 @@ onUnmounted(() => {
 
 .accion.suave,
 .btn-salir-carga {
-  background: linear-gradient(180deg, #31425f, #1c283c);
+  min-width: min(240px, 100%);
+  background: linear-gradient(180deg, #1b2c4b, #111d33);
+  border: 1px solid rgba(191, 157, 83, .42);
 }
 
 .btn-atras {
@@ -868,7 +939,7 @@ onUnmounted(() => {
 .hub {
   display: flex;
   flex-direction: column;
-  padding: 18px 22px 22px;
+  padding: clamp(18px, 3vh, 34px) clamp(16px, 3vw, 48px) 24px;
   gap: 12px;
 }
 
@@ -878,6 +949,8 @@ onUnmounted(() => {
   align-items: center;
   color: #f0d78c;
   letter-spacing: 0.06em;
+  min-height: 44px;
+  padding: 0 8px;
 }
 
 .conexion {
@@ -894,15 +967,20 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(210px, 280px) 1fr minmax(230px, 320px);
-  gap: 18px;
+  grid-template-columns: minmax(220px, 0.82fr) minmax(320px, 1.35fr) minmax(250px, 0.9fr);
+  gap: clamp(14px, 2vw, 28px);
+  align-items: stretch;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .panel {
-  background: rgba(8, 16, 32, 0.72);
-  border: 1px solid rgba(120, 160, 220, 0.35);
-  border-radius: 16px;
-  padding: 14px;
+  background: linear-gradient(155deg, rgba(17, 23, 34, 0.94), rgba(7, 12, 22, 0.9));
+  border: 1px solid var(--noche-borde);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: inset 0 1px rgba(255, 235, 190, 0.035), 0 16px 38px rgba(0, 0, 0, 0.28);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -965,10 +1043,28 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  min-width: 0;
+  padding: clamp(16px, 2.5vw, 30px);
+  border: 1px solid rgba(205, 169, 89, 0.3);
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 8%, rgba(104, 74, 31, 0.2), transparent 62%),
+    linear-gradient(160deg, rgba(13, 17, 25, 0.86), rgba(6, 9, 16, 0.9));
+  box-shadow: inset 0 0 38px rgba(206, 167, 84, 0.04), 0 20px 50px rgba(0, 0, 0, 0.3);
 }
 
+.encabezado-online { text-align: center; }
+.sobrelinea { margin: 0 0 7px; color: #b89d61; font-size: 0.68rem; letter-spacing: 0.28em; }
+.subtitulo-online { margin: 8px 0 0; color: #b9b4a8; font-size: 0.9rem; }
+.acciones-online { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(100%, 470px); }
+.acciones-online .accion { min-width: 0; width: 100%; padding: 13px 12px; font-size: 0.78rem; letter-spacing: 0.1em; border: 1px solid rgba(219, 190, 119, 0.25); }
+.acciones-online .accion-principal { grid-column: 1 / -1; min-height: 54px; color: #fff3cc; border-color: rgba(237, 204, 126, 0.78); background: linear-gradient(180deg, #80632b, #493818); box-shadow: 0 0 24px var(--oro-brillo), inset 0 1px rgba(255,255,255,.18); font-size: 0.95rem; }
+.acciones-online .accion-secundaria { background: linear-gradient(180deg, rgba(48, 54, 61, .96), rgba(25, 29, 36, .98)); }
+.acciones-online .accion-caza { grid-column: 1 / -1; background: linear-gradient(180deg, #3d3023, #251d18); color: #e7c18b; }
+.acciones-online .accion-salir { grid-column: 1 / -1; width: min(100%, 220px); justify-self: center; }
+.acciones-online .accion:hover { filter: brightness(1.18); transform: translateY(-1px); }
+
 .logo {
-  width: min(340px, 42vw);
+  width: min(300px, 34vw);
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.65));
 }
 
@@ -1116,24 +1212,6 @@ onUnmounted(() => {
   justify-self: center;
 }
 
-.eclipse-nombre {
-  margin: 0 0 6px;
-  color: #f0d78c;
-  letter-spacing: 0.18em;
-  font-size: 12px;
-}
-
-.eclipse-online {
-  position: absolute;
-  z-index: 4;
-  inset: 22% 6% 8%;
-  border-radius: 50%;
-  pointer-events: none;
-  background: url('../assets/img/eclipse.jpg') center / cover no-repeat;
-  box-shadow: 0 0 36px rgba(0, 0, 0, 0.6);
-  transition: opacity 0.7s ease;
-}
-
 .bola {
   width: 118px;
   height: 118px;
@@ -1277,6 +1355,16 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.lista :deep(.chat-sala) {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+}
+
 .lista ul {
   overflow: visible;
   flex: 0 0 auto;
@@ -1355,6 +1443,22 @@ onUnmounted(() => {
   justify-self: center;
   width: var(--board-w);
   font-size: 1.1rem;
+}
+
+.bingo.listo {
+  color: #fff4ce;
+  border: 1px solid #f0d78c;
+  background: linear-gradient(180deg, #bd812e, #783b1f);
+  box-shadow: 0 0 0 2px rgba(240, 215, 140, 0.22), 0 0 22px rgba(240, 151, 54, 0.48);
+  animation: bingo-llama 1.15s ease-in-out infinite;
+}
+
+.bingo.listo:hover { filter: brightness(1.12); }
+.bingo:disabled { cursor: default; }
+
+@keyframes bingo-llama {
+  0%, 100% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 0 2px rgba(240, 215, 140, 0.18), 0 0 14px rgba(240, 151, 54, 0.32); }
+  50% { transform: scale(1.045); filter: brightness(1.18); box-shadow: 0 0 0 4px rgba(240, 215, 140, 0.3), 0 0 28px rgba(240, 151, 54, 0.62); }
 }
 
 /* El aviso ya no se coloca encima del botón ¡BINGO! (lo tapaba) */
@@ -1460,10 +1564,26 @@ onUnmounted(() => {
    el cartón necesita reservado más alto */
 @media (max-width: 700px) {
   .online {
-    --board-h-reserve: 450px;
-    --board-w: min(440px, 86vw, calc(100dvh - var(--board-h-reserve)));
-    padding: 12px 12px 20px;
+    --board-h-reserve: 340px;
+    --board-w: min(440px, 88vw, calc(100dvh - var(--board-h-reserve)));
+    padding: 0;
   }
+
+  .hub { height: auto; min-height: 100dvh; gap: 14px; padding: max(16px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom)); }
+  .top { font-size: 0.84rem; }
+  .cuerpo { flex: 1 0 auto; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .centro { grid-row: 1; padding: 22px 16px; gap: 10px; }
+  .logo { width: min(220px, 58vw); }
+  .subtitulo-online { max-width: 28ch; line-height: 1.45; }
+  .panel { min-height: 220px; }
+  .chat-sala { min-height: 220px; }
+  .ranking { max-height: 260px; }
+  .room .room-centro { width: 100%; box-sizing: border-box; padding: 64px 16px 20px; }
+  .codigo { font-size: clamp(2rem, 12vw, 3.2rem); letter-spacing: 0.22em; }
+  .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto; padding: max(58px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
+  .fila-jugadores { gap: 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px 2px 8px; }
+  .ficha { width: 82px; flex: 0 0 82px; font-size: 0.8rem; }
+  .ficha .foto { width: 48px; height: 48px; }
 
   .bar {
     padding-bottom: 8px;
@@ -1479,8 +1599,16 @@ onUnmounted(() => {
   }
 
   .mesa {
+    display: flex;
+    flex-direction: column;
     gap: 12px;
+    min-height: 0;
   }
+  .oraculo { order: 0; align-self: stretch; }
+  .carton-wrap { order: 1; }
+  .lista { order: 2; width: 100%; box-sizing: border-box; }
+  .lista ul { max-height: 120px; overflow: auto; }
+  .lista :deep(.chat-sala) { max-height: 190px; }
 
   .oraculo {
     min-width: 0;
@@ -1505,15 +1633,51 @@ onUnmounted(() => {
   }
 
   .bingo {
-    margin-top: 10px;
-    padding: 8px 20px;
+    margin-top: 0;
+    min-height: 54px;
+    padding: 10px 20px;
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 5;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 18px rgba(211,171,83,.22);
   }
+  .barra { grid-template-columns: 1fr; gap: 10px; align-items: center; }
+  .barra-lado { justify-content: center; }
+  .barra-lado[aria-hidden='true'] { display: none; }
+  .boosters { justify-content: center; gap: 10px; }
+  .booster { width: 58px; height: 58px; }
+  .booster img { width: 38px; height: 38px; }
+  .metodo-esquina { display: none; }
 
   .aviso {
     top: 62px;
     font-size: 0.85rem;
     padding: 9px 14px;
   }
+}
+
+@media (min-width: 701px) and (max-width: 1050px) {
+  .cuerpo { grid-template-columns: minmax(190px, .8fr) minmax(300px, 1.2fr); }
+  .ranking { grid-column: 1 / -1; max-height: 210px; }
+  .ranking ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .sello-aro,
+  .dragon-carga,
+  .emblema-carga::before,
+  .runa,
+  .rastreo-carga span { animation: none !important; }
+}
+
+@media (max-height: 560px) {
+  .carga { padding-top: 66px; padding-bottom: 16px; }
+  .panel-carga { min-height: 0; padding-block: 18px; gap: 10px; }
+  .emblema-carga { width: 148px; height: 148px; }
+  .dragon-carga { width: 90px; height: 90px; }
+  .aro-exterior { inset: 4px; }
+  .aro-interior { inset: 16px; }
 }
 
 /* Pantallas muy bajas (landscape): el cartón se reduce al mínimo usable */

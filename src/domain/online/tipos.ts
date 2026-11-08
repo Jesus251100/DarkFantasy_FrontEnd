@@ -16,6 +16,7 @@ export interface VistaSalaOnline {
   salaId: string
   estado: EstadoSalaOnline
   size: number
+  fondoNivel: number
   winModes: WinMode[]
   metodosVictoria: WinMode[]
   maxNumber: number

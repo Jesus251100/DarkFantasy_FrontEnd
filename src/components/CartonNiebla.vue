@@ -14,7 +14,6 @@ const props = defineProps<{
   intentos: number
   textos: Record<number, string>
   numeroOculto: (indice: number) => boolean
-  opacidadSubida: number
 }>()
 
 const emit = defineEmits<{
@@ -35,7 +34,7 @@ function alEscribir(indice: number, evento: Event) {
 </script>
 
 <template>
-  <div class="carton-niebla" :class="{ encima: completa || saliendo || enCasillas || opacidadSubida > 0 }">
+  <div class="carton-niebla" :class="{ encima: completa || saliendo || enCasillas }">
     <p v-if="enCasillas" class="intentos">Niebla · intentos {{ intentos }}/3</p>
     <div class="board" :style="{ gridTemplateColumns: `repeat(${columnas}, 1fr)` }">
       <div v-for="(celda, indice) in celdas" :key="indice" class="cell-slot">
@@ -77,22 +76,6 @@ function alEscribir(indice: number, evento: Event) {
             @keydown.enter.prevent="emit('enviar', indice)"
           />
         </div>
-      </div>
-      <div
-        v-if="opacidadSubida > 0 && !completa && !enCasillas"
-        class="niebla-sube"
-        :style="{ opacity: opacidadSubida / 100 }"
-        aria-hidden="true"
-      >
-        <span class="velo"></span>
-        <span class="grano g1"></span>
-        <span class="grano g2"></span>
-        <span class="sombra s1"></span>
-        <span class="sombra s2"></span>
-        <span class="sombra s3"></span>
-        <span class="humo h1"></span>
-        <span class="humo h2"></span>
-        <span class="humo h3"></span>
       </div>
       <div v-if="completa" class="niebla-total" :class="{ sale: saliendo }" aria-hidden="true">
         <span class="velo"></span>
@@ -223,8 +206,7 @@ function alEscribir(indice: number, evento: Event) {
   overflow: hidden;
 }
 
-.niebla-total,
-.niebla-sube {
+.niebla-total {
   position: absolute;
   inset: -14% -10%;
   overflow: hidden;
@@ -250,12 +232,6 @@ function alEscribir(indice: number, evento: Event) {
     opacity 1.6s cubic-bezier(0.33, 0, 0.2, 1),
     transform 1.6s cubic-bezier(0.33, 0, 0.2, 1),
     filter 1.6s ease;
-}
-
-.niebla-sube {
-  z-index: 6;
-  pointer-events: none;
-  transition: opacity 0.45s ease;
 }
 
 .niebla-total.sale {
