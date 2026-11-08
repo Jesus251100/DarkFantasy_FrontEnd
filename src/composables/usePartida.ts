@@ -53,6 +53,7 @@ export function usePartida(levelNumber: number) {
 
   const showVictoryOverlay = ref(false)
   const showRuleta = ref(false)
+  const showBossBriefing = ref(false)
   const victoryMessage = ref('HAS SUPERADO EL DESAFIO')
   const progress = useProgressStore()
   const winnerName = ref(progress.displayName || 'Jugador')
@@ -313,6 +314,11 @@ export function usePartida(levelNumber: number) {
       refresh()
       return
     }
+    if (levelNumber === 10) {
+      showBossBriefing.value = true
+      refresh()
+      return
+    }
     if (levelNumber <= 9 && partida.winModes.length === 1 && partida.winModes[0]) {
       partida.mostrarInfo(`Forma de ganar: ${nombreMetodo(partida.winModes[0])}.`)
       refresh()
@@ -320,8 +326,14 @@ export function usePartida(levelNumber: number) {
     void beginPlaying()
   }
 
+  function confirmarInicioJefe() {
+    if (!showBossBriefing.value) return
+    showBossBriefing.value = false
+    void beginPlaying()
+  }
+
   function startMatch() {
-    if (showRuleta.value) return
+    if (showRuleta.value || showBossBriefing.value) return
     if (serverRoundId && (partida.status === 'playing' || partida.status === 'paused')) {
       void progress.cerrarRonda(serverRoundId).catch(() => undefined)
       serverRoundId = null
@@ -352,7 +364,7 @@ export function usePartida(levelNumber: number) {
     if (definicion.fases.length <= 1 || partida.phase >= definicion.fases.length) return
     serverRoundId = null
     aplicarFase(partida.phase)
-    refresh()
+    void beginPlaying()
   }
 
   function togglePause() {
@@ -560,6 +572,7 @@ export function usePartida(levelNumber: number) {
     restoredFromSession,
     showVictoryOverlay,
     showRuleta,
+    showBossBriefing,
     victoryMessage,
     winnerName,
     winnerImage,
@@ -568,6 +581,7 @@ export function usePartida(levelNumber: number) {
     winnerIndices,
     playerWon,
     startMatch,
+    confirmarInicioJefe,
     onRuletaElegido,
     prepararSiguienteFase,
     togglePause,

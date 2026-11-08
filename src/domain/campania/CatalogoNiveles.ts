@@ -162,12 +162,12 @@ const NIVELES: DefinicionNivel[] = [
   {
     numero: 10,
     sessionKey: 'level-10',
-    idleHint: 'Fase 1: la ruleta elige el método. Los rivales están al máximo.',
+    idleHint: 'Fase 1: completa el cartón entero y canta BINGO.',
     previews: previewsDe(5, ['full']),
     fases: [
-      fase(5, ['full'], 75, 1, 'Fase 1: pulsa Iniciar. La ruleta elige cartón completo.', 2600),
-      fase(5, ['zigzag', 'H', 'T', 'arrow'], 75, 2, 'Fase 2: la ruleta elige el método. Si no marcas, el eclipse cubre los cartones.', 2500, 'ruleta', true),
-      fase(6, ['crown', 'diamond'], 90, 1, 'Fase 3 FINAL: ruleta y noches de eclipse. Corona o diamante en 6×6.', 2400, 'ruleta', true),
+      fase(5, ['full'], 75, 1, 'Fase 1: completa el cartón entero y canta BINGO.', 2600, 'ninguno'),
+      fase(5, ['zigzag'], 75, 2, 'Fase 2: completa el zigzag en cualquiera de tus dos cartones.', 2500, 'ninguno'),
+      fase(6, ['crown'], 90, 1, 'Fase 3 final: completa la corona en tu cartón 6×6.', 2400, 'ninguno'),
     ],
     muestraJefe: true,
     fondo: 'final',

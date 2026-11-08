@@ -29,6 +29,8 @@ const {
   emailDisplay,
   canResend,
   resendLabel,
+  expiryLabel,
+  codigoVencido,
   continuar,
   reenviarCodigo,
   verificarCodigo,
@@ -133,7 +135,6 @@ async function registrarConGoogle(idToken: string) {
         {{ cargando && !showVerify ? 'ENVIANDO CÓDIGO…' : 'ENVIAR CÓDIGO' }}
       </button>
       <div class="google-separator"><span>o</span></div>
-      <p class="google-help">También puedes entrar con Google. Para una cuenta nueva, completa nombre, país, género y fecha de nacimiento; Google confirmará el correo y usará su foto de perfil.</p>
       <GoogleIdentityButton @credential="registrarConGoogle" />
     </form>
 
@@ -142,6 +143,8 @@ async function registrarConGoogle(idToken: string) {
       :email="emailDisplay"
       :bandeja="bandeja"
       :resend-label="resendLabel"
+      :expiry-label="expiryLabel"
+      :codigo-vencido="codigoVencido"
       :can-resend="canResend"
       :cargando="cargando"
       @close="cerrarVerify"
@@ -199,7 +202,6 @@ async function registrarConGoogle(idToken: string) {
 
 .google-separator { display: flex; align-items: center; gap: 12px; margin-top: 16px; color: rgba(232, 220, 195, 0.65); }
 .google-separator::before, .google-separator::after { content: ''; flex: 1; height: 1px; background: rgba(190, 160, 70, 0.3); }
-.google-help { margin: 10px auto 0; max-width: 430px; color: rgba(235, 227, 210, 0.75); font-size: 0.78rem; line-height: 1.5; text-align: center; }
 
 @keyframes toast-in {
   from {

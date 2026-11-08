@@ -3,18 +3,18 @@
     <img class="qte-boss" :src="jefeGif" alt="" draggable="false" />
     <div class="qte-veil" />
 
-    <p class="qte-phase">Fase {{ phaseNumber }} · ejecuta al jefe</p>
-    <p class="qte-hint">Pulsa la tecla antes de que se acabe el tiempo</p>
+    <p class="qte-phase">Fase {{ phaseNumber }} · rompe la defensa</p>
+    <p class="qte-hint">Escribe la secuencia aleatoria. Si fallas, tendrás que empezar de nuevo.</p>
 
     <div class="qte-ring" :style="{ '--t': timerRatio }">
-      <button
-        type="button"
+      <div
         class="qte-key"
         :class="flash"
-        @click="tryKey(current?.code ?? '')"
+        role="status"
+        aria-live="assertive"
       >
         {{ currentLabel }}
-      </button>
+      </div>
     </div>
 
     <div class="qte-dots" aria-hidden="true">
@@ -38,14 +38,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import jefeGif from '@/assets/img/jefeFinal.gif'
 
-const KEYS = ['KeyF', 'KeyJ', 'Space', 'KeyD', 'KeyK'] as const
-const LABELS: Record<string, string> = {
-  KeyF: 'F',
-  KeyJ: 'J',
-  Space: 'ESPACIO',
-  KeyD: 'D',
-  KeyK: 'K',
-}
+const KEYS = Array.from({ length: 26 }, (_, i) => `Key${String.fromCharCode(65 + i)}`)
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +61,7 @@ const timerRatio = ref(1)
 const flash = ref<'' | 'hit' | 'miss'>('')
 const summary = ref('')
 const current = computed(() => prompts.value[index.value] ?? null)
-const currentLabel = computed(() => LABELS[current.value?.code ?? ''] ?? '—')
+const currentLabel = computed(() => current.value?.code.slice(-1) ?? '—')
 
 let started = 0
 let windowMs = 1200
@@ -77,12 +70,17 @@ let closed = false
 let stepTimer = 0
 
 function buildPrompts(phase: number): Prompt[] {
-  const count = phase <= 1 ? 3 : phase === 2 ? 4 : 5
-  const ms = phase <= 1 ? 1500 : phase === 2 ? 1100 : 850
-  return Array.from({ length: count }, (_, i) => ({
-    code: KEYS[i % KEYS.length] ?? KEYS[0],
-    windowMs: ms,
-  }))
+  const count = phase <= 1 ? 4 : 5
+  const ms = phase <= 1 ? 1700 : 1400
+  const sequence: Prompt[] = []
+  for (let i = 0; i < count; i++) {
+    let code = KEYS[Math.floor(Math.random() * KEYS.length)] ?? 'KeyA'
+    while (sequence.length > 0 && sequence.at(-1)?.code === code) {
+      code = KEYS[Math.floor(Math.random() * KEYS.length)] ?? 'KeyA'
+    }
+    sequence.push({ code, windowMs: ms })
+  }
+  return sequence
 }
 
 function startPrompt(i: number) {
@@ -115,12 +113,22 @@ function resolve(mark: 'hit' | 'miss') {
   cancelAnimationFrame(raf)
   results.value[index.value] = mark
   flash.value = mark
+  if (mark === 'miss') {
+    summary.value = 'La secuencia se rompió. Prepárate para repetirla.'
+    stepTimer = window.setTimeout(() => {
+      if (closed) return
+      results.value = prompts.value.map(() => null)
+      summary.value = ''
+      startPrompt(0)
+    }, 650)
+    return
+  }
   const next = index.value + 1
   stepTimer = window.setTimeout(() => {
     if (closed) return
     if (next >= prompts.value.length) finish()
     else startPrompt(next)
-  }, mark === 'hit' ? 280 : 420)
+  }, 230)
 }
 
 function tryKey(code: string) {
@@ -131,7 +139,8 @@ function tryKey(code: string) {
 
 function onKey(e: KeyboardEvent) {
   if (e.repeat) return
-  if (e.code === 'Space') e.preventDefault()
+  if (!/^Key[A-Z]$/.test(e.code)) return
+  e.preventDefault()
   tryKey(e.code)
 }
 
@@ -140,13 +149,8 @@ function finish() {
   closed = true
   cancelAnimationFrame(raf)
   window.clearTimeout(stepTimer)
-  const hits = results.value.filter((m) => m === 'hit').length
-  const total = prompts.value.length
-  const ok = hits >= Math.ceil(total * 0.6)
-  summary.value = ok
-    ? `¡Golpe limpio! ${hits}/${total}`
-    : `El jefe resistió… ${hits}/${total}`
-  window.setTimeout(() => emit('done', ok), 900)
+  summary.value = '¡Secuencia completa! La siguiente fase se abre.'
+  window.setTimeout(() => emit('done', true), 450)
 }
 
 onMounted(() => {
@@ -247,7 +251,8 @@ onUnmounted(() => {
   font-size: 1.55rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  cursor: pointer;
+  cursor: default;
+  user-select: none;
 }
 
 .qte-key.hit {

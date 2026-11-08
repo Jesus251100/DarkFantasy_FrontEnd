@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import '../assets/css/login.css'
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, ApiError } from '../api/cliente'
 
@@ -14,8 +14,36 @@ const aviso = ref('')
 const bandeja = ref('')
 const cargando = ref(false)
 const enviado = ref(false)
+const codigoSegundosRestantes = ref(0)
+let temporizadorVencimiento: ReturnType<typeof setInterval> | null = null
 const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CLAVE_ALFANUMERICA = /^(?=.*\p{L})(?=.*\p{N})/u
+const tiempoRestanteCodigo = computed(() => {
+  const minutos = Math.floor(codigoSegundosRestantes.value / 60)
+  const segundos = codigoSegundosRestantes.value % 60
+  return `${minutos}:${segundos.toString().padStart(2, '0')}`
+})
+const codigoVencido = computed(() => codigoSegundosRestantes.value <= 0)
+
+function iniciarContador(expiraEn: string) {
+  if (temporizadorVencimiento) clearInterval(temporizadorVencimiento)
+  const vencimiento = Date.parse(expiraEn)
+  const actualizar = () => {
+    codigoSegundosRestantes.value = Number.isFinite(vencimiento)
+      ? Math.max(0, Math.ceil((vencimiento - Date.now()) / 1000))
+      : 0
+    if (codigoSegundosRestantes.value === 0 && temporizadorVencimiento) {
+      clearInterval(temporizadorVencimiento)
+      temporizadorVencimiento = null
+    }
+  }
+  actualizar()
+  if (codigoSegundosRestantes.value > 0) temporizadorVencimiento = setInterval(actualizar, 1000)
+}
+
+onUnmounted(() => {
+  if (temporizadorVencimiento) clearInterval(temporizadorVencimiento)
+})
 
 async function pedirCodigo() {
   error.value = ''
@@ -26,12 +54,13 @@ async function pedirCodigo() {
   }
   cargando.value = true
   try {
-    const data = await api<{ ok: boolean; bandeja?: string }>('/api/auth/olvidar-clave', {
+    const data = await api<{ ok: boolean; bandeja?: string; expiraEn: string }>('/api/auth/olvidar-clave', {
       method: 'POST',
       body: JSON.stringify({ correo: correo.value.trim() }),
     })
     enviado.value = true
     bandeja.value = data.bandeja ?? ''
+    iniciarContador(data.expiraEn)
     aviso.value = 'Te enviamos un código de 6 números. Vale 10 minutos.'
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'No se pudo conectar con el servidor'
@@ -40,8 +69,18 @@ async function pedirCodigo() {
   }
 }
 
+async function pedirOtroCodigo() {
+  if (!codigoVencido.value || cargando.value) return
+  codigo.value = ''
+  await pedirCodigo()
+}
+
 async function guardar() {
   error.value = ''
+  if (codigoVencido.value) {
+    error.value = 'El código venció. Solicita uno nuevo.'
+    return
+  }
   if (!/^\d{6}$/.test(codigo.value.trim())) {
     error.value = 'El código tiene 6 números'
     return
@@ -74,6 +113,8 @@ async function guardar() {
     })
     aviso.value = 'Listo. Ya puedes entrar con la nueva contraseña.'
     enviado.value = false
+    if (temporizadorVencimiento) clearInterval(temporizadorVencimiento)
+    temporizadorVencimiento = null
     codigo.value = ''
     clave.value = ''
     confirmar.value = ''
@@ -101,8 +142,14 @@ async function guardar() {
       <template v-if="enviado">
         <div class="campo">
           <label>Código</label>
-          <input v-model="codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" placeholder="6 números" autocomplete="one-time-code" />
+          <input v-model="codigo" type="text" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6" placeholder="6 números" autocomplete="one-time-code" :disabled="codigoVencido" />
         </div>
+        <p class="expiry-row" :class="{ expired: codigoVencido }" aria-live="polite">
+          {{ codigoVencido ? 'El código venció.' : `El código vence en ${tiempoRestanteCodigo}` }}
+        </p>
+        <button v-if="codigoVencido" type="button" class="resend-code" :disabled="cargando" @click="pedirOtroCodigo">
+          {{ cargando ? 'ENVIANDO…' : 'SOLICITAR OTRO CÓDIGO' }}
+        </button>
         <div class="campo">
           <label>Nueva contraseña</label>
           <input v-model="clave" type="password" required minlength="8" maxlength="128" placeholder="Mínimo 8; incluye letras y números" autocomplete="new-password" />
@@ -119,7 +166,7 @@ async function guardar() {
 
       <p v-if="aviso" class="aviso">{{ aviso }}</p>
       <p v-if="error" class="login-error">{{ error }}</p>
-      <button type="submit" class="btn-login" :disabled="cargando">
+      <button type="submit" class="btn-login" :disabled="cargando || (enviado && codigoVencido)">
         {{ cargando ? 'ESPERA…' : enviado ? 'GUARDAR' : 'ENVIAR CÓDIGO' }}
       </button>
     </form>
@@ -152,6 +199,35 @@ async function guardar() {
 
 .pista a {
   color: #9fd0ff;
+}
+
+.expiry-row {
+  margin: -4px 0 12px;
+  color: #e8c86a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.expiry-row.expired {
+  color: #ff8a8a;
+}
+
+.resend-code {
+  display: block;
+  margin: 0 auto 12px;
+  padding: 8px 14px;
+  border: 1px solid rgba(190, 160, 70, 0.65);
+  border-radius: 8px;
+  background: rgba(20, 28, 40, 0.9);
+  color: #e8c86a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.resend-code:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .btn-atras {

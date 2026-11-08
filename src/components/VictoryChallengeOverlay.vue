@@ -264,8 +264,14 @@ function startQteOrPortrait() {
   stage.value = 'portrait'
 }
 
-function onQteDone() {
+function onQteDone(ok: boolean) {
   if (closed) return
+  if (ok && props.nextPhase) {
+    timers.push(window.setTimeout(() => {
+      if (!closed) goNext()
+    }, 320))
+    return
+  }
   showPortrait()
 }
 

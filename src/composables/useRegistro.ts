@@ -5,7 +5,7 @@ import { api, ApiError } from '../api/cliente'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 
-type SolicitudCodigo = { ok: boolean; bandeja?: string }
+type SolicitudCodigo = { ok: boolean; bandeja?: string; expiraEn: string }
 
 const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CLAVE_ALFANUMERICA = /^(?=.*\p{L})(?=.*\p{N})/u
@@ -43,6 +43,7 @@ export function useRegistro() {
   const showAccountCreated = shallowRef(false)
   const toast = shallowRef<string | null>(null)
   const bandeja = shallowRef<string | null>(null)
+  const codigoSegundosRestantes = shallowRef(0)
   const cargando = shallowRef(false)
   const resendSeconds = shallowRef(0)
 
@@ -56,8 +57,15 @@ export function useRegistro() {
     }
     return 'Reenviar'
   })
+  const expiryLabel = computed(() => {
+    const m = Math.floor(codigoSegundosRestantes.value / 60)
+    const s = codigoSegundosRestantes.value % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  })
+  const codigoVencido = computed(() => codigoSegundosRestantes.value <= 0)
 
   let resendTimer: ReturnType<typeof setInterval> | null = null
+  let expiryTimer: ReturnType<typeof setInterval> | null = null
   let toastTimer: ReturnType<typeof setTimeout> | null = null
   let createdTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -81,6 +89,22 @@ export function useRegistro() {
       }
       resendSeconds.value -= 1
     }, 1000)
+  }
+
+  function iniciarVencimiento(expiraEn: string) {
+    if (expiryTimer) clearInterval(expiryTimer)
+    const instanteExpiracion = Date.parse(expiraEn)
+    const actualizar = () => {
+      codigoSegundosRestantes.value = Number.isFinite(instanteExpiracion)
+        ? Math.max(0, Math.ceil((instanteExpiracion - Date.now()) / 1000))
+        : 0
+      if (codigoSegundosRestantes.value === 0 && expiryTimer) {
+        clearInterval(expiryTimer)
+        expiryTimer = null
+      }
+    }
+    actualizar()
+    if (codigoSegundosRestantes.value > 0) expiryTimer = setInterval(actualizar, 1000)
   }
 
   function validarFormulario(): string | null {
@@ -112,6 +136,7 @@ export function useRegistro() {
       body: JSON.stringify({ correo: email.value.trim() }),
     })
     bandeja.value = data.bandeja ?? null
+    iniciarVencimiento(data.expiraEn)
   }
 
   async function continuar() {
@@ -182,6 +207,7 @@ export function useRegistro() {
     cargando.value = false
     showToast('Código correcto')
     if (resendTimer) clearInterval(resendTimer)
+    if (expiryTimer) clearInterval(expiryTimer)
     resendTimer = null
     showVerify.value = false
     showAccountCreated.value = true
@@ -196,11 +222,13 @@ export function useRegistro() {
     if (cargando.value) return
     showVerify.value = false
     if (resendTimer) clearInterval(resendTimer)
+    if (expiryTimer) clearInterval(expiryTimer)
     resendTimer = null
   }
 
   onUnmounted(() => {
     if (resendTimer) clearInterval(resendTimer)
+    if (expiryTimer) clearInterval(expiryTimer)
     if (toastTimer) clearTimeout(toastTimer)
     if (createdTimer) clearTimeout(createdTimer)
   })
@@ -222,6 +250,8 @@ export function useRegistro() {
     emailDisplay,
     canResend,
     resendLabel,
+    expiryLabel,
+    codigoVencido,
     continuar,
     reenviarCodigo,
     verificarCodigo,

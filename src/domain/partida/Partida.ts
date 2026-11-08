@@ -83,7 +83,7 @@ export class Partida {
     this.layouts = this.generarLayouts()
     this.cartones = this.layouts.map((v) => Carton.desdeValores(v))
     this.oraculo = Oraculo.nuevo(config.maxNumber, this.pool())
-    this.bots = FabricaBots.roster(config.size, config.maxNumber)
+    this.bots = this.crearBots(config)
     for (const b of this.bots) {
       b.actualizarProgreso(this.patrones)
     }
@@ -115,10 +115,17 @@ export class Partida {
       drawIntervalMs: snap.drawIntervalMs,
       maxNumber: snap.maxNumber,
     }
-    if (snap.bots && snap.bots.length > 0) {
-      p.bots = FabricaBots.desdeSnapshots(snap.bots, snap.size)
+    const botsGuardados = config.level === 10
+      ? snap.bots?.filter((bot) => bot.id === 'dragon')
+      : snap.bots
+    if (botsGuardados && botsGuardados.length > 0) {
+      p.bots = FabricaBots.desdeSnapshots(botsGuardados, snap.size, config.level === 10)
     }
     return p
+  }
+
+  private crearBots(config: ConfigPartida) {
+    return FabricaBots.roster(config.size, config.maxNumber, config.level === 10)
   }
 
   get status(): EstadoPartida {
@@ -226,7 +233,7 @@ export class Partida {
     this.layouts = layouts.map((carton) => [...carton])
     this.cartones = this.layouts.map((v) => Carton.desdeValores(v))
     this.oraculo = Oraculo.nuevo(this.config.maxNumber, this.pool())
-    this.bots = FabricaBots.roster(this.config.size, this.config.maxNumber)
+    this.bots = this.crearBots(this.config)
     for (const b of this.bots) {
       b.actualizarProgreso(this.patrones)
     }
@@ -386,7 +393,7 @@ export class Partida {
     this.layouts = this.generarLayouts()
     this.cartones = this.layouts.map((v) => Carton.desdeValores(v))
     this.oraculo = Oraculo.nuevo(config.maxNumber, this.pool())
-    this.bots = FabricaBots.roster(config.size, config.maxNumber)
+    this.bots = this.crearBots(config)
     for (const b of this.bots) {
       b.actualizarProgreso(this.patrones)
     }

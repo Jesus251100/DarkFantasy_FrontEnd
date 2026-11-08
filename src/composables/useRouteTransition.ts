@@ -30,7 +30,7 @@ const temasNivel: Record<number, { nombre: string; senda: string; ambiente: stri
   7: { nombre: 'El abismo de obsidiana', senda: 'Veterano', ambiente: 'Los rivales reaccionan con rapidez en la oscuridad.' },
   8: { nombre: 'La torre del eclipse', senda: 'Veterano', ambiente: 'Dos cartones y patrones cambiantes ponen a prueba tu temple.' },
   9: { nombre: 'El reino de las sombras', senda: 'Veterano', ambiente: 'La última senda antes del desafío definitivo.' },
-  10: { nombre: 'El trono del eclipse', senda: 'Pesadilla', ambiente: 'Tres fases finales y rivales al máximo te esperan.' },
+  10: { nombre: 'El trono de las cenizas', senda: 'Pesadilla', ambiente: 'Tres fases finales y Malgrath, Rey de las Cenizas, te esperan.' },
 }
 
 export interface DatosCarga {

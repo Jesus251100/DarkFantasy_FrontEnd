@@ -5,6 +5,8 @@ const props = defineProps<{
   email: string
   bandeja: string | null
   resendLabel: string
+  expiryLabel: string
+  codigoVencido: boolean
   canResend: boolean
   cargando: boolean
 }>()
@@ -57,7 +59,7 @@ function onDigitPaste(event: ClipboardEvent) {
 }
 
 function confirmar() {
-  if (!/^\d{6}$/.test(codeValue.value)) return
+  if (props.codigoVencido || !/^\d{6}$/.test(codeValue.value)) return
   emit('verify', codeValue.value)
 }
 </script>
@@ -95,11 +97,15 @@ function confirmar() {
           required
           :value="digits[i]"
           autocomplete="one-time-code"
-          :disabled="cargando"
+          :disabled="cargando || codigoVencido"
           @input="onDigitInput(i, $event)"
           @keydown="onDigitKeydown(i, $event)"
         />
       </div>
+
+      <p class="expiry-row" :class="{ expired: codigoVencido }" aria-live="polite">
+        {{ codigoVencido ? 'El código venció. Solicita uno nuevo.' : `El código vence en ${expiryLabel}` }}
+      </p>
 
       <p class="resend-row">
         ¿No recibiste el código?
@@ -114,7 +120,7 @@ function confirmar() {
         </button>
       </p>
 
-      <button type="submit" class="btn-verify" :disabled="cargando">
+      <button type="submit" class="btn-verify" :disabled="cargando || codigoVencido">
         {{ cargando ? 'Verificando…' : 'verificar código' }}
       </button>
     </form>
@@ -207,6 +213,17 @@ function confirmar() {
   justify-content: center;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.expiry-row {
+  margin: -8px 0 14px;
+  color: #e8c86a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.expiry-row.expired {
+  color: #ff8a8a;
 }
 
 .code-digit {

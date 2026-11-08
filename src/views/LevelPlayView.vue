@@ -2,11 +2,13 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BossCard from '../components/BossCard.vue'
+import BossPhaseIntro from '../components/BossPhaseIntro.vue'
 import MethodPatternPreview from '../components/MethodPatternPreview.vue'
 import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay.vue'
 import VictoryChallengeOverlay from '../components/VictoryChallengeOverlay.vue'
 import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
 import PauseOverlay from '../components/PauseOverlay.vue'
+import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { usePartida } from '../composables/usePartida'
 import type { BingoCell, WinMode } from '../domain/bingo/tipos'
 import jefeGif from '@/assets/img/jefeFinal.gif'
@@ -80,6 +82,8 @@ const {
   dispose,
   clearSession,
   showRuleta,
+  showBossBriefing,
+  confirmarInicioJefe,
 } = play
 
 const fondo = computed(() =>
@@ -95,6 +99,21 @@ watch(showVictoryOverlay, (abierto, antes) => {
 
 const multiCard = computed(() => cards.value.length > 1)
 const gridClass = computed(() => `grid-${size.value}`)
+const jefe = computed(() => bots.value.find((bot) => bot.id === 'dragon') ?? null)
+const metodoJefe = computed(() => methodLabel.value.replace(/^Método:\s*/i, ''))
+const dialogoJefe = computed(() => {
+  if (status.value === 'idle') {
+    return [
+      'Que comience el sorteo. Cada bola acercará a alguien a su destino.',
+      'No confundas una buena racha con una victoria, retador.',
+      'El último patrón decidirá quién merece este trono.',
+    ][Math.max(0, phase.value - 1)] ?? 'El oráculo aguarda la próxima bola.'
+  }
+  if (status.value === 'paused') return 'Hasta el azar contiene el aliento mientras esperamos.'
+  if (status.value === 'won') return 'Has superado esta fase. La siguiente prueba ya te espera.'
+  if (status.value === 'lost') return 'Este cartón ya tiene dueño. Vuelve cuando estés listo.'
+  return jefe.value?.statusText ?? 'El oráculo aún no ha cantado.'
+})
 
 const previewItems = computed(() => {
   const modes = winModes.value
@@ -228,10 +247,17 @@ function onVictoryNext() {
       :reward-text="playerWon && lastClear?.hint ? lastClear.hint : ''"
       :next-level="nextLevelNum"
       :next-phase="nextPhaseNum"
-      :qte-enabled="definicion.muestraJefe && playerWon"
+      :qte-enabled="definicion.muestraJefe && playerWon && nextPhaseNum !== null"
       :qte-phase="phase"
       @go-levels="onVictoryLevels"
       @go-next="onVictoryNext"
+    />
+    <BossPhaseIntro
+      :show="showBossBriefing"
+      :phase="phase"
+      :method="metodoJefe"
+      :dialogue="dialogoJefe"
+      @start="confirmarInicioJefe"
     />
     <AchievementUnlockOverlay
       v-model:show="logroVisible"
@@ -275,7 +301,7 @@ function onVictoryNext() {
             cleared: p < phase || (p === phase && status === 'won' && p === definicion.fases.length),
             locked: p > phase,
           }"
-          :disabled="status === 'playing' || status === 'paused'"
+          :disabled="definicion.muestraJefe || status === 'playing' || status === 'paused'"
           @click="previewPhase(p)"
         >
           Fase {{ p }}
@@ -361,18 +387,31 @@ function onVictoryNext() {
           />
         </div>
 
-        <div v-else class="bots-column">
+        <div v-else class="boss-arena">
           <div class="boss-placeholder">
-            <img :src="jefeGif + '?v=orig1'" alt="Jefe Final" decoding="async" draggable="false" />
+            <img :src="jefeGif + '?v=orig1'" alt="Malgrath, Rey de las Cenizas" decoding="async" draggable="false" />
           </div>
-          <div class="jefe-rivales" aria-label="Avance de los rivales">
-            <div v-for="bot in bots" :key="bot.id" class="jefe-rival" :class="{ won: bot.won }">
-              <span class="jefe-rival-name">{{ bot.name }}</span>
-              <div class="jefe-rival-track">
-                <div class="jefe-rival-fill" :style="{ width: `${Math.round(bot.progress * 100)}%` }" />
-              </div>
-              <span class="jefe-rival-pct">{{ Math.round(bot.progress * 100) }}%</span>
+          <div class="boss-info">
+            <p class="boss-kicker">JEFE FINAL · NIVEL 10</p>
+            <h2 class="boss-name">{{ jefe?.name ?? 'Malgrath, Rey de las Cenizas' }}</h2>
+            <p class="boss-phase">Fase {{ phase }} de {{ definicion.fases.length }}</p>
+            <div class="boss-dialogue" aria-live="polite" aria-atomic="true">
+              <span>{{ dialogoJefe }}</span>
             </div>
+            <div
+              class="boss-progress-track"
+              role="progressbar"
+              :aria-label="`Progreso real del cartón de ${jefe?.name ?? 'Malgrath'}`"
+              :aria-valuenow="Math.round((jefe?.progress ?? 0) * 100)"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div class="boss-progress-fill" :style="{ width: `${Math.round((jefe?.progress ?? 0) * 100)}%` }" />
+            </div>
+            <p class="boss-progress-label">
+              {{ jefe?.progressMarked ?? 0 }} de {{ jefe?.progressTotal ?? 0 }} casillas ·
+              {{ Math.round((jefe?.progress ?? 0) * 100) }}%
+            </p>
           </div>
         </div>
       </div>
@@ -959,6 +998,234 @@ function onVictoryNext() {
   text-align: right;
 }
 
+/* La arena final ocupa el espacio disponible y mantiene el cartón legible. */
+.level-play.level-10 .content {
+  gap: clamp(8px, 1.4vh, 16px);
+  padding: 64px clamp(18px, 3vw, 54px) 24px;
+  justify-content: space-between;
+}
+
+.level-play.level-10 .phase-tabs {
+  margin: 0;
+}
+
+.level-play.level-10 .phase-tab {
+  min-width: 92px;
+  padding: 8px 16px;
+  border-color: rgba(214, 173, 101, 0.42);
+  background: rgba(18, 13, 20, 0.82);
+  color: #d8c6a2;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: 0.85rem;
+}
+
+.level-play.level-10 .phase-tab.active,
+.level-play.level-10 .phase-tab.cleared {
+  border-color: #d9ae63;
+  color: #ffe7b0;
+  box-shadow: 0 0 14px rgba(199, 137, 65, 0.2);
+}
+
+.level-play.level-10 .main-container.has-jefe {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+  align-items: stretch;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 1800px;
+  min-height: 0;
+  gap: clamp(18px, 3vw, 48px);
+}
+
+.level-play.level-10 .center-section {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  gap: clamp(8px, 1.5vh, 16px);
+}
+
+.level-play.level-10 .bingo-panel-wrap,
+.level-play.level-10 .bingo-panels {
+  width: 100%;
+  min-height: 0;
+  align-items: center;
+  gap: clamp(8px, 1vw, 18px);
+}
+
+.level-play.level-10 .bingo-panel {
+  flex: 1 1 0;
+  padding: clamp(12px, 2vh, 24px) clamp(10px, 1.5vw, 22px);
+  gap: clamp(8px, 1.4vh, 16px);
+  border-color: rgba(196, 151, 86, 0.58);
+  background: linear-gradient(160deg, rgba(36, 29, 38, 0.91), rgba(15, 15, 22, 0.9));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 234, 190, 0.12);
+}
+
+.level-play.level-10 .title {
+  color: #f3dba8;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: clamp(0.95rem, 1.6vw, 1.3rem);
+  letter-spacing: 0.16em;
+}
+
+.level-play.level-10 .grid-5 {
+  grid-template-columns: repeat(5, clamp(36px, min(5.7vh, 4.4vw), 60px));
+  gap: clamp(4px, 0.7vh, 8px);
+}
+
+.level-play.level-10 .grid-5 .bingo-number {
+  width: clamp(36px, min(5.7vh, 4.4vw), 60px);
+  height: clamp(36px, min(5.7vh, 4.4vw), 60px);
+  font-size: clamp(0.82rem, min(1.8vh, 1.4vw), 1.3rem);
+}
+
+.level-play.level-10 .grid-6 {
+  grid-template-columns: repeat(6, clamp(32px, min(4.8vh, 3.8vw), 52px));
+  gap: clamp(3px, 0.55vh, 7px);
+}
+
+.level-play.level-10 .grid-6 .bingo-number {
+  width: clamp(32px, min(4.8vh, 3.8vw), 52px);
+  height: clamp(32px, min(4.8vh, 3.8vw), 52px);
+  font-size: clamp(0.72rem, min(1.5vh, 1.2vw), 1.05rem);
+}
+
+.level-play.level-10 .bingo-number.marked {
+  background: linear-gradient(145deg, #8d542b, #5c2d23) !important;
+  border-color: #e5b35f !important;
+  color: #fff2d6;
+}
+
+.level-play.level-10 .bingo-number.called {
+  box-shadow: 0 0 0 2px rgba(225, 185, 105, 0.82), 0 0 14px rgba(225, 154, 75, 0.48);
+}
+
+.level-play.level-10 .boss-arena {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(14px, 2vw, 28px);
+  overflow: hidden;
+  border: 1px solid rgba(190, 118, 73, 0.52);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(130, 51, 43, 0.28), transparent 55%),
+    linear-gradient(165deg, rgba(22, 17, 25, 0.86), rgba(8, 9, 14, 0.92));
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(239, 194, 126, 0.12);
+}
+
+.level-play.level-10 .boss-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.level-play.level-10 .boss-placeholder img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: min(54vh, 560px);
+  object-fit: contain;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.72)) drop-shadow(0 0 22px rgba(155, 63, 42, 0.25));
+}
+
+.boss-info {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 16px 18px 14px;
+  border: 1px solid rgba(190, 143, 103, 0.35);
+  border-radius: 16px;
+  background: rgba(5, 6, 10, 0.58);
+}
+
+.boss-kicker,
+.boss-phase,
+.boss-progress-label { margin: 0; text-align: center; }
+
+.boss-kicker {
+  color: #c7925b;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+}
+
+.boss-name {
+  margin: 0;
+  color: #f3dba8;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: clamp(1.15rem, 2vw, 1.65rem);
+  line-height: 1.16;
+  text-align: center;
+  text-shadow: 0 0 18px rgba(194, 113, 62, 0.32);
+}
+
+.boss-phase {
+  color: #b9a995;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.boss-dialogue {
+  display: grid;
+  min-height: 62px;
+  place-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(208, 177, 119, 0.68);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(218, 205, 177, 0.96), rgba(169, 151, 126, 0.96));
+  color: #241a1b;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: 0.88rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.boss-progress-track {
+  height: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(218, 180, 117, 0.64);
+  border-radius: 999px;
+  background: rgba(8, 8, 12, 0.86);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.65);
+}
+
+.boss-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #682b2a, #b76639 58%, #ebc36c);
+  box-shadow: 0 0 14px rgba(218, 141, 67, 0.62);
+  transition: width 0.55s cubic-bezier(0.22, 0.8, 0.25, 1);
+}
+
+.boss-progress-label {
+  color: #dccba9;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.level-play.level-10 .oraculo-section { margin-top: 0; }
+.level-play.level-10 .oraculo-panel {
+  border-color: rgba(190, 143, 103, 0.45);
+  background: linear-gradient(180deg, rgba(42, 34, 39, 0.84), rgba(15, 15, 21, 0.9));
+}
+.level-play.level-10 .oraculo-title { color: #e9ce9a; }
+.level-play.level-10 .method-preview-wrap { display: none; }
+.level-play.level-10 .control-btn {
+  border-color: rgba(214, 173, 101, 0.72);
+  background: rgba(27, 18, 23, 0.9);
+  color: #f2d79f;
+}
+
 @media (max-width: 1100px) {
   .main-container {
     gap: 16px;
@@ -1167,5 +1434,84 @@ function onVictoryNext() {
   .method-preview-wrap {
     display: none;
   }
+}
+
+@media (max-width: 1100px) {
+  .level-play.level-10 .main-container.has-jefe {
+    grid-template-columns: minmax(0, 1fr) minmax(270px, 0.76fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 820px) {
+  .level-play.level-10 {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .level-play.level-10 .content {
+    height: auto;
+    min-height: 100%;
+    justify-content: flex-start;
+    padding: 70px 14px 26px;
+  }
+
+  .level-play.level-10 .main-container.has-jefe {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    flex: 0 0 auto;
+    gap: 12px;
+  }
+
+  .level-play.level-10 .boss-arena {
+    order: -1;
+    grid-template-columns: minmax(110px, 0.62fr) minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    min-height: 210px;
+    padding: 12px;
+  }
+
+  .level-play.level-10 .boss-placeholder img { max-height: 190px; }
+  .level-play.level-10 .boss-info { padding: 10px; gap: 6px; }
+  .level-play.level-10 .boss-dialogue { min-height: 52px; padding: 8px; font-size: 0.78rem; }
+  .level-play.level-10 .center-section { height: auto; }
+  .level-play.level-10 .bingo-panels { flex-wrap: wrap; }
+  .level-play.level-10 .bingo-panel { flex: 1 1 230px; }
+}
+
+@media (max-width: 520px) {
+  .level-play.level-10 .content { padding-right: 9px; padding-left: 9px; }
+  .level-play.level-10 .boss-arena {
+    grid-template-columns: minmax(82px, 0.42fr) minmax(0, 1fr);
+    min-height: 192px;
+    padding: 8px;
+  }
+  .level-play.level-10 .boss-placeholder img { max-height: 170px; }
+  .level-play.level-10 .boss-kicker { font-size: 0.55rem; }
+  .level-play.level-10 .boss-name { font-size: 1rem; }
+  .level-play.level-10 .boss-phase,
+  .level-play.level-10 .boss-progress-label { font-size: 0.65rem; }
+  .level-play.level-10 .boss-dialogue { min-height: 48px; font-size: 0.7rem; }
+  .level-play.level-10 .bingo-panel { flex-basis: 170px; padding: 10px 8px; }
+  .level-play.level-10 .grid-5 {
+    grid-template-columns: repeat(5, clamp(28px, 7.4vw, 36px));
+    gap: 4px;
+  }
+  .level-play.level-10 .grid-5 .bingo-number {
+    width: clamp(28px, 7.4vw, 36px);
+    height: clamp(28px, 7.4vw, 36px);
+    font-size: 0.76rem;
+  }
+  .level-play.level-10 .grid-6 {
+    grid-template-columns: repeat(6, clamp(26px, 6.6vw, 34px));
+    gap: 3px;
+  }
+  .level-play.level-10 .grid-6 .bingo-number {
+    width: clamp(26px, 6.6vw, 34px);
+    height: clamp(26px, 6.6vw, 34px);
+    font-size: 0.68rem;
+  }
+  .level-play.level-10 .oraculo-panel { padding: 10px 14px; }
+  .level-play.level-10 .oracle-slot { min-width: 28px; }
 }
 </style>
