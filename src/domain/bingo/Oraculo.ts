@@ -38,6 +38,15 @@ export class Oraculo {
     return true
   }
 
+  devolver(numero: number): boolean {
+    const index = this.cantadas.indexOf(numero)
+    if (index < 0 || this.bolsa.toArray().includes(numero)) return false
+    this.cantadas.splice(index, 1)
+    this.bolsa = Bolsa.desdeRestantes([...this.bolsa.toArray(), numero])
+    this.ultima = this.cantadas.at(-1) ?? null
+    return true
+  }
+
   yaCanto(n: number): boolean {
     return this.conjunto.has(n)
   }

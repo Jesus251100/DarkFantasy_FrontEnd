@@ -408,6 +408,26 @@ export function usePartida(levelNumber: number) {
     return cambio
   }
 
+  async function devolverBola(numero: number): Promise<boolean> {
+    const rondaId = serverRoundId
+    if (!rondaId || partida.status !== 'playing') return false
+    for (let intento = 0; solicitudBolaEnCurso && intento < 100; intento++) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    if (solicitudBolaEnCurso || serverRoundId !== rondaId || partida.status !== 'playing') return false
+    stopTimer()
+    try {
+      await progress.devolverBola(rondaId, numero)
+      if (serverRoundId !== rondaId || !partida.devolverBolaCantada(numero)) return false
+      refresh()
+      return true
+    } catch {
+      return false
+    } finally {
+      if (serverRoundId === rondaId && partida.status === 'playing') startTimer()
+    }
+  }
+
   function avisar(texto: string) {
     partida.mostrarInfo(texto)
     refresh()
@@ -605,6 +625,7 @@ export function usePartida(levelNumber: number) {
     togglePause,
     toggleCell,
     desmarcarCelda,
+    devolverBola,
     avisar,
     claimBingo,
     previewPhase,

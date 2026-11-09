@@ -249,6 +249,11 @@ export class Partida {
     return this.oraculo.registrar(numero)
   }
 
+  devolverBolaCantada(numero: number): boolean {
+    if (this.estado !== 'playing') return false
+    return this.oraculo.devolver(numero)
+  }
+
   rechazarReclamo(mensaje: string): void {
     this.estado = 'playing'
     this.winningIndices = []

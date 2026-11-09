@@ -154,7 +154,7 @@ const NIVELES: DefinicionNivel[] = [
     idleHint: 'Dos cartones. La ruleta elige entre los métodos acumulados.',
     previews: previewsDe(5, metodosAcumulados(9)),
     fases: [
-      fase(5, metodosAcumulados(9), 75, 2, 'Dos cartones: la ruleta elige entre los métodos acumulados.', 2700),
+      fase(5, metodosAcumulados(9), 75, 2, 'Dos cartones: la ruleta elige entre los métodos acumulados.', 2700, 'niebla'),
     ],
     muestraJefe: false,
     fondo: 'gif',

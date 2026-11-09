@@ -249,6 +249,10 @@ onUnmounted(() => {
   background: radial-gradient(circle at 40% 30%, #5a2020, #1a0606 70%);
   color: #fff6d0;
   font-size: 1.55rem;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  text-align: center;
   font-weight: 800;
   letter-spacing: 0.08em;
   cursor: default;

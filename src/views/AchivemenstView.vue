@@ -13,7 +13,7 @@
     <main class="contenido">
       <header class="encabezado">
         <h1>LOGROS</h1>
-        <p>Completa niveles para desbloquear logros y sus recompensas</p>
+        <p>Completa niveles, usa boosters y gana partidas para obtener recompensas</p>
       </header>
 
       <div class="resumen" role="status">
@@ -37,18 +37,27 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AchievementTable from '../components/AchievementTable.vue'
-import { useProgressStore, MAX_LEVEL } from '../stores/progress'
+import { useProgressStore } from '../stores/progress'
+import { ApiCampaniaCliente } from '../infrastructure/ApiCampaniaCliente'
+import { LOGROS, logrosConEstado, type LogroVista } from '../domain/logros/Logros'
 import fondo from '../assets/img/fondo.png'
 
 const router = useRouter()
 const progress = useProgressStore()
 
-const total = MAX_LEVEL
-const desbloqueados = computed(() => progress.completedCount)
+const logros = ref<LogroVista[]>(logrosConEstado([...progress.completed]))
+const total = LOGROS.length
+const desbloqueados = computed(() => logros.value.filter((logro) => logro.desbloqueado).length)
 const porcentaje = computed(() => Math.round((desbloqueados.value / total) * 100))
+
+onMounted(async () => {
+  await progress.asegurarHidratado()
+  logros.value = logrosConEstado([...progress.completed])
+  try { logros.value = await new ApiCampaniaCliente().listarLogros() } catch { /* conserva el progreso de niveles local */ }
+})
 
 function volverAlLobby() {
   router.push('/lobby')
@@ -296,5 +305,14 @@ h1 {
     font-size: 0.58rem;
     letter-spacing: 0.06em;
   }
+}
+
+@media (max-height: 700px) {
+  .logros { height: 100dvh; min-height: 0; overflow: hidden; padding-top: 44px; padding-bottom: 6px; }
+  .contenido { min-height: 0; gap: 6px; padding-top: 0; margin-block: auto; }
+  .resumen-item { padding: 4px 8px; }
+  .resumen-item strong { font-size: 1rem; }
+  :deep(.tabla) { --fila-pad-y: 2px; --fila-pad-x: 7px; --img-w: 38px; --img-h: 26px; --h3-size: .76rem; --head-pad-y: 4px; --head-pad-x: 8px; --head-size: .72rem; }
+  :deep(.fila) { min-height: 0; }
 }
 </style>

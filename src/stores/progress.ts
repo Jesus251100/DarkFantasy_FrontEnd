@@ -114,6 +114,10 @@ export const useProgressStore = defineStore('progress', () => {
     return cliente.siguienteBola(rondaId)
   }
 
+  function devolverBola(rondaId: string, numero: number): Promise<void> {
+    return cliente.devolverBola(rondaId, numero)
+  }
+
   function cerrarRonda(rondaId: string): Promise<void> {
     return cliente.cerrarRonda(rondaId)
   }
@@ -184,6 +188,7 @@ export const useProgressStore = defineStore('progress', () => {
     registrarPartida,
     iniciarRonda,
     siguienteBola,
+    devolverBola,
     cerrarRonda,
     reclamarVictoria,
     boosterCount,

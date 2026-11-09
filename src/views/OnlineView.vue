@@ -203,22 +203,23 @@
         <span>◆ {{ progress.diamonds }}</span>
         <span>🏆 {{ puntosRanking }}</span>
       </header>
-      <div class="centro room-centro">
-        <p class="sobrelinea">SALA PRIVADA</p>
-        <p class="titulo">Esperando aventureros</p>
-        <p class="hint">Comparte este código de cuatro letras para que tus compañeros entren a la misma sala.</p>
-        <div class="sala-carga" aria-hidden="true">
-          <span class="sala-carga-aro"></span>
-          <img src="@/assets/img/dragon.png" alt="" />
-        </div>
-        <p class="estado-sala">{{ espera.jugadores.length === 4 ? 'La sala está completa.' : 'El dragón espera a que lleguen más jugadores…' }}</p>
-        <p class="codigo">{{ espera.codigo }}</p>
-        <button type="button" class="accion copiar-codigo" @click="copiarCodigoSala">
-          {{ copiado ? 'CÓDIGO COPIADO' : 'COPIAR CÓDIGO' }}
-        </button>
-        <p class="enlace">{{ enlaceSala || 'Comparte el código desde la opción “Unirse a una sala”.' }}</p>
+      <div class="room-layout">
+        <section class="room-invite">
+          <p class="sobrelinea">SALA PRIVADA</p>
+          <h1>Esperando aventureros</h1>
+          <div class="sala-carga" aria-hidden="true">
+            <span class="sala-carga-aro"></span>
+            <img src="@/assets/img/dragon.png" alt="" />
+          </div>
+          <p class="estado-sala">{{ espera.jugadores.length === 4 ? 'Sala completa' : 'El dragón espera…' }}</p>
+          <p class="codigo">{{ espera.codigo }}</p>
+          <button type="button" class="accion copiar-codigo" @click="copiarCodigoSala">
+            {{ copiado ? 'COPIADO' : 'COPIAR CÓDIGO' }}
+          </button>
+        </section>
+        <div class="room-side">
         <aside class="panel lista-room">
-          <h2>JUGADORES · {{ espera.jugadores.length }}/4</h2>
+          <h2>JUGADORES <span>{{ espera.jugadores.length }}/4</span></h2>
           <ul>
             <li v-for="(j, index) in slotsSala" :key="j?.id ?? `slot-${index}`" :class="{ vacio: !j }">
               <template v-if="j">
@@ -237,12 +238,15 @@
           <input type="checkbox" :checked="espera.completarConBots" @change="configurarBotsSala($event)" />
           <span><strong>Completar espacios vacíos con bots</strong><small>Solo tú, como anfitrión, puedes activar esta opción.</small></span>
         </label>
-        <button v-if="soyAnfitrion" type="button" class="accion" :disabled="espera.jugadores.length < 4 && !espera.completarConBots" @click="empezar">
-          {{ espera.jugadores.length === 4 ? 'EMPEZAR PARTIDA' : 'EMPEZAR CON BOTS' }}
-        </button>
-        <p v-else class="hint">La sala está abierta. Esperando a que el anfitrión inicie la partida.</p>
-        <ChatSala :mensajes="chat" @enviar="enviarTexto" />
-        <button type="button" class="accion suave" @click="volverSala">SALIR</button>
+        <div class="room-actions">
+          <button v-if="soyAnfitrion" type="button" class="accion" :disabled="espera.jugadores.length < 4 && !espera.completarConBots" @click="empezar">
+            {{ espera.jugadores.length === 4 ? 'EMPEZAR' : 'EMPEZAR CON BOTS' }}
+          </button>
+          <p v-else class="hint">Esperando al anfitrión</p>
+          <button type="button" class="accion suave" @click="volverSala">SALIR DE LA SALA</button>
+        </div>
+        <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
+        </div>
       </div>
     </section>
 
@@ -508,7 +512,6 @@ const boosters = BOOSTERS
 const codigo = ref('')
 const abriendoUnion = ref(false)
 const abriendoAbandono = ref(false)
-const ipRed = ref('')
 const copiado = ref(false)
 const entrada = ref(false)
 const boosterActivo = ref<number | null>(null)
@@ -549,19 +552,9 @@ function cazarDragones() {
 }
 
 const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
-const enlaceSala = computed(() => {
-  const salaCodigo = espera.value?.codigo
-  if (!salaCodigo) return ''
-  const publicBase = String(import.meta.env.VITE_PUBLIC_APP_URL ?? '').trim().replace(/\/$/, '')
-  const localHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname)
-  const puerto = location.port ? `:${location.port}` : ''
-  const base = publicBase || (localHost ? (ipRed.value ? `${location.protocol}//${ipRed.value}${puerto}` : '') : location.origin)
-  if (!base) return ''
-  return `${base}/online?sala=${salaCodigo}`
-})
 const textoErrorSala = computed(() => {
   if (errorSala.value === 'Esa sala no existe.') {
-    return 'Esa sala no existe en este computador. Abre el enlace que te pasó tu amigo. El código no sirve si cada uno entra por su propio localhost.'
+    return 'No se encontró esa sala. Comprueba el código y que el anfitrión siga esperando.'
   }
   return errorSala.value
 })
@@ -691,21 +684,6 @@ function jugar() {
 function cancelarBusqueda() {
   entrada.value = false
   online.cancelar()
-}
-
-async function buscarIpRed() {
-  const host = location.hostname
-  if (host !== 'localhost' && host !== '127.0.0.1') {
-    ipRed.value = host
-    return
-  }
-  try {
-    const respuesta = await fetch('/api/red-local')
-    const data = (await respuesta.json()) as { ip?: string }
-    if (data.ip) ipRed.value = data.ip
-  } catch {
-    ipRed.value = ''
-  }
 }
 
 async function copiarCodigoSala() {
@@ -890,7 +868,6 @@ function alTecla(evento: KeyboardEvent) {
 }
 
 onMounted(() => {
-  buscarIpRed()
   const salaInvitada = String(route.query.sala ?? '').trim().toUpperCase()
   if (/^[A-Z]{4}$/.test(salaInvitada)) {
     codigo.value = salaInvitada
@@ -1077,6 +1054,71 @@ onUnmounted(() => {
   padding: clamp(18px, 3vh, 34px) clamp(16px, 3vw, 48px) 24px;
   gap: 12px;
 }
+
+.hub.room {
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: max(8px, env(safe-area-inset-top)) clamp(10px, 2vw, 28px) max(8px, env(safe-area-inset-bottom));
+  gap: 8px;
+}
+
+.room-layout {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  gap: clamp(12px, 2vw, 28px);
+  width: min(1180px, 100%);
+  min-height: 0;
+  flex: 1;
+  margin: 0 auto;
+}
+
+.room-invite,
+.room-side {
+  min-height: 0;
+  border: 1px solid var(--noche-borde);
+  border-radius: 16px;
+  background: radial-gradient(ellipse at 50% 8%, rgba(104, 74, 31, .18), transparent 62%), rgba(7, 12, 22, .88);
+  box-shadow: inset 0 0 28px rgba(206, 167, 84, .035);
+}
+
+.room-invite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 1.2vh, 12px);
+  padding: 14px;
+}
+.room-invite h1 { margin: 0; text-align: center; color: #e8e0c8; font-size: clamp(1.1rem, 2.2vw, 1.8rem); }
+.room-invite .sala-carga { width: clamp(68px, 13vh, 118px); height: clamp(68px, 13vh, 118px); }
+.room-invite .sala-carga img { width: 62%; height: 62%; }
+.room-invite .codigo { margin: 0; font-size: clamp(2rem, 6vh, 3.6rem); letter-spacing: .2em; }
+.room-invite .estado-sala { font-size: .86rem; }
+.room-invite .copiar-codigo { min-height: 40px; }
+
+.room-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, .9fr);
+  grid-template-rows: auto auto minmax(80px, 1fr);
+  align-content: center;
+  gap: 8px 12px;
+  padding: clamp(10px, 1.5vw, 18px);
+}
+.room-side .lista-room { grid-row: 1 / 4; min-height: 0; overflow: hidden; }
+.room-side .lista-room ul { min-height: 0; margin-block: 5px; overflow: hidden; }
+.room-side .lista-room li { min-height: 40px; padding: 3px 0; font-size: .82rem; }
+.room-side .lista-room h2 { display: flex; justify-content: space-between; margin: 0; font-size: .92rem; }
+.room-side .bot-option { width: auto; padding: 9px 10px; font-size: .78rem; }
+.room-side .bot-option small { font-size: .7rem; }
+.room-actions { display: grid; align-content: center; gap: 7px; }
+.room-actions .accion { min-width: 0; width: 100%; padding: 10px 8px; font-size: .74rem; }
+.room-side :deep(.chat-sala) { min-height: 0; height: 100%; max-height: none; }
+.room-side :deep(.chat-sala form) { padding-top: 4px; }
+.room-side :deep(.chat-sala input) { min-height: 32px; }
 
 .top {
   display: flex;
@@ -2061,6 +2103,26 @@ onUnmounted(() => {
   }
 
   .hub { height: auto; min-height: 100dvh; gap: 14px; padding: max(16px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom)); }
+  .hub.room { height: 100dvh; min-height: 0; padding: max(6px, env(safe-area-inset-top)) 8px max(6px, env(safe-area-inset-bottom)); gap: 4px; }
+  .room .top { min-height: 30px; }
+  .room-layout { grid-template-columns: minmax(110px, .78fr) minmax(0, 1.22fr); gap: 7px; }
+  .room-invite { gap: 5px; padding: 8px 6px; }
+  .room-invite h1 { font-size: clamp(.9rem, 3.2vw, 1.25rem); }
+  .room-invite .sobrelinea { font-size: .55rem; letter-spacing: .16em; }
+  .room-invite .sala-carga { width: clamp(42px, 10vh, 68px); height: clamp(42px, 10vh, 68px); margin: 0; }
+  .room-invite .codigo { font-size: clamp(1.35rem, 7vw, 2rem); letter-spacing: .14em; }
+  .room-invite .estado-sala { font-size: .68rem; }
+  .room-invite .copiar-codigo { min-height: 32px; padding: 7px; font-size: .66rem; }
+  .room-side { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); grid-template-rows: auto auto minmax(54px, 1fr); gap: 5px; padding: 7px; }
+  .room-side .lista-room li { min-height: 30px; font-size: .68rem; }
+  .room-side .mini-foto { width: 25px; height: 25px; }
+  .room-side .lista-room h2 { font-size: .72rem; }
+  .room-side .bot-option { gap: 5px; padding: 6px; font-size: .63rem; }
+  .room-side .bot-option small { font-size: .58rem; }
+  .room-actions .accion { font-size: .62rem; padding: 7px 5px; }
+  .room-side :deep(.chat-sala) { font-size: .65rem; }
+  .room-side :deep(.chat-sala ul) { margin: 2px 0; }
+  .room-side :deep(.chat-sala input) { min-height: 26px; font-size: .7rem; }
   .top { font-size: 0.84rem; }
   .cuerpo { flex: 1 0 auto; grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .centro { grid-row: 1; padding: 22px 16px; gap: 10px; }
@@ -2069,7 +2131,6 @@ onUnmounted(() => {
   .panel { min-height: 220px; }
   .chat-sala { min-height: 220px; }
   .ranking { max-height: 260px; }
-  .room .room-centro { width: 100%; box-sizing: border-box; padding: 20px 16px; }
   .codigo { font-size: clamp(2rem, 12vw, 3.2rem); letter-spacing: 0.22em; }
   .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto auto; padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
   .fila-jugadores { gap: 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px 2px 8px; }

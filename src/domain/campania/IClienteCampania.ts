@@ -32,6 +32,7 @@ export interface IClienteCampania {
   registrarPartida(nivel: number, gano: boolean): Promise<void>
   iniciarRonda(nivel: number, fase: number, modo?: WinMode, runId?: string): Promise<RondaCampaniaRemota>
   siguienteBola(rondaId: string): Promise<number>
+  devolverBola(rondaId: string, numero: number): Promise<void>
   cerrarRonda(rondaId: string): Promise<void>
   reclamarVictoria(rondaId: string, cartonIndex: number): Promise<ConfirmacionVictoriaRemota>
   comprarBooster(id: number, cantidad: number): Promise<DatosCampania>

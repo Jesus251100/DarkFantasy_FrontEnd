@@ -86,6 +86,7 @@ const {
   togglePause,
   toggleCell,
   desmarcarCelda,
+  devolverBola,
   avisar,
   claimBingo,
   previewPhase,
@@ -114,7 +115,7 @@ watch(showVictoryOverlay, (abierto, antes) => {
 
 const multiCard = computed(() => cards.value.length > 1)
 const gridClass = computed(() => `grid-${size.value}`)
-const nieblaActiva = computed(() => evento.value === 'niebla' && cards.value.length === 1)
+const nieblaActiva = computed(() => evento.value === 'niebla')
 
 const figurasMetodo = computed(() => {
   const modo = winModes.value[0]
@@ -122,9 +123,65 @@ const figurasMetodo = computed(() => {
   return patronDesdeModo(modo).indices(size.value)
 })
 
-const progresoMetodo = computed(() =>
-  progresoDeFigura(cards.value[0] ?? [], figurasMetodo.value),
-)
+const nieblaCardIndex = computed(() => {
+  let mejor = 0
+  for (let i = 1; i < cards.value.length; i++) {
+    if (progresoDeFigura(cards.value[i] ?? [], figurasMetodo.value) > progresoDeFigura(cards.value[mejor] ?? [], figurasMetodo.value)) mejor = i
+  }
+  return mejor
+})
+const progresoMetodo = computed(() => Math.max(0, ...cards.value.map((card) => progresoDeFigura(card, figurasMetodo.value))))
+const cortesEspada = ref<Record<number, 'slash' | 'gone' | 'regrow'>>({})
+const temporizadoresEspada = new Map<number, ReturnType<typeof setTimeout>[]>()
+const numerosYaCortados = new Set<number>()
+const numerosCortados = computed(() => new Set(Object.keys(cortesEspada.value).map(Number)))
+function programarCorteEspada() {
+  if (props.levelNumber !== 10 || phase.value !== 2 || status.value !== 'playing' || progresoMetodo.value < 0.45) return
+  for (const card of cards.value) {
+    for (const index of figurasMetodo.value.flat()) {
+      const cell = card[index]
+      if (!cell || cell.free || cell.marked || !calledList.value.includes(cell.number) || numerosYaCortados.has(cell.number) || cortesEspada.value[cell.number] || temporizadoresEspada.has(cell.number)) continue
+      const number = cell.number
+      numerosYaCortados.add(number)
+      const timers: ReturnType<typeof setTimeout>[] = []
+      temporizadoresEspada.set(number, timers)
+      timers.push(setTimeout(() => {
+        const sigueSinMarcar = cards.value.some((tablero) => figurasMetodo.value.flat().some((index) => tablero[index]?.number === number && !tablero[index]?.marked))
+        if (status.value !== 'playing' || phase.value !== 2 || !calledList.value.includes(number) || !sigueSinMarcar) { temporizadoresEspada.delete(number); return }
+        cortesEspada.value = { ...cortesEspada.value, [number]: 'slash' }
+        timers.push(setTimeout(() => {
+          cortesEspada.value = { ...cortesEspada.value, [number]: 'gone' }
+          timers.push(setTimeout(() => {
+            cortesEspada.value = { ...cortesEspada.value, [number]: 'regrow' }
+            timers.push(setTimeout(() => {
+              void devolverBola(number).then((ok) => {
+                const next = { ...cortesEspada.value }; delete next[number]; cortesEspada.value = next
+                if (!ok && status.value === 'playing') avisar('La casilla volvió, pero no se pudo regresar la bola al sorteo.')
+              })
+              temporizadoresEspada.delete(number)
+            }, 4000))
+          }, 7000))
+        }, 600))
+      }, 4000))
+    }
+  }
+}
+function limpiarCortesEspada() {
+  for (const timers of temporizadoresEspada.values()) timers.forEach(clearTimeout)
+  temporizadoresEspada.clear()
+  cortesEspada.value = {}
+  numerosYaCortados.clear()
+}
+watch([progresoMetodo, calledList, status, phase], programarCorteEspada, { deep: true })
+watch([status, phase], ([estado, fase]) => {
+  if (estado !== 'playing' || fase !== 2) limpiarCortesEspada()
+})
+
+function iniciarPartida() {
+  startMatch()
+  const orientacion = typeof screen !== 'undefined' ? screen.orientation as (ScreenOrientation & { lock?: (orientation: string) => Promise<void> }) | undefined : undefined
+  if (orientacion?.lock) void orientacion.lock('landscape').catch(() => undefined)
+}
 
 const nieblaProgramada = ref(false)
 const {
@@ -143,7 +200,7 @@ const {
   numeroOculto,
   bloqueaCarton,
 } = useNieblaOnline({
-  celdas: () => cards.value[0] ?? [],
+  celdas: () => cards.value[nieblaCardIndex.value] ?? [],
   cantadas: () => calledList.value,
   avisar,
   penalizar: () => quitarCasillaDeLaFigura(),
@@ -151,12 +208,12 @@ const {
 
 function quitarCasillaDeLaFigura() {
   if (!winModes.value[0]) return
-  const indice = casillaDeProgreso(cards.value[0] ?? [], figurasMetodo.value, nieblaIndices.value)
+  const indice = casillaDeProgreso(cards.value[nieblaCardIndex.value] ?? [], figurasMetodo.value, nieblaIndices.value)
   if (indice === null) {
     avisar('Te equivocaste. Tu figura no tenía una casilla marcada para quitar.')
     return
   }
-  desmarcarCelda(0, indice)
+  desmarcarCelda(nieblaCardIndex.value, indice)
   avisar('Te equivocaste. La niebla te quitó una casilla de la figura.')
 }
 
@@ -174,18 +231,19 @@ function intentarEventoNiebla() {
   nieblaProgramada.value = true
 }
 
-function onMarcarNiebla(indice: number) {
+function onMarcarNiebla(cardIndex: number, indice: number) {
+  if (cardIndex !== nieblaCardIndex.value) return
   if (bloqueaCarton() || nieblaIndices.value.includes(indice)) return
-  const antes = cards.value[0]?.[indice]
+  const antes = cards.value[cardIndex]?.[indice]
   if (!antes || antes.free) return
   const estabaMarcada = antes.marked
   toggleCell(indice)
-  if (!estabaMarcada && cards.value[0]?.[indice]?.marked) intentarEventoNiebla()
+  if (!estabaMarcada && cards.value[cardIndex]?.[indice]?.marked) intentarEventoNiebla()
 }
 
 function onMarcarCelda(cardIndex: number, cellIndex: number) {
   if (nieblaActiva.value) {
-    onMarcarNiebla(cellIndex)
+    onMarcarNiebla(cardIndex, cellIndex)
     return
   }
   if (multiCard.value) toggleCell(cardIndex, cellIndex)
@@ -236,7 +294,7 @@ const previewItems = computed(() => {
   const s = size.value
   const fase = definicion.fases[phase.value - 1]
   const nivelDeUnMetodo = props.levelNumber <= 9 && fase?.winModes.length === 1
-  if (status.value === 'idle' || modes.length !== 1 || nivelDeUnMetodo) return []
+  if ((status.value === 'idle' && props.levelNumber !== 10) || modes.length !== 1 || nivelDeUnMetodo) return []
   return [{ size: s, winModes: [modes[0] as WinMode] }]
 })
 
@@ -351,6 +409,11 @@ function onVictoryNext() {
     ]"
     :style="{ backgroundImage: `url(${fondo})` }"
   >
+    <div class="portrait-prompt" role="status">
+      <span aria-hidden="true">⟳</span>
+      <strong>Gira el dispositivo</strong>
+      <small>Esta partida se juega en horizontal.</small>
+    </div>
     <VictoryChallengeOverlay
       v-model:show="showVictoryOverlay"
       :message="victoryMessage"
@@ -456,7 +519,7 @@ function onVictoryNext() {
                       : 'REGISTRO'
                 }}
               </h1>
-              <p v-if="nieblaActiva && nieblaEnCasillas" class="niebla-intentos">
+              <p v-if="nieblaActiva && cardIndex === nieblaCardIndex && nieblaEnCasillas" class="niebla-intentos">
                 Niebla · intentos {{ nieblaIntentos }}/3
               </p>
               <div class="grid-nube">
@@ -470,21 +533,30 @@ function onVictoryNext() {
                       type="button"
                       class="bingo-number"
                       :class="cellClass(cell, cellIndex, cardIndex)"
-                      :disabled="isEnded || status === 'idle' || cell.free"
+                      :disabled="isEnded || status === 'idle' || cell.free || numerosCortados.has(cell.number)"
                       :aria-pressed="cell.marked"
                       @click="onMarcarCelda(cardIndex, cellIndex)"
                     >
                       {{
                         cell.free
                           ? 'free'
-                          : nieblaActiva && numeroOculto(cellIndex)
+                          : numerosCortados.has(cell.number) && cortesEspada[cell.number] === 'gone'
+                            ? ''
+                          : nieblaActiva && cardIndex === nieblaCardIndex && numeroOculto(cellIndex)
                             ? ''
                             : cell.number
                       }}
                     </button>
                     <div
+                      v-if="numerosCortados.has(cell.number)"
+                      class="espada-casilla"
+                      :class="`espada-${cortesEspada[cell.number]}`"
+                      aria-hidden="true"
+                    ><span v-if="cortesEspada[cell.number] === 'slash'">⚔</span></div>
+                    <div
                       v-if="
                         nieblaActiva &&
+                        cardIndex === nieblaCardIndex &&
                         (nieblaSaliendo || nieblaEnCasillas) &&
                         nieblaIndices.includes(cellIndex) &&
                         !cell.free &&
@@ -515,7 +587,7 @@ function onVictoryNext() {
                   </div>
                 </div>
                 <div
-                  v-if="nieblaActiva && nieblaCompleta"
+                  v-if="nieblaActiva && cardIndex === nieblaCardIndex && nieblaCompleta"
                   class="niebla-total"
                   :class="{ sale: nieblaSaliendo }"
                   aria-hidden="true"
@@ -530,7 +602,7 @@ function onVictoryNext() {
                   <span class="humo h2"></span>
                   <span class="humo h3"></span>
                 </div>
-                <svg v-if="nieblaActiva" class="niebla-defs" aria-hidden="true">
+                <svg v-if="nieblaActiva && cardIndex === nieblaCardIndex" class="niebla-defs" aria-hidden="true">
                   <filter id="df-niebla-ruido" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
                     <feTurbulence type="fractalNoise" baseFrequency="0.007 0.015" numOctaves="5" seed="2" result="n">
                       <animate attributeName="baseFrequency" dur="20s" values="0.006 0.013;0.011 0.009;0.007 0.016;0.006 0.013" repeatCount="indefinite" />
@@ -692,7 +764,7 @@ function onVictoryNext() {
           v-if="status === 'idle' || isEnded"
           type="button"
           class="control-btn start-btn"
-          @click="startMatch"
+          @click="iniciarPartida"
         >
           {{ primaryActionIcon }}
         </button>
@@ -836,11 +908,30 @@ function onVictoryNext() {
 
 .cell-wrap {
   position: relative;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
 }
+
+.espada-casilla {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.espada-slash { background: linear-gradient(135deg, transparent 42%, rgba(255, 226, 177, .98) 47%, #9d2929 50%, transparent 55%); animation: tajo-espada .6s ease-out both; }
+.espada-slash span { color: #fff0cf; font-size: 1.4rem; filter: drop-shadow(0 0 8px #ff512f); }
+.espada-gone { background: rgba(12, 8, 12, .88); box-shadow: inset 0 0 18px rgba(192, 50, 40, .55); }
+.espada-regrow { background: rgba(224, 180, 122, .35); animation: regenerar-casilla 4s ease-out both; }
+@keyframes tajo-espada { from { opacity: 0; transform: scale(.5) rotate(-12deg); } 35% { opacity: 1; } to { opacity: 0; transform: scale(1.25) rotate(12deg); } }
+@keyframes regenerar-casilla { from { opacity: .75; } to { opacity: 0; } }
+
+.portrait-prompt { display: none; }
 
 .niebla-intentos {
   margin: 0;
@@ -1562,7 +1653,7 @@ function onVictoryNext() {
 
 .level-play.level-10 .main-container.has-jefe {
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
   align-items: stretch;
   flex: 1 1 auto;
   width: 100%;
@@ -1663,7 +1754,7 @@ function onVictoryNext() {
   width: 100%;
   height: 100%;
   max-width: 100%;
-  max-height: min(54vh, 560px);
+  max-height: min(62vh, 640px);
   object-fit: contain;
   filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.72)) drop-shadow(0 0 22px rgba(155, 63, 42, 0.25));
 }
@@ -1753,7 +1844,6 @@ function onVictoryNext() {
   background: linear-gradient(180deg, rgba(42, 34, 39, 0.84), rgba(15, 15, 21, 0.9));
 }
 .level-play.level-10 .oraculo-title { color: #e9ce9a; }
-.level-play.level-10 .method-preview-wrap { display: none; }
 .level-play.level-10 .control-btn {
   border-color: rgba(214, 173, 101, 0.72);
   background: rgba(27, 18, 23, 0.9);
@@ -1944,6 +2034,30 @@ function onVictoryNext() {
   }
 }
 
+@media (max-width: 900px) and (orientation: portrait) {
+  .portrait-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #f3dfb3;
+    background: rgba(10, 8, 12, .97);
+    text-align: center;
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+  .portrait-prompt span { font-size: 3rem; color: #d4a45c; transform: rotate(90deg); }
+  .portrait-prompt small { color: #c6bdaf; font: 500 1rem system-ui, sans-serif; }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .level-play .content { padding: 46px 12px 12px; }
+  .method-preview-wrap { bottom: 10px; left: 10px; transform: scale(.72); transform-origin: bottom left; }
+}
+
 /* ==========================================================================
    PANTALLAS MUY BAJAS (móvil en horizontal): el juego no cabe a pantalla
    completa, así que se permite el desplazamiento en vez de recortar el
@@ -1965,9 +2079,7 @@ function onVictoryNext() {
     margin-top: 8px;
   }
 
-  .method-preview-wrap {
-    display: none;
-  }
+  .method-preview-wrap { transform: scale(.78); transform-origin: bottom left; }
 }
 
 @media (max-width: 1100px) {
@@ -2047,5 +2159,18 @@ function onVictoryNext() {
   }
   .level-play.level-10 .oraculo-panel { padding: 10px 14px; }
   .level-play.level-10 .oracle-slot { min-width: 28px; }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .level-play.level-10 { overflow: hidden; }
+  .level-play.level-10 .content { height: 100%; min-height: 0; padding: 42px 10px 8px; gap: 5px; }
+  .level-play.level-10 .main-container.has-jefe { grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); gap: 8px; }
+  .level-play.level-10 .boss-arena { min-height: 0; padding: 6px; grid-template-rows: minmax(0, 1fr) auto; }
+  .level-play.level-10 .boss-placeholder img { max-height: 27vh; }
+  .level-play.level-10 .boss-info { padding: 6px; gap: 3px; }
+  .level-play.level-10 .boss-dialogue { min-height: 0; padding: 4px; font-size: .62rem; }
+  .level-play.level-10 .boss-progress-track { height: 6px; }
+  .level-play.level-10 .oraculo-panel { padding: 5px 9px; gap: 4px; }
+  .level-play.level-10 .method-preview-wrap { bottom: 4px; left: 5px; transform: scale(.55); }
 }
 </style>

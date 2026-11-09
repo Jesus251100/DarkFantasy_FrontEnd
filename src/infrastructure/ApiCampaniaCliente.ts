@@ -35,6 +35,12 @@ export class ApiCampaniaCliente implements IClienteCampania {
     return data.numero
   }
 
+  async devolverBola(rondaId: string, numero: number): Promise<void> {
+    await api(`/api/campania/rondas/${encodeURIComponent(rondaId)}/devolver-bola`, {
+      method: 'POST', body: JSON.stringify({ numero }),
+    })
+  }
+
   async cerrarRonda(rondaId: string): Promise<void> {
     await api(`/api/campania/rondas/${encodeURIComponent(rondaId)}/cerrar`, { method: 'POST' })
   }

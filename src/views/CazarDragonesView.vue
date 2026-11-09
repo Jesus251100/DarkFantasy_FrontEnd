@@ -6,9 +6,9 @@
       <h1>Cazar dragones</h1>
       <img class="retrato" :src="dragonSrc" alt="Dragón Ancestral" />
       <div class="reglas-caza">
-        <p class="texto"><strong>La cacería:</strong> tú y otro cazador se enfrentan al Dragón Ancestral en un cartón de 5 por 5. Ganan con fila, columna o diagonal; si el dragón lo completa antes, pierden ambos.</p>
-        <p class="texto"><strong>La recompensa:</strong> si ambos cazadores vencen, la ruleta reparte diamantes: el premio mayor es 10.000.</p>
-        <p class="texto"><strong>La amenaza:</strong> las bolas sin marcar invocan Noches de eclipse y oscurecen el cartón.</p>
+        <p class="texto"><strong>2 cazadores contra el dragón</strong> · fila, columna o diagonal.</p>
+        <p class="texto"><strong>Ambos deben ganar</strong> para girar la ruleta de diamantes.</p>
+        <p class="texto"><strong>Marca cada bola a tiempo</strong> para mantener visible el cartón.</p>
       </div>
       <p v-if="error" class="aviso">{{ error }}</p>
       <div class="acciones-caza">
@@ -21,19 +21,11 @@
       </div>
     </section>
 
-    <section v-else-if="fase === 'sala'" class="centro">
-      <p class="kicker">Sala</p>
-      <h1>Código</h1>
+    <section v-else-if="fase === 'sala'" class="centro sala-caza">
+      <p class="kicker">SALA PRIVADA</p>
       <p class="codigo">{{ sala?.codigo }}</p>
-      <p class="texto">
-        Tu amigo entra a Online, abre Cazar dragones, pulsa UNIRSE y escribe este código. Los dos tienen que estar en el mismo juego.
-      </p>
-      <p v-if="enlaceSala" class="enlace">{{ enlaceSala }}</p>
       <button type="button" class="accion" @click="copiarCodigo">
-        {{ copiado ? 'CÓDIGO COPIADO' : 'COPIAR CÓDIGO' }}
-      </button>
-      <button v-if="enlaceSala" type="button" class="accion" @click="copiarEnlace">
-        {{ copiadoEnlace ? 'ENLACE COPIADO' : 'COPIAR ENLACE' }}
+        {{ copiado ? 'COPIADO' : 'COPIAR CÓDIGO' }}
       </button>
       <ul class="lista-sala">
         <li v-for="jugador in sala?.jugadores ?? []" :key="jugador.id">
@@ -83,7 +75,6 @@
 
         <div class="carton-wrap">
           <p class="letras">BINGO</p>
-          <p class="eclipse-nombre">Noches de eclipse</p>
           <div class="grid-nube">
             <div class="board">
               <button
@@ -255,8 +246,6 @@ const sala = ref<SalaCaza | null>(null)
 const abriendoUnion = ref(false)
 const codigoUnion = ref('')
 const copiado = ref(false)
-const copiadoEnlace = ref(false)
-const ipRed = ref('')
 const codigoUrlBruto = String(route.query.caza ?? '').trim().toUpperCase()
 const codigoUrl = /^[A-Z]{4}$/.test(codigoUrlBruto) ? codigoUrlBruto : ''
 const conectado = ref(false)
@@ -280,11 +269,6 @@ let quiereBuscar = false
 let cerrando = false
 
 const soyAnfitrion = computed(() => sala.value?.anfitrionId === usuarioId)
-const enlaceSala = computed(() => {
-  if (!sala.value || !ipRed.value) return ''
-  const puerto = location.port ? `:${location.port}` : ''
-  return `${location.protocol}//${ipRed.value}${puerto}/cazar-dragones?caza=${sala.value.codigo}`
-})
 
 function formato(valor: number): string {
   return valor.toLocaleString('es-CO')
@@ -381,21 +365,6 @@ function emitirCuandoConecte(evento: string, payload?: unknown) {
   else socket.once('connect', mandar)
 }
 
-async function buscarIpRed() {
-  const host = location.hostname
-  if (host !== 'localhost' && host !== '127.0.0.1') {
-    ipRed.value = host
-    return
-  }
-  try {
-    const respuesta = await fetch('/api/red-local')
-    const data = (await respuesta.json()) as { ip?: string }
-    if (data.ip) ipRed.value = data.ip
-  } catch {
-    ipRed.value = ''
-  }
-}
-
 function crearSala() {
   error.value = ''
   quiereBuscar = false
@@ -431,15 +400,6 @@ async function copiarCodigo() {
   copiado.value = true
   window.setTimeout(() => {
     copiado.value = false
-  }, 1600)
-}
-
-async function copiarEnlace() {
-  if (!enlaceSala.value) return
-  await navigator.clipboard.writeText(enlaceSala.value)
-  copiadoEnlace.value = true
-  window.setTimeout(() => {
-    copiadoEnlace.value = false
   }, 1600)
 }
 
@@ -560,7 +520,6 @@ onMounted(() => {
     mensajeFin.value = data.xp ? `${data.mensaje} · +${data.xp} XP por participar.` : data.mensaje
     fase.value = 'fin'
   })
-  void buscarIpRed()
   socket.connect()
 })
 
@@ -582,7 +541,7 @@ onUnmounted(() => {
   background:
     linear-gradient(180deg, rgba(4, 10, 24, 0.62), rgba(4, 8, 18, 0.82)),
     url('@/assets/img/fondo.png') center / cover no-repeat;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --oro: #e6c875;
   --borde-oro: rgba(205, 169, 89, 0.38);
 }
@@ -656,6 +615,7 @@ h1,
 h2 {
   margin: 0;
   font-weight: 700;
+  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
 }
 
 .texto {
