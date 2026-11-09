@@ -1,18 +1,9 @@
 <template>
   <div class="tabla">
-    <div class="header">
-      <span>Logro</span>
-
-      <span>Progreso</span>
-
-      <span>Recompensa</span>
-
-      <span>Estado</span>
+    <div class="lista-logros">
+      <AchievementRow v-for="item in achievements" :key="item.id" :achievement="item" />
+      <p v-if="!achievements.length" class="vacio">Cargando logros...</p>
     </div>
-
-    <AchievementRow v-for="item in achievements" :key="item.id" :achievement="item" />
-
-    <p v-if="!achievements.length" class="vacio">Cargando logros...</p>
   </div>
 </template>
 
@@ -36,7 +27,6 @@ interface FilaLogro {
 
 const progress = useProgressStore()
 const listar = new ListarLogros(new ApiCampaniaCliente())
-
 const achievements = ref<FilaLogro[]>([])
 
 onMounted(async () => {
@@ -46,7 +36,7 @@ onMounted(async () => {
     id: logro.codigo,
     nombre: logro.nombre,
     imagen: logro.imagen,
-    progreso: logro.desbloqueado ? '1/1' : '0/1',
+    progreso: `${logro.progresoActual}/${logro.objetivo ?? 1}`,
     oro: logro.monedas,
     diamantes: logro.diamantes,
     estado: logro.desbloqueado ? 'Completado' : 'Bloqueado',
@@ -57,114 +47,72 @@ onMounted(async () => {
 
 <style scoped>
 .tabla {
-  /* Tokens de tamaño: se ajustan según el alto disponible para que las 10
-     filas quepan en pantalla. Las consume AchievementRow (herencia). */
-  --fila-pad-y: 10px;
-  --fila-pad-x: 14px;
-  --img-w: 72px;
-  --img-h: 46px;
-  --h3-size: 1rem;
-  --estado-size: 18px;
-  --recomp-size: 17px;
-  --recomp-gap: 16px;
-  --head-pad-y: 10px;
-  --head-pad-x: 14px;
-  --head-size: 0.92rem;
-
   width: 100%;
-  max-width: 900px;
-
-  background: rgba(5, 25, 70, 0.55);
-
-  backdrop-filter: blur(8px);
-
-  border: 3px solid #00c3ff;
-
-  border-radius: 20px;
-
-  /* Sin overflow hidden: las filas no pueden quedar recortadas */
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
+  border: 1px solid rgba(0, 195, 255, .48);
+  border-radius: 13px;
+  background: rgba(5, 15, 32, .74);
 }
 
-.header {
+.lista-logros {
   display: grid;
-
-  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1.5fr);
-
-  align-items: center;
-
-  background: #00b8ff;
-
-  padding: var(--head-pad-y) var(--head-pad-x);
-
-  font-weight: bold;
-  font-size: var(--head-size);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+  padding: 7px;
+  box-sizing: border-box;
 }
 
-/* Pantallas de poca altura: se compacta para que las 10 filas quepan */
-@media (max-height: 940px) {
-  .tabla {
-    --fila-pad-y: 8px;
-    --fila-pad-x: 12px;
-    --img-w: 64px;
-    --img-h: 40px;
-    --h3-size: 0.95rem;
-    --estado-size: 16px;
-    --recomp-size: 15px;
-    --recomp-gap: 12px;
-    --head-pad-y: 8px;
-    --head-pad-x: 12px;
-  }
+.lista-logros :deep(.fila) {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px 5px;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 6px;
+  border: 1px solid rgba(108, 177, 215, .26);
+  border-radius: 9px;
+  background: rgba(5, 18, 38, .78);
+  box-sizing: border-box;
 }
 
-/* Pantallas muy bajas (portátiles de 768px): compactación adicional */
-@media (max-height: 830px) {
-  .tabla {
-    --fila-pad-y: 6px;
-    --fila-pad-x: 10px;
-    --img-w: 56px;
-    --img-h: 36px;
-    --h3-size: 0.9rem;
-    --estado-size: 14px;
-    --recomp-size: 14px;
-    --recomp-gap: 10px;
-    --head-pad-y: 6px;
-    --head-pad-x: 10px;
-    --head-size: 0.85rem;
-  }
+.lista-logros :deep(.logro) { grid-column: 1 / 3; grid-row: 1; gap: 5px; }
+.lista-logros :deep(.logro > div) { min-width: 0; overflow: hidden; }
+.lista-logros :deep(.logro img) { width: 26px; height: 26px; margin: 0; }
+.lista-logros :deep(.fila h3) { color: #f2e4c2; font-size: clamp(.62rem, .85vw, .82rem); line-height: 1.12; }
+.lista-logros :deep(.progreso) { grid-column: 2; grid-row: 2; align-self: center; color: #b8c8d7; font-size: .62rem; }
+.lista-logros :deep(.recompensa) { grid-column: 3; grid-row: 1; justify-content: flex-end; gap: 3px; color: #e9d49e; font-size: .6rem; white-space: nowrap; }
+.lista-logros :deep(.estado) { grid-column: 3; grid-row: 2; align-self: center; color: #aeb9c6; font-size: .56rem; text-align: right; white-space: nowrap; }
+.lista-logros :deep(.estado.activo) { color: #8dff9c; }
+.lista-logros :deep(.fila.bloqueado) { opacity: .86; }
+.vacio { grid-column: 1 / -1; align-self: center; margin: 0; text-align: center; }
+
+@media (max-width: 760px) {
+  .lista-logros { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(9, minmax(0, 1fr)); gap: 4px; padding: 5px; }
+  .lista-logros :deep(.fila) { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 1px 4px; padding: 3px 4px; }
+  .lista-logros :deep(.logro img) { width: 21px; height: 21px; }
+  .lista-logros :deep(.fila h3) { font-size: clamp(.52rem, 2.5vw, .72rem); }
+  .lista-logros :deep(.progreso), .lista-logros :deep(.estado), .lista-logros :deep(.recompensa) { font-size: .52rem; }
+  .lista-logros :deep(.recompensa) { gap: 2px; }
 }
 
-/* Móvil: se oculta la columna "Progreso" (solo dice 1/1 o 0/1) */
-@media (max-width: 640px) {
-  .tabla {
-    --fila-pad-y: 4px;
-    --fila-pad-x: 8px;
-    --img-w: 38px;
-    --img-h: 26px;
-    --h3-size: 0.78rem;
-    --estado-size: 12px;
-    --recomp-size: 11px;
-    --recomp-gap: 5px;
-    --head-pad-y: 6px;
-    --head-pad-x: 10px;
-    --head-size: 0.8rem;
-
-    font-size: 0.82rem;
-    border-width: 2px;
-  }
-
-  .header {
-    grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
-  }
-
-  .header span:nth-child(2) {
-    display: none;
-  }
+@media (max-width: 380px) {
+  .lista-logros { gap: 3px; padding: 3px; }
+  .lista-logros :deep(.fila) { grid-template-columns: 19px minmax(0, 1fr) auto; gap: 1px 3px; padding: 2px 3px; }
+  .lista-logros :deep(.logro img) { width: 17px; height: 17px; }
+  .lista-logros :deep(.fila h3) { font-size: .49rem; }
+  .lista-logros :deep(.progreso), .lista-logros :deep(.estado), .lista-logros :deep(.recompensa) { font-size: .43rem; }
 }
 
-.vacio {
-  margin: 0;
-  padding: 24px;
-  color: rgba(230, 240, 255, 0.85);
+@media (max-height: 520px) {
+  .lista-logros { gap: 3px; padding: 3px; }
+  .lista-logros :deep(.fila) { padding: 2px 3px; }
+  .lista-logros :deep(.logro img) { width: 17px; height: 17px; }
+  .lista-logros :deep(.fila h3), .lista-logros :deep(.recompensa), .lista-logros :deep(.estado), .lista-logros :deep(.progreso) { font-size: .47rem; }
 }
 </style>

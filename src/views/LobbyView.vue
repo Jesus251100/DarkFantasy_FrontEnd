@@ -306,14 +306,16 @@ async function alElegirAvatar(event: Event) {
   }
 }
 
-const switchAccount = () => {
+const switchAccount = async () => {
   closeProfile()
-  router.push('/login')
+  await auth.cerrar()
+  await router.push('/login')
 }
 
-const logout = () => {
+const logout = async () => {
   closeProfile()
-  router.push('/')
+  await auth.cerrar()
+  await router.push('/')
 }
 
 const onOnline = () => {

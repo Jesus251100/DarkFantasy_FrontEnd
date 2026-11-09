@@ -31,7 +31,19 @@
       </div>
     </section>
 
-    <section v-else-if="enPartida" class="partida">
+    <section
+      v-else-if="enPartida"
+      class="partida"
+      :class="{ 'pantalla-saboteada': estoySaboteado, 'pantalla-congelada': estoyCongelado }"
+    >
+      <div v-if="estoySaboteado" class="efecto-pantalla efecto-sabotaje" aria-hidden="true"><span></span></div>
+      <div v-if="estoyCongelado" class="efecto-pantalla efecto-escarcha" aria-hidden="true">
+        <i
+          v-for="copo in particulasHielo"
+          :key="copo"
+          :style="{ left: `${(copo * 37) % 100}%`, '--duracion-copo': `${3 + (copo % 5) * 0.65}s`, '--retardo-copo': `${-(copo * 0.43)}s` }"
+        ></i>
+      </div>
       <header class="recursos-partida" aria-label="Tus recursos">
         <span>🪙 {{ progress.coins }}</span>
         <span>◆ {{ progress.diamonds }}</span>
@@ -68,7 +80,7 @@
               class="capa-efecto"
               :class="'capa-' + efecto.tipo"
               aria-hidden="true"
-            ></span>
+            ><img v-if="efecto.tipo === 'shield'" class="escudo-insignia" :src="iconoPorEfecto(efecto.tipo)" alt="" /></span>
             <span
               v-if="impactoDe(j.id) !== null"
               class="impacto"
@@ -102,6 +114,7 @@
           <div class="recientes">
             <span v-for="(n, i) in oracleSlots" :key="i" class="mini">{{ n ?? '' }}</span>
           </div>
+          <span v-if="tengoSuerte" class="trebol-oraculo" aria-label="Good Luck activo">☘</span>
         </div>
 
         <div class="carton-wrap" :class="{ congelado: estoyCongelado, sabotaje: estoySaboteado, suerte: tengoSuerte, escudo: tengoEscudo }">
@@ -517,6 +530,7 @@ const entrada = ref(false)
 const boosterActivo = ref<number | null>(null)
 const proyectiles = ref<Proyectil[]>([])
 const impactos = ref<Record<string, Impacto>>({})
+const particulasHielo = Array.from({ length: 24 }, (_, index) => index)
 const lanzando = ref(false)
 let proyectilSeq = 0
 let relojEfectos: ReturnType<typeof setInterval> | null = null
@@ -1322,6 +1336,18 @@ onUnmounted(() => {
   gap: 10px;
   position: relative;
 }
+.efecto-pantalla { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+.efecto-sabotaje { background: linear-gradient(90deg, rgba(90, 6, 12, .18), transparent 16% 84%, rgba(90, 6, 12, .2)); animation: pantalla-pulso-rojo 1.8s ease-in-out infinite; }
+.efecto-sabotaje::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(242, 57, 63, .12) 6px 7px, transparent 8px 12px); mix-blend-mode: screen; animation: pantalla-scan 1.4s linear infinite; }
+.efecto-sabotaje::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 43%, rgba(255, 49, 58, .2) 48%, transparent 53%); animation: glitch-barrido 3.5s steps(1) infinite; }
+.efecto-sabotaje span { position: absolute; inset: 0; background: radial-gradient(ellipse, transparent 50%, rgba(142, 10, 18, .32)); }
+.efecto-escarcha { background: radial-gradient(ellipse, transparent 57%, rgba(142, 208, 245, .16)); box-shadow: inset 0 0 46px rgba(147, 213, 255, .46); }
+.efecto-escarcha::before { content: ''; position: absolute; inset: 0; border: 16px solid rgba(198, 237, 255, .16); filter: blur(9px); box-shadow: inset 0 0 35px rgba(198, 237, 255, .32); }
+.efecto-escarcha i { position: absolute; top: -8%; width: 4px; height: 4px; border-radius: 50%; background: #effaff; opacity: .78; box-shadow: 0 0 9px 2px rgba(199, 237, 255, .75); animation: copo-caida var(--duracion-copo) linear infinite; animation-delay: var(--retardo-copo); }
+@keyframes pantalla-pulso-rojo { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes pantalla-scan { to { transform: translateY(18px); } }
+@keyframes glitch-barrido { 0%,82%,100% { opacity: 0; transform: translateY(-60%); } 84% { opacity: .8; } 88% { opacity: .4; transform: translateY(55%); } 90% { opacity: 0; } }
+@keyframes copo-caida { to { transform: translate3d(18px, 110dvh, 0) rotate(180deg); } }
 
 .recursos-partida {
   display: flex;
@@ -1391,7 +1417,10 @@ onUnmounted(() => {
 .ficha.hielo .foto {
   box-shadow: 0 0 0 3px #9ad7ff;
   filter: saturate(0.4);
+  overflow: visible;
 }
+.ficha.hielo .foto::after { content: ''; position: absolute; z-index: 2; inset: 1px; pointer-events: none; border: 2px solid rgba(224, 248, 255, .92); border-radius: 7px; box-shadow: inset 0 0 12px rgba(180, 231, 255, .85), 0 0 10px rgba(180, 231, 255, .65); transform: rotate(45deg) scale(.8); animation: cubo-hielo-pulsa 2s ease-in-out infinite; }
+.ficha.hielo .foto img { border-radius: 50%; }
 
 .ficha.sabotaje .foto {
   box-shadow: 0 0 0 3px #e23b3b;
@@ -1401,6 +1430,9 @@ onUnmounted(() => {
 .ficha.escudo .foto {
   box-shadow: 0 0 0 3px #f0d78c;
 }
+.ficha.escudo .foto { overflow: visible; }
+.escudo-insignia { position: absolute; inset: 18%; z-index: 3; width: 64%; height: 64%; object-fit: contain; filter: drop-shadow(0 0 5px #d8f6ff); animation: escudo-glyph 1.5s ease-in-out infinite; }
+.ficha.escudo .foto::after { content: ''; position: absolute; inset: -5px; border: 1px solid rgba(177, 232, 255, .85); border-radius: 9px; transform: rotate(45deg); box-shadow: 0 0 12px rgba(121, 212, 255, .65); pointer-events: none; }
 
 .foto {
   position: relative;
@@ -1643,6 +1675,10 @@ onUnmounted(() => {
   0%, 100% { filter: brightness(1); transform: scale(1); }
   45% { filter: brightness(1.2) saturate(1.2); transform: scale(1.05); }
 }
+@keyframes cubo-hielo-pulsa { 0%,100% { opacity: .7; transform: rotate(45deg) scale(.76); } 50% { opacity: 1; transform: rotate(45deg) scale(.9); } }
+@keyframes escudo-glyph { 0%,100% { transform: scale(.86); opacity: .84; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes suerte-borde { 0%,100% { filter: drop-shadow(0 0 2px rgba(90, 240, 110, .35)); } 50% { filter: drop-shadow(0 0 8px rgba(90, 240, 110, .8)); } }
+@keyframes trebol-flota { 0%,100% { transform: translateY(2px) rotate(-8deg); } 50% { transform: translateY(-6px) rotate(8deg); } }
 
 .mesa {
   min-height: 0;
@@ -1794,8 +1830,11 @@ onUnmounted(() => {
 }
 
 .carton-wrap.suerte :deep(.board) {
-  outline: 2px solid #f0d78c;
+  outline: 2px solid #8dff9c;
+  box-shadow: 0 0 0 4px rgba(70, 205, 93, .18), 0 0 26px rgba(93, 255, 109, .55), inset 0 0 20px rgba(45, 158, 63, .18);
+  animation: suerte-borde 1.8s ease-in-out infinite;
 }
+.trebol-oraculo { display: block; color: #9dff9c; font-size: 2rem; line-height: .8; text-shadow: 0 0 8px #48e760, 0 0 22px rgba(70, 232, 92, .9); animation: trebol-flota 1.8s ease-in-out infinite; }
 
 .carton-wrap.escudo :deep(.board) {
   outline: 2px solid #8cdcff;

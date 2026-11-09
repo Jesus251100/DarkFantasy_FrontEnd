@@ -37,8 +37,8 @@
         <h2 id="exchange-title">INTERCAMBIO</h2>
         <p class="exchange-question">{{ exchangeQuestion }}</p>
         <div class="modal-buttons">
-          <button type="button" class="btn-si" @click="confirmarIntercambio">SI</button>
-          <button type="button" class="btn-no" @click="cerrarIntercambio">NO</button>
+          <button type="button" class="btn-si" :disabled="intercambiando" @click="confirmarIntercambio">{{ intercambiando ? 'PROCESANDO…' : 'SI' }}</button>
+          <button type="button" class="btn-no" :disabled="intercambiando" @click="cerrarIntercambio">NO</button>
         </div>
       </div>
     </div>
@@ -124,6 +124,7 @@ const boosters: Booster[] = CatalogoBoosters.listar().map((b) => ({
 
 const exchangeModal = ref(false)
 const exchangeMode = ref<ExchangeMode>('diamonds-to-coins')
+const intercambiando = ref(false)
 
 const buyModal = ref(false)
 const boosterSeleccionado = ref<Booster | null>(null)
@@ -162,12 +163,16 @@ function cerrarIntercambio() {
 }
 
 async function confirmarIntercambio() {
+  if (intercambiando.value) return
+  intercambiando.value = true
   try {
     await progress.intercambiarEnServidor(exchangeMode.value)
   } catch (e) {
     showToast(e instanceof Error ? e.message : 'No se pudo intercambiar')
     cerrarIntercambio()
     return
+  } finally {
+    intercambiando.value = false
   }
   showToast(
     exchangeMode.value === 'diamonds-to-coins'

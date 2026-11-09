@@ -315,4 +315,17 @@ h1 {
   :deep(.tabla) { --fila-pad-y: 2px; --fila-pad-x: 7px; --img-w: 38px; --img-h: 26px; --h3-size: .76rem; --head-pad-y: 4px; --head-pad-x: 8px; --head-size: .72rem; }
   :deep(.fila) { min-height: 0; }
 }
+
+.logros { height: 100dvh; min-height: 0; overflow: hidden; }
+.contenido { flex: 1 1 auto; width: 100%; min-height: 0; margin: 0; justify-content: flex-start; gap: 8px; padding-top: 0; }
+.contenido > :deep(.tabla) { flex: 1 1 auto; min-height: 0; }
+.encabezado, .resumen { flex: 0 0 auto; }
+@media (max-height: 700px) {
+  .encabezado p { display: none; }
+  .contenido { gap: 5px; }
+  .resumen { gap: 5px; }
+  .resumen-item { padding: 3px 7px; }
+  .resumen-item strong { font-size: .9rem; }
+  .resumen-item small { font-size: .5rem; }
+}
 </style>

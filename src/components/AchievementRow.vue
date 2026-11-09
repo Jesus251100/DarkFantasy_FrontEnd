@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <div>
+    <div class="progreso">
       {{ achievement.progreso }}
     </div>
 
@@ -148,7 +148,7 @@ img {
   }
 
   .fila > div:nth-child(2) {
-    display: none;
+    display: block;
   }
 
   .logro {

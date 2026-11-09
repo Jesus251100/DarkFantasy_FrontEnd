@@ -14,9 +14,9 @@ const goBack = () => {
   router.push('/lobby')
 }
 
-const cerrarSesion = () => {
-  auth.cerrar()
-  router.push('/')
+const cerrarSesion = async () => {
+  await auth.cerrar()
+  await router.push('/')
 }
 </script>
 

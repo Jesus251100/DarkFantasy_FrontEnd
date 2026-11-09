@@ -122,21 +122,20 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function refrescar() {
-    if (!leerToken()) return
-    const data = await api<{ usuario: UsuarioSesion }>('/api/auth/me')
     const token = leerToken()
-    if (token) persistir(token, data.usuario)
+    if (!token) return
+    const data = await api<{ usuario: UsuarioSesion }>('/api/auth/me')
+    if (leerToken() === token) persistir(token, data.usuario)
   }
 
-  function cerrar() {
+  async function cerrar() {
     localStorage.removeItem('df_token')
     localStorage.removeItem('df_user')
     sessionStorage.removeItem('df_logged_in')
     sessionStorage.removeItem('df_user_role')
     usuario.value = null
-    void import('./progress').then((m) => {
-      m.useProgressStore().resetear()
-    })
+    const progress = await import('./progress')
+    progress.useProgressStore().resetear()
   }
 
   return { usuario, autenticado, esAdmin, login, registrar, ingresarConGoogle, actualizarPerfil, subirAvatar, setNombre, refrescar, cerrar }

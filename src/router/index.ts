@@ -200,6 +200,15 @@ router.beforeEach(async (to) => {
   if (privada && !auth.autenticado) {
     return { path: '/login', query: { next: to.fullPath } }
   }
+  if (privada) {
+    try {
+      await auth.refrescar()
+    } catch {
+      await auth.cerrar()
+      return { path: '/login', query: { next: to.fullPath } }
+    }
+    if (!auth.autenticado) return { path: '/login', query: { next: to.fullPath } }
+  }
   if (auth.autenticado) {
     await progress.asegurarHidratado()
   }
