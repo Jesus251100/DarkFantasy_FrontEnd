@@ -409,11 +409,6 @@ function onVictoryNext() {
     ]"
     :style="{ backgroundImage: `url(${fondo})` }"
   >
-    <div class="portrait-prompt" role="status">
-      <span aria-hidden="true">⟳</span>
-      <strong>Gira el dispositivo</strong>
-      <small>Esta partida se juega en horizontal.</small>
-    </div>
     <VictoryChallengeOverlay
       v-model:show="showVictoryOverlay"
       :message="victoryMessage"
@@ -931,7 +926,6 @@ function onVictoryNext() {
 @keyframes tajo-espada { from { opacity: 0; transform: scale(.5) rotate(-12deg); } 35% { opacity: 1; } to { opacity: 0; transform: scale(1.25) rotate(12deg); } }
 @keyframes regenerar-casilla { from { opacity: .75; } to { opacity: 0; } }
 
-.portrait-prompt { display: none; }
 
 .niebla-intentos {
   margin: 0;
@@ -2035,22 +2029,31 @@ function onVictoryNext() {
 }
 
 @media (max-width: 900px) and (orientation: portrait) {
-  .portrait-prompt {
+  /* Algunos móviles no permiten Screen Orientation Lock desde el navegador.
+     Giramos el lienzo para conservar la composición horizontal igualmente. */
+  .level-play {
     position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    color: #f3dfb3;
-    background: rgba(10, 8, 12, .97);
-    text-align: center;
-    font-family: Georgia, 'Times New Roman', serif;
+    top: 0;
+    left: 100vw;
+    width: 100dvh;
+    height: 100vw;
+    min-height: 0;
+    transform: rotate(90deg);
+    transform-origin: top left;
+    overflow: hidden;
   }
-  .portrait-prompt span { font-size: 3rem; color: #d4a45c; transform: rotate(90deg); }
-  .portrait-prompt small { color: #c6bdaf; font: 500 1rem system-ui, sans-serif; }
+  .level-play .content { height: 100%; min-height: 0; padding: 42px 10px 8px; gap: 5px; }
+  .level-play .main-container { gap: 8px; }
+  .level-play .center-section { height: auto; min-height: 0; }
+  .level-play .bingo-panel { padding: 8px; gap: 6px; }
+  .level-play .method-preview-wrap { bottom: 4px; left: 5px; transform: scale(.55); transform-origin: bottom left; }
+  .level-play.level-10 .main-container.has-jefe { grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); gap: 8px; }
+  .level-play.level-10 .boss-arena { min-height: 0; padding: 6px; grid-template-rows: minmax(0, 1fr) auto; }
+  .level-play.level-10 .boss-placeholder img { max-height: 27vh; }
+  .level-play.level-10 .boss-info { padding: 6px; gap: 3px; }
+  .level-play.level-10 .boss-dialogue { min-height: 0; padding: 4px; font-size: .62rem; }
+  .level-play.level-10 .boss-progress-track { height: 6px; }
+  .level-play.level-10 .oraculo-panel { padding: 5px 9px; gap: 4px; }
 }
 
 @media (max-width: 900px) and (orientation: landscape) {
@@ -2172,5 +2175,19 @@ function onVictoryNext() {
   .level-play.level-10 .boss-progress-track { height: 6px; }
   .level-play.level-10 .oraculo-panel { padding: 5px 9px; gap: 4px; }
   .level-play.level-10 .method-preview-wrap { bottom: 4px; left: 5px; transform: scale(.55); }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .level-play.level-10 { overflow: hidden; }
+  .level-play.level-10 .content { width: 100%; height: 100%; min-height: 0; padding: 42px 10px 8px; justify-content: space-between; gap: 5px; }
+  .level-play.level-10 .main-container.has-jefe { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); flex: 1 1 auto; gap: 8px; }
+  .level-play.level-10 .boss-arena { order: initial; min-height: 0; padding: 6px; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); }
+  .level-play.level-10 .boss-placeholder img { max-height: 27vh; }
+  .level-play.level-10 .boss-info { padding: 6px; gap: 3px; }
+  .level-play.level-10 .boss-dialogue { min-height: 0; padding: 4px; font-size: .62rem; }
+  .level-play.level-10 .boss-progress-track { height: 6px; }
+  .level-play.level-10 .oraculo-panel { padding: 5px 9px; gap: 4px; }
+  .level-play.level-10 .center-section { height: 100%; }
+  .level-play.level-10 .bingo-panels { flex-wrap: nowrap; }
 }
 </style>
