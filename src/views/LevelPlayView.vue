@@ -2190,4 +2190,74 @@ function onVictoryNext() {
   .level-play.level-10 .center-section { height: 100%; }
   .level-play.level-10 .bingo-panels { flex-wrap: nowrap; }
 }
+
+/* Móvil apaisado: mantener la partida completa dentro del alto visible. */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 560px) {
+  .level-play,
+  .level-play.level-10 {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .level-play .content,
+  .level-play.level-10 .content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    justify-content: space-between;
+    padding:
+      max(34px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(4px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    gap: 3px;
+  }
+
+  .level-play .back-btn {
+    top: 5px;
+    left: 8px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .level-play .main-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 6px;
+  }
+
+  .level-play .center-section,
+  .level-play.level-10 .center-section {
+    height: auto;
+    min-height: 0;
+    gap: 4px;
+  }
+
+  .level-play .bingo-panel {
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+
+  .level-play .title { font-size: 0.78rem; letter-spacing: 1px; }
+  .level-play .feedback { padding: 3px 7px; font-size: 0.65rem; }
+  .level-play .bingo-btn { min-height: 28px; padding: 4px 18px; font-size: 0.7rem; }
+  .level-play .oraculo-section { margin-top: 0; gap: 3px; }
+  .level-play .oraculo-panel { gap: 3px; padding: 4px 10px; }
+  .level-play .method-preview-wrap { display: none; }
+
+  .level-play.level-10 .main-container.has-jefe {
+    grid-template-columns: minmax(0, 1.15fr) minmax(150px, 0.85fr);
+    gap: 6px;
+  }
+
+  .level-play.level-10 .boss-arena {
+    min-height: 0;
+    padding: 5px;
+  }
+
+  .level-play.level-10 .bingo-panels { flex-wrap: nowrap; gap: 4px; }
+  .level-play.level-10 .bingo-panel { padding: 5px 4px; gap: 4px; }
+  .level-play.level-10 .phase-tab { min-width: 0; padding: 4px 8px; font-size: 0.65rem; }
+}
 </style>

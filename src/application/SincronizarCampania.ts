@@ -13,6 +13,7 @@ export class SincronizarCampania {
 export function aplicarDatosEnCampania(campania: Campania, datos: DatosCampania): void {
   campania.highestUnlocked = datos.highestUnlocked
   campania.completed = [...datos.completed]
+  campania.xp = datos.xp
   campania.wins = datos.wins
   campania.jugador.nombre = datos.displayName
   campania.jugador.monedas = datos.coins
