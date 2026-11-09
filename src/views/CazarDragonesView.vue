@@ -4,7 +4,7 @@
     <section v-if="fase === 'hub'" class="centro hub-caza">
       <p class="kicker">Evento</p>
       <h1>Cazar dragones</h1>
-      <img class="retrato" :src="dragonSrc" alt="Dragón Ancestral" />
+      <DragonAncestral class="retrato" role="img" aria-label="Dragón Ancestral" />
       <div class="reglas-caza">
         <p class="texto"><strong>2 cazadores contra el dragón</strong> · fila, columna o diagonal.</p>
         <p class="texto"><strong>Ambos deben ganar</strong> para girar la ruleta de diamantes.</p>
@@ -51,7 +51,7 @@
       <div class="dragon-busqueda" role="img" aria-label="Dragón Ancestral explorando la niebla">
         <span class="brasa brasa-una"></span>
         <span class="brasa brasa-dos"></span>
-        <img class="retrato" :src="dragonSrc" alt="" />
+        <DragonAncestral class="retrato" aria-hidden="true" />
         <span class="anillo-busqueda"></span>
       </div>
       <p class="kicker">La cacería comienza</p>
@@ -63,17 +63,35 @@
 
     <section v-else class="partida">
       <header class="top">
-        <span>◆ {{ progress.diamonds }}</span>
-        <span>{{ conectado ? 'caza en curso' : 'sin conexión' }}</span>
+        <span class="monedero">◆ {{ progress.diamonds }}</span>
+        <span class="estado-caza"><i :class="{ conectado }"></i>{{ conectado ? 'Cacería en curso' : 'Sin conexión' }}</span>
       </header>
+
+      <section class="cazadores" aria-label="Cazadores en la partida">
+        <article
+          v-for="(cazador, indice) in cazadores"
+          :key="cazador.id"
+          class="ficha-cazador"
+          :class="{ yo: cazador.id === usuarioId, victoria: cazador.gano }"
+        >
+          <span class="retrato-cazador" aria-hidden="true">{{ inicial(cazador.nombre) }}</span>
+          <span class="datos-cazador">
+            <small>Cazador {{ String(indice + 1).padStart(2, '0') }}{{ cazador.id === usuarioId ? ' · TÚ' : '' }}</small>
+            <strong>{{ cazador.nombre }}</strong>
+          </span>
+          <span class="estado-cazador">{{ cazador.gano ? '¡BINGO!' : 'EN CAZA' }}</span>
+        </article>
+      </section>
 
       <div class="mesa">
         <div class="oraculo">
           <div class="bola" :class="{ vacia: ultimaBola === null }">{{ ultimaBola ?? '—' }}</div>
           <p class="lbl">Última bola</p>
+          <p class="llamadas-total">{{ llamadas.length }} / 75</p>
         </div>
 
-        <div class="carton-wrap">
+        <div class="carton-wrap carton-jugador">
+          <p class="titulo-carton">Tu cartón</p>
           <p class="letras">BINGO</p>
           <div class="grid-nube">
             <div class="board">
@@ -103,16 +121,36 @@
           </div>
         </div>
 
-        <aside class="panel">
-          <img class="dragon" :src="dragonSrc" alt="Dragón Ancestral" />
-          <h2>Dragón Ancestral</h2>
-          <p>{{ dragonMarcadas }} números cubiertos</p>
-          <ul>
-            <li v-for="cazador in cazadores" :key="cazador.id">
-              <span>{{ cazador.nombre }}{{ cazador.id === usuarioId ? ' (tú)' : '' }}</span>
-              <strong>{{ cazador.gano ? 'bingo' : 'en caza' }}</strong>
-            </li>
-          </ul>
+        <aside class="panel panel-dragon">
+          <div class="dragon-encabezado">
+            <DragonAncestral class="dragon" aria-hidden="true" />
+            <div class="dragon-datos">
+              <p class="titulo-carton">Rival</p>
+              <h2>Dragón Ancestral</h2>
+              <p class="amenaza-texto">Amenaza · {{ Math.round(dragonAmenaza * 100) }}%</p>
+              <div class="barra-amenaza" role="progressbar" :aria-valuenow="Math.round(dragonAmenaza * 100)" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso del patrón del dragón">
+                <span :style="{ width: `${dragonAmenaza * 100}%` }"></span>
+              </div>
+            </div>
+          </div>
+          <div class="dragon-conteo">
+            <span>Casillas cubiertas</span>
+            <strong>{{ dragonMarcadas }} / 24</strong>
+          </div>
+          <p class="letras letras-dragon" aria-hidden="true">BINGO</p>
+          <div class="board board-dragon" role="grid" aria-label="Cartón del Dragón Ancestral">
+            <div
+              v-for="(celda, i) in dragonCarton"
+              :key="i"
+              class="cell"
+              :class="{ free: celda.free, 'marcada-dragon': celda.marked && !celda.free, win: dragonIndicesAmenaza.includes(i) }"
+              role="gridcell"
+              :aria-label="celda.free ? 'Libre' : `${celda.number}${celda.marked ? ', cubierta' : ''}`"
+            >
+              <span v-if="celda.free">✦</span>
+              <span v-else>{{ celda.number }}</span>
+            </div>
+          </div>
         </aside>
       </div>
 
@@ -169,7 +207,7 @@
 
     <div v-if="fase === 'fin'" class="velo">
       <div class="ruleta-panel">
-        <img class="retrato" :src="dragonSrc" alt="" />
+        <DragonAncestral class="retrato" aria-hidden="true" />
         <h2>La caza terminó</h2>
         <p class="texto">{{ mensajeFin }}</p>
         <button type="button" class="accion" @click="volver">VOLVER</button>
@@ -181,7 +219,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import dragonSrc from '@/assets/img/dragon.png'
+import DragonAncestral from '../components/DragonAncestral.vue'
 import { crearSocketOnline } from '../api/socket'
 import type { BingoCell } from '../domain/bingo/tipos'
 import { useAuthStore } from '../stores/auth'
@@ -221,6 +259,7 @@ interface VistaCaza {
   indicesGanadores: number[]
   cazadores: CazadorVista[]
   dragonMarcadas: number
+  dragonCarton: BingoCell[]
 }
 
 interface JugadorSala {
@@ -258,6 +297,7 @@ const ultimaBola = ref<number | null>(null)
 const indicesGanadores = ref<number[]>([])
 const cazadores = ref<CazadorVista[]>([])
 const dragonMarcadas = ref(0)
+const dragonCarton = ref<BingoCell[]>([])
 const mensajeFin = ref('')
 const girando = ref(false)
 const giro = ref(0)
@@ -267,6 +307,32 @@ const pagado = ref(false)
 const premios = PREMIOS
 let quiereBuscar = false
 let cerrando = false
+
+const lineasDragon = [
+  ...Array.from({ length: 5 }, (_, fila) => Array.from({ length: 5 }, (_, columna) => fila * 5 + columna)),
+  ...Array.from({ length: 5 }, (_, columna) => Array.from({ length: 5 }, (_, fila) => fila * 5 + columna)),
+  Array.from({ length: 5 }, (_, i) => i * 6),
+  Array.from({ length: 5 }, (_, i) => (i + 1) * 4),
+]
+
+const dragonAmenazaEstado = computed(() => {
+  let progreso = 0
+  let indices: number[] = []
+  for (const linea of lineasDragon) {
+    const cubiertas = linea.filter((indice) => dragonCarton.value[indice]?.marked).length
+    if (cubiertas > progreso) {
+      progreso = cubiertas
+      indices = linea
+    }
+  }
+  return { progreso: progreso / 5, indices }
+})
+const dragonAmenaza = computed(() => dragonAmenazaEstado.value.progreso)
+const dragonIndicesAmenaza = computed(() => dragonAmenazaEstado.value.indices)
+
+function inicial(nombre: string): string {
+  return nombre.trim().charAt(0).toLocaleUpperCase('es-CO') || 'C'
+}
 
 const soyAnfitrion = computed(() => sala.value?.anfitrionId === usuarioId)
 
@@ -319,6 +385,7 @@ function aplicarVista(vista: VistaCaza) {
   indicesGanadores.value = vista.indicesGanadores
   cazadores.value = vista.cazadores
   dragonMarcadas.value = vista.dragonMarcadas
+  dragonCarton.value = vista.dragonCarton
   fusionarCarton(vista.tuCarton)
 }
 
@@ -802,22 +869,49 @@ h2 {
 .partida {
   display: flex;
   flex-direction: column;
-  padding: 16px 18px 20px;
+  height: 100dvh;
+  min-height: 0;
+  gap: 8px;
+  padding: 12px 18px 10px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .top {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   color: #f0d78c;
+  min-height: 28px;
+  font-size: 0.84rem;
 }
 
+.monedero { font-weight: 800; }
+.estado-caza { display: inline-flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: .12em; font-size: .68rem; }
+.estado-caza i { width: 8px; height: 8px; border-radius: 50%; background: #d05b49; box-shadow: 0 0 10px currentColor; }
+.estado-caza i.conectado { background: #77d39a; }
+
+.cazadores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(900px, 100%); align-self: center; }
+.ficha-cazador { display: flex; align-items: center; min-width: 0; gap: 10px; padding: 7px 12px; border: 1px solid rgba(142, 175, 202, .24); border-radius: 12px; background: linear-gradient(110deg, rgba(17, 30, 47, .94), rgba(8, 15, 26, .76)); box-shadow: inset 0 1px rgba(255,255,255,.04), 0 5px 16px rgba(0,0,0,.18); }
+.ficha-cazador.yo { border-color: rgba(230, 200, 117, .58); }
+.ficha-cazador.victoria { box-shadow: inset 0 0 18px rgba(230, 200, 117, .12); }
+.retrato-cazador { flex: 0 0 38px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(230, 200, 117, .7); background: radial-gradient(circle at 35% 25%, #586c6d, #172b37 72%); color: #ffe6a2; font: 700 1rem Georgia, serif; box-shadow: 0 0 14px rgba(230, 200, 117, .12); }
+.datos-cazador { display: grid; min-width: 0; gap: 2px; text-align: left; }
+.datos-cazador small { color: #bdcadd; font-size: .58rem; letter-spacing: .14em; }
+.datos-cazador strong { overflow: hidden; color: #f4f0e8; font: 600 .92rem Georgia, serif; text-overflow: ellipsis; white-space: nowrap; }
+.estado-cazador { margin-left: auto; color: #9eb2c4; font-size: .6rem; font-weight: 800; letter-spacing: .1em; white-space: nowrap; }
+.victoria .estado-cazador { color: #ffe29a; }
+.titulo-carton { margin: 0 0 3px; color: #f2d98e; font: 600 .78rem Georgia, serif; letter-spacing: .08em; text-transform: uppercase; }
+.llamadas-total { margin: 5px 0 0; color: #aebbd0; font-size: .72rem; letter-spacing: .12em; }
+
 .mesa {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 140px minmax(260px, 420px) 220px;
-  gap: 28px;
+  grid-template-columns: 100px minmax(230px, 1fr) minmax(260px, 1fr);
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  gap: 18px;
   align-items: center;
   justify-content: center;
 }
@@ -831,7 +925,10 @@ h2 {
 .carton-wrap {
   position: relative;
   overflow: visible;
+  min-width: 0;
 }
+
+.carton-jugador { padding: 8px 10px; border: 1px solid var(--borde-oro); border-radius: 14px; background: linear-gradient(155deg, rgba(17, 23, 34, .88), rgba(7, 12, 22, .76)); box-shadow: 0 12px 30px rgba(0, 0, 0, .24), inset 0 1px rgba(255,255,255,.04); }
 
 .eclipse-nombre {
   margin: 0 0 6px;
@@ -894,9 +991,14 @@ h2 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
+  width: min(100%, 34vh, 300px);
+  margin: 0 auto;
 }
 
 .cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
   aspect-ratio: 1;
   border-radius: 8px;
   border: 1px solid #3d5f93;
@@ -922,6 +1024,9 @@ h2 {
   color: #1a1305;
 }
 
+.cell.marcada-dragon { border-color: rgba(231, 145, 89, .86); background: linear-gradient(145deg, #743d29, #40242a); color: #ffe0ad; box-shadow: inset 0 0 10px rgba(227, 126, 67, .2), 0 0 7px rgba(227, 126, 67, .14); }
+.cell.marcada-dragon.win { border-color: #f5d779; background: linear-gradient(145deg, #d59d47, #755027); color: #fff3ca; box-shadow: 0 0 12px rgba(242, 186, 88, .4); }
+
 .panel {
   background: linear-gradient(155deg, rgba(17, 23, 34, 0.94), rgba(7, 12, 22, 0.9));
   border: 1px solid var(--borde-oro);
@@ -929,11 +1034,33 @@ h2 {
   padding: 12px;
 }
 
-.dragon {
-  width: 96px;
-  height: 96px;
-  object-fit: contain;
+.panel-dragon {
+  padding: 8px 10px;
+  border: 1px solid var(--borde-oro);
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgba(17, 23, 34, .88), rgba(7, 12, 22, .76));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .24), inset 0 1px rgba(255,255,255,.04);
 }
+
+.dragon {
+  flex: 0 0 92px;
+  width: 92px;
+  height: 76px;
+}
+
+.panel-dragon { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
+.dragon-encabezado { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.dragon-datos { flex: 1; min-width: 0; text-align: left; }
+.dragon-datos h2 { color: #f6ebcc; font-size: clamp(.82rem, 1.2vw, 1.05rem); }
+.amenaza-texto { margin: 4px 0 3px; color: #ddad79; font-size: .66rem; }
+.barra-amenaza { height: 5px; overflow: hidden; border-radius: 99px; background: rgba(235, 223, 202, .12); }
+.barra-amenaza span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9b5834, #e1b75e); box-shadow: 0 0 8px rgba(225, 164, 87, .44); transition: width .45s ease; }
+.dragon-conteo { display: flex; justify-content: space-between; gap: 8px; margin: 2px auto 1px; width: min(100%, 240px); color: #bac3cf; font-size: .64rem; }
+.dragon-conteo strong { color: #f1d891; }
+.letras-dragon { margin-bottom: 4px; font-size: .6rem; }
+.board-dragon { width: min(100%, 27vh, 218px); gap: 4px; }
+.board-dragon .cell { border-radius: 5px; font-size: clamp(.54rem, 1.1vw, .78rem); cursor: default; }
+.board-dragon .cell.free { background: linear-gradient(145deg, #78502a, #3c2d26); border-color: #d2a55a; }
 
 .panel ul {
   list-style: none;
@@ -953,6 +1080,9 @@ h2 {
   justify-content: center;
   gap: 12px;
 }
+
+.barra .bingo { min-height: 42px; padding: 8px 26px; }
+.partida .aviso.flotante { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); z-index: 9; width: max-content; max-width: min(90%, 600px); padding: 8px 14px; border: 1px solid rgba(236, 130, 112, .5); border-radius: 10px; background: rgba(33, 16, 20, .95); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 
 .aviso {
   color: #ffd0d0;
@@ -1061,6 +1191,45 @@ h2 {
   .barra .bingo { flex: 1; min-width: 0; min-height: 52px; }
   .barra .accion { min-width: 90px; }
   .dragon-busqueda { width: 200px; height: 200px; }
+}
+
+@media (max-width: 860px) and (orientation: landscape) {
+  .partida {
+    height: 100dvh;
+    min-height: 0;
+    padding: max(36px, env(safe-area-inset-top)) max(7px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left));
+    gap: 4px;
+  }
+  .top { min-height: 20px; font-size: .72rem; }
+  .estado-caza { gap: 5px; font-size: .56rem; }
+  .cazadores { gap: 6px; }
+  .ficha-cazador { gap: 6px; min-height: 34px; padding: 3px 6px; border-radius: 9px; }
+  .retrato-cazador { flex-basis: 28px; width: 28px; height: 28px; font-size: .78rem; }
+  .datos-cazador small { font-size: .49rem; }
+  .datos-cazador strong { font-size: .72rem; }
+  .estado-cazador { font-size: .49rem; }
+  .mesa { grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; overflow: hidden; }
+  .bola { width: min(52px, 14vh); height: min(52px, 14vh); margin-bottom: 3px; font-size: 1.25rem; }
+  .lbl { margin: 0; font-size: .53rem; letter-spacing: .08em; }
+  .llamadas-total { margin-top: 2px; font-size: .55rem; }
+  .carton-jugador, .panel-dragon { order: initial; padding: 4px; border-radius: 9px; }
+  .titulo-carton { margin-bottom: 1px; font-size: .58rem; }
+  .letras { margin-bottom: 3px; font-size: .52rem; letter-spacing: .35em; }
+  .board { width: min(100%, 31vh, 148px); gap: 3px; }
+  .cell { border-radius: 4px; font-size: .68rem; }
+  .dragon { flex-basis: 58px; width: 58px; height: 48px; }
+  .dragon-encabezado { gap: 1px; }
+  .dragon-datos h2 { font-size: .66rem; line-height: 1.05; }
+  .amenaza-texto { margin: 2px 0; font-size: .51rem; }
+  .barra-amenaza { height: 4px; }
+  .dragon-conteo { width: 100%; margin: 1px auto; font-size: .51rem; }
+  .letras-dragon { margin-bottom: 2px; }
+  .board-dragon { width: min(100%, 31vh, 148px); gap: 2px; }
+  .board-dragon .cell { border-radius: 3px; font-size: .55rem; }
+  .barra { position: static; gap: 6px; padding: 0; border: 0; background: transparent; }
+  .barra .bingo { min-width: 0; min-height: 30px; padding: 4px 14px; font-size: .72rem; }
+  .barra .accion { min-width: 64px; padding: 5px 9px; font-size: .58rem; }
+  .partida .aviso.flotante { bottom: 42px; padding: 5px 8px; font-size: .65rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
