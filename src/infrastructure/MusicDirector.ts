@@ -11,8 +11,8 @@ const RUTAS_SOCIAL = /^\/(?:inventory|achivements|store)$/
 export class MusicDirector {
   private readonly pistas: Record<PistaId, HTMLAudioElement>
   private activa: HTMLAudioElement | null = null
-  private desbloqueada = false
   private pausaDeTransicion = false
+  private pausaPorAnimacion = false
 
   constructor(private readonly obtenerVolumen: () => number) {
     this.pistas = {
@@ -24,8 +24,8 @@ export class MusicDirector {
   }
 
   instalar(): void {
-    window.addEventListener('pointerdown', this.alInteractuar)
-    window.addEventListener('keydown', this.alInteractuar)
+    window.addEventListener('pointerdown', this.alInteractuar, { capture: true })
+    window.addEventListener('keydown', this.alInteractuar, { capture: true })
   }
 
   aplicarVolumen(): void {
@@ -47,7 +47,7 @@ export class MusicDirector {
     this.pausaDeTransicion = false
     this.aplicarVolumen()
     objetivo.load()
-    if (this.desbloqueada) this.reproducir(objetivo)
+    if (!this.pausaPorAnimacion) this.reproducir(objetivo)
 
     await this.esperarCargaBreve(objetivo)
   }
@@ -55,6 +55,17 @@ export class MusicDirector {
   pausarParaTransicion(): void {
     this.pausaDeTransicion = true
     for (const pista of Object.values(this.pistas)) pista.pause()
+  }
+
+  pausarPorAnimacion(pausar: boolean): void {
+    this.pausaPorAnimacion = pausar
+    if (pausar) {
+      this.activa?.pause()
+      return
+    }
+    if (!this.pausaDeTransicion && this.activa?.paused) {
+      this.reproducir(this.activa)
+    }
   }
 
   private crearPista(src: string): HTMLAudioElement {
@@ -72,13 +83,12 @@ export class MusicDirector {
 
   private reproducir(pista: HTMLAudioElement): void {
     void pista.play().catch(() => {
-      // El siguiente gesto del jugador vuelve a intentar iniciar la pista.
+      // Algunos navegadores bloquean autoplay; el siguiente gesto lo reintenta.
     })
   }
 
   private readonly alInteractuar = (): void => {
-    this.desbloqueada = true
-    if (this.pausaDeTransicion) return
+    if (this.pausaDeTransicion || this.pausaPorAnimacion) return
     if (this.activa?.paused) this.reproducir(this.activa)
   }
 

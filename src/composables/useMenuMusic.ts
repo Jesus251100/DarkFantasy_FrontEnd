@@ -13,6 +13,7 @@ export function installMenuMusic(pinia: Pinia): ControlMusicaNavegacion {
   const director = new MusicDirector(() => store.volume)
   director.instalar()
   watch(() => store.volume, () => director.aplicarVolumen())
+  watch(() => store.musicPaused, (pausada) => director.pausarPorAnimacion(pausada), { immediate: true })
 
   return {
     preparar: (ruta) => director.cambiarInterfaz(ruta),

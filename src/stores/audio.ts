@@ -34,6 +34,11 @@ export const useAudioStore = defineStore('audio', () => {
   const inicial = cargar()
   const volume = ref(inicial.volume)
   const sfx = ref(inicial.sfx)
+  const musicPaused = ref(false)
+
+  function setMusicPaused(paused: boolean) {
+    musicPaused.value = paused
+  }
 
   watch([volume, sfx], ([vol, sfxVal]) => {
     try {
@@ -46,5 +51,5 @@ export const useAudioStore = defineStore('audio', () => {
     }
   })
 
-  return { volume, sfx }
+  return { volume, sfx, musicPaused, setMusicPaused }
 })

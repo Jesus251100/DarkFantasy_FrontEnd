@@ -67,6 +67,7 @@
               class="portrait-photo"
               :src="winnerImage || fallbackImage"
               :alt="winnerName"
+              @error="usarImagenAlternativa"
               draggable="false"
             />
           </div>
@@ -145,6 +146,13 @@ import { useAudioStore } from '../stores/audio'
 
 const clawHand = `${clawHandUrl}?v=clean5`
 const fallbackImage = PLAYER_PORTRAIT
+
+function usarImagenAlternativa(event: Event) {
+  const imagen = event.currentTarget
+  if (imagen instanceof HTMLImageElement && imagen.src !== new URL(fallbackImage, document.baseURI).href) {
+    imagen.src = fallbackImage
+  }
+}
 
 /** La duración de victoria se conserva; la derrota tiene una secuencia de cinco segundos. */
 const ANIM_VICTORIA_MS = 8000

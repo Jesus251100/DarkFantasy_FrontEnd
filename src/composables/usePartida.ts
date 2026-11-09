@@ -8,6 +8,7 @@ import type { BotRuntime } from '../domain/bots/Bot'
 import { Partida } from '../domain/partida/Partida'
 import type { ConfigPartida } from '../domain/partida/ConfigPartida'
 import { SessionStoragePartidaRepo } from '../infrastructure/SessionStoragePartidaRepo'
+import { useAuthStore } from '../stores/auth'
 import { useLevelClear } from './useLevelClear'
 import { botPortrait, PLAYER_PORTRAIT } from '../game/portraits'
 
@@ -56,8 +57,9 @@ export function usePartida(levelNumber: number) {
   const showBossBriefing = ref(false)
   const victoryMessage = ref('HAS SUPERADO EL DESAFIO')
   const progress = useProgressStore()
+  const auth = useAuthStore()
   const winnerName = ref(progress.displayName || 'Jugador')
-  const winnerImage = ref(PLAYER_PORTRAIT)
+  const winnerImage = ref(auth.usuario?.avatarUrl || PLAYER_PORTRAIT)
   const winnerCard = ref<BingoCell[]>([])
   const winnerCardSize = ref(partida.size)
   const winnerIndices = ref<number[]>([])
@@ -450,7 +452,7 @@ export function usePartida(levelNumber: number) {
       openVictory({
         message: msg,
         name: progress.displayName || 'Jugador',
-        image: PLAYER_PORTRAIT,
+        image: auth.usuario?.avatarUrl || PLAYER_PORTRAIT,
         card: board,
         cardSize: partida.size,
         indices: [...partida.indicesGanadores],

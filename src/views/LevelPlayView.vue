@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BossCard from '../components/BossCard.vue'
 import BossPhaseIntro from '../components/BossPhaseIntro.vue'
@@ -10,6 +10,7 @@ import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
 import PauseOverlay from '../components/PauseOverlay.vue'
 import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { usePartida } from '../composables/usePartida'
+import { useAudioStore } from '../stores/audio'
 import type { BingoCell, WinMode } from '../domain/bingo/tipos'
 import jefeGif from '@/assets/img/jefeFinal.gif'
 import fondo10 from '@/assets/img/fondo10.png'
@@ -40,6 +41,7 @@ const FONDOS: Record<number, string> = {
 const props = defineProps<{ levelNumber: number }>()
 const router = useRouter()
 const play = usePartida(props.levelNumber)
+const audioSettings = useAudioStore()
 const {
   definicion,
   cards,
@@ -92,6 +94,9 @@ const fondo = computed(() =>
 
 const logroVisible = ref(false)
 const logroActual = computed(() => (playerWon.value ? (lastClear.value?.logro ?? null) : null))
+
+watch(showVictoryOverlay, (abierto) => audioSettings.setMusicPaused(abierto), { flush: 'sync' })
+onUnmounted(() => audioSettings.setMusicPaused(false))
 
 watch(showVictoryOverlay, (abierto, antes) => {
   if (antes && !abierto && logroActual.value) logroVisible.value = true
