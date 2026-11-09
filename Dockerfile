@@ -14,6 +14,10 @@ RUN npm ci
 
 ARG VITE_GOOGLE_CLIENT_ID=
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+ARG VITE_API_URL=
+ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_PUBLIC_APP_URL=
+ENV VITE_PUBLIC_APP_URL=${VITE_PUBLIC_APP_URL}
 COPY index.html env.d.ts vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json ./
 COPY public ./public
 COPY src ./src

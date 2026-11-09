@@ -132,6 +132,13 @@ export const useProgressStore = defineStore('progress', () => {
     return campania.jugador.cantidadBooster(id)
   }
 
+  function actualizarStockBooster(id: number, cantidad: number) {
+    const stock = Number.isFinite(cantidad) ? Math.max(0, Math.floor(cantidad)) : 0
+    campania.jugador.boosters[String(id)] = stock
+    campania.persistir()
+    sync()
+  }
+
   async function setDisplayName(name: string) {
     campania.jugador.setNombre(name)
     campania.persistir()
@@ -173,6 +180,7 @@ export const useProgressStore = defineStore('progress', () => {
     cerrarRonda,
     reclamarVictoria,
     boosterCount,
+    actualizarStockBooster,
     setDisplayName,
     dominio,
     refrescar,

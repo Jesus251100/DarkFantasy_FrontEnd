@@ -14,6 +14,8 @@ const props = defineProps<{
   intentos: number
   textos: Record<number, string>
   numeroOculto: (indice: number) => boolean
+  casillasBloqueadas: number[]
+  numerosFalsos: Record<string, number>
 }>()
 
 const emit = defineEmits<{
@@ -46,12 +48,14 @@ function alEscribir(indice: number, evento: Event) {
             marked: celda.marked,
             win: ganadores.includes(indice),
             llamada: esLlamada(celda),
+            saboteada: casillasBloqueadas.includes(indice),
           }"
           @click="emit('marcar', indice)"
         >
           <span v-if="celda.free">FREE</span>
-          <span v-else-if="!numeroOculto(indice)">{{ celda.number }}</span>
+          <span v-else-if="!numeroOculto(indice)">{{ numerosFalsos[String(indice)] ?? celda.number }}</span>
         </button>
+        <span v-if="casillasBloqueadas.includes(indice)" class="bloqueo-sabotaje" aria-label="Casilla bloqueada">×</span>
         <div
           v-if="(saliendo || enCasillas) && indices.includes(indice) && esLlamada(celda)"
           class="niebla-casilla"
@@ -185,6 +189,26 @@ function alEscribir(indice: number, evento: Event) {
 .cell.llamada {
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(122, 215, 255, 0.35);
+}
+
+.cell.saboteada {
+  border-color: rgba(226, 59, 59, .85);
+  background: linear-gradient(145deg, rgba(70, 17, 25, .96), rgba(24, 18, 37, .96));
+  color: #ffc4c4;
+  cursor: not-allowed;
+  filter: saturate(.7);
+}
+
+.bloqueo-sabotaje {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 196, 196, .82);
+  font-size: 1.7rem;
+  font-weight: 900;
+  pointer-events: none;
+  text-shadow: 0 0 9px rgba(226, 59, 59, .75);
 }
 
 .cell.marked,

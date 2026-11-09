@@ -167,7 +167,7 @@ const NIVELES: DefinicionNivel[] = [
     fases: [
       fase(5, ['full'], 75, 1, 'Fase 1: completa el cartón entero y canta BINGO.', 2600, 'ninguno'),
       fase(5, ['zigzag'], 75, 2, 'Fase 2: completa el zigzag en cualquiera de tus dos cartones.', 2500, 'ninguno'),
-      fase(6, ['crown'], 90, 1, 'Fase 3 final: completa la corona en tu cartón 6×6.', 2400, 'ninguno'),
+      fase(6, ['crown'], 90, 1, 'Fase 3 final: completa la corona en tu cartón 6×6.', 2400, 'niebla'),
     ],
     muestraJefe: true,
     fondo: 'final',

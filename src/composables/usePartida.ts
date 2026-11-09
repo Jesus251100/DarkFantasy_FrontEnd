@@ -29,6 +29,7 @@ function syncFrom(partida: Partida) {
     winModes: partida.winModes,
     phase: partida.phase,
     oscuridad: partida.oscuridad,
+    evento: partida.evento,
   }
 }
 
@@ -399,6 +400,19 @@ export function usePartida(levelNumber: number) {
     refresh()
   }
 
+  function desmarcarCelda(cardIndex: number, cellIndex: number) {
+    const celda = partida.snapshotCarton(cardIndex)[cellIndex]
+    if (!celda || celda.free || !celda.marked) return false
+    const cambio = partida.marcarCelda(cardIndex, cellIndex)
+    if (cambio) refresh()
+    return cambio
+  }
+
+  function avisar(texto: string) {
+    partida.mostrarInfo(texto)
+    refresh()
+  }
+
   async function claimBingo(cardIndex = 0) {
     if (solicitudBolaEnCurso) {
       partida.mostrarError('Espera a que termine de llegar la bola del oráculo y vuelve a reclamar.')
@@ -500,6 +514,7 @@ export function usePartida(levelNumber: number) {
   const size = computed(() => ui.value.size)
   const winModes = computed(() => ui.value.winModes)
   const oscuridad = computed(() => ui.value.oscuridad)
+  const evento = computed(() => ui.value.evento)
   const phase = computed(() => ui.value.phase)
   const bots = computed(() => ui.value.bots)
   const leftBots = computed(() => ui.value.bots.filter((b) => b.side === 'left'))
@@ -560,6 +575,7 @@ export function usePartida(levelNumber: number) {
     size,
     winModes,
     oscuridad,
+    evento,
     phase,
     bots,
     leftBots,
@@ -588,6 +604,8 @@ export function usePartida(levelNumber: number) {
     prepararSiguienteFase,
     togglePause,
     toggleCell,
+    desmarcarCelda,
+    avisar,
     claimBingo,
     previewPhase,
     isCellCalled,

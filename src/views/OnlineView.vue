@@ -42,11 +42,15 @@
           :data-jugador="j.id"
           :class="{
             yo: j.id === usuarioId,
-            objetivo: puedeApuntar(j.id),
-            hielo: efectoDe(j.id) === 'hielo',
-            sabotaje: efectoDe(j.id) === 'sabotaje',
-            suerte: efectoDe(j.id) === 'suerte',
-            escudo: efectoDe(j.id) === 'escudo',
+            objetivo: puedeApuntar(),
+            hielo: tieneEfecto(j.id, 'freeze'),
+            sabotaje: tieneEfecto(j.id, 'sabotage'),
+            suerte: tieneEfecto(j.id, 'luck'),
+            escudo: tieneEfecto(j.id, 'shield'),
+            'impacto-freeze': impactoDe(j.id) === 1,
+            'impacto-sabotage': impactoDe(j.id) === 2,
+            'impacto-luck': impactoDe(j.id) === 3,
+            'impacto-shield': impactoDe(j.id) === 4,
             ganador: j.ganador,
           }"
           @click="elegirObjetivo(j.id)"
@@ -54,9 +58,36 @@
           <span class="foto">
             <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" :alt="j.nombre" />
             <span v-else>{{ inicial(j.nombre) }}</span>
+            <span
+              v-for="efecto in efectosDe(j.id)"
+              :key="'capa-' + efecto.tipo"
+              class="capa-efecto"
+              :class="'capa-' + efecto.tipo"
+              aria-hidden="true"
+            ></span>
+            <span
+              v-if="impactoDe(j.id) !== null"
+              class="impacto"
+              :class="'impacto-' + impactoDe(j.id)"
+              aria-hidden="true"
+            >
+              <img :src="iconoPorBooster(impactoDe(j.id) ?? 0)" alt="" />
+            </span>
           </span>
           <span class="fnombre">{{ j.nombre }}</span>
           <span class="fmeta">{{ j.id === usuarioId ? 'tú' : j.esBot ? 'rival' : 'jugador' }}</span>
+          <span v-if="efectosDe(j.id).length" class="efectos">
+            <span
+              v-for="efecto in efectosDe(j.id)"
+              :key="'chip-' + efecto.tipo"
+              class="efecto-chip"
+              :class="'chip-' + efecto.tipo"
+              :title="`Lanzado por ${efecto.lanzadoPorNombre}`"
+            >
+              <img :src="iconoPorEfecto(efecto.tipo)" alt="" />
+              <b>{{ segundosEfecto(efecto) }}s</b>
+            </span>
+          </span>
         </button>
       </div>
 
@@ -69,7 +100,7 @@
           </div>
         </div>
 
-        <div class="carton-wrap" :class="{ congelado: estoyCongelado, sabotaje: estoySaboteado, suerte: tengoSuerte }">
+        <div class="carton-wrap" :class="{ congelado: estoyCongelado, sabotaje: estoySaboteado, suerte: tengoSuerte, escudo: tengoEscudo }">
           <p class="letras" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
             <span v-for="(letra, i) in letrasBingo" :key="i">{{ letra }}</span>
           </p>
@@ -86,6 +117,8 @@
             :intentos="nieblaIntentos"
             :textos="nieblaTextos"
             :numero-oculto="numeroOculto"
+            :casillas-bloqueadas="casillasSaboteadas"
+            :numeros-falsos="numerosFalsos"
             @marcar="marcarCelda"
             @escribir="escribirNiebla"
             @enviar="enviarNiebla"
@@ -93,17 +126,6 @@
         </div>
 
         <aside class="lista">
-          <h2>LISTA DE JUGADORES</h2>
-          <ul>
-            <li v-for="j in jugadores" :key="j.id">
-              <span class="mini-foto">
-                <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" alt="" />
-                <span v-else>{{ inicial(j.nombre) }}</span>
-              </span>
-              <span class="lnombre">{{ j.nombre }}</span>
-              <span class="estado">{{ j.conectado ? 'en juego' : 'fuera' }}</span>
-            </li>
-          </ul>
           <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
         </aside>
       </div>
@@ -126,8 +148,9 @@
               type="button"
               class="booster"
               :data-booster="b.id"
+              :title="b.nombre"
               :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0 }"
-              :disabled="fase !== 'jugando'"
+              :disabled="fase !== 'jugando' || lanzando"
               @click="pulsarBooster(b.id)"
             >
               <img :src="b.icono" :alt="b.nombre" />
@@ -148,7 +171,13 @@
         <div class="barra-lado" aria-hidden="true"></div>
       </div>
 
-      <p v-if="apuntando" class="pista">Elige al enemigo. El poder sale en bola hacia él.</p>
+      <div v-if="apuntando" class="pista">
+        <span>
+          Elige el objetivo de <strong>{{ nombreBoosterActivo }}</strong>. Puedes lanzarlo sobre ti o sobre
+          cualquier jugador de la sala.
+        </span>
+        <button type="button" class="cancelar-objetivo" @click="cancelarSeleccion">CANCELAR</button>
+      </div>
       <p v-if="aviso" class="aviso">{{ aviso }}</p>
 
       <span
@@ -157,7 +186,9 @@
         class="proyectil"
         :class="'tipo-' + bola.boosterId"
         :style="{ left: bola.x + 'px', top: bola.y + 'px' }"
-      ></span>
+      >
+        <img :src="iconoPorBooster(bola.boosterId)" alt="" />
+      </span>
     </section>
 
     <section v-else-if="espera" class="hub room">
@@ -224,7 +255,7 @@
           <h2>RANKING DE JUGADORES</h2>
           <p class="col">PUNTOS</p>
           <ol>
-            <li v-for="(fila, i) in rankingVisible" :key="fila.nombre + i">
+            <li v-for="(fila, i) in ranking" :key="fila.usuarioId">
               <span class="puesto">{{ i + 1 }}</span>
               <span class="mini-foto">
                 <img v-if="retrato(fila.nombre, fila.avatarUrl)" :src="retrato(fila.nombre, fila.avatarUrl) || ''" alt="" />
@@ -233,6 +264,7 @@
               <span class="rnombre">{{ fila.nombre }}</span>
               <span class="puntos">{{ fila.puntos.toLocaleString('es-CO') }}</span>
             </li>
+            <li v-if="ranking.length === 0" class="ranking-vacio">Aún no hay victorias online registradas.</li>
           </ol>
         </aside>
       </div>
@@ -297,7 +329,11 @@ import CartonNiebla from '../components/CartonNiebla.vue'
 import MethodPatternPreview from '../components/MethodPatternPreview.vue'
 import RuletaMetodosOverlay from '../components/RuletaMetodosOverlay.vue'
 import { useNieblaOnline } from '../composables/useNieblaOnline'
-import type { VueloBoosterOnline } from '../domain/online/tipos'
+import type {
+  EfectoActivoOnline,
+  TipoEfectoBoosterOnline,
+  VueloBoosterOnline,
+} from '../domain/online/tipos'
 import freezeIcon from '@/assets/img/freeze.png'
 import shieldIcon from '@/assets/img/shield 1.png'
 import luckIcon from '@/assets/img/goodluck 2.png'
@@ -319,17 +355,31 @@ interface Proyectil {
   y: number
 }
 
-interface Efecto {
-  tipo: 'hielo' | 'sabotaje' | 'suerte' | 'escudo'
+interface Impacto {
+  boosterId: number
   hasta: number
 }
 
 const BOOSTERS = [
-  { id: 3, nombre: 'Good Luck', icono: luckIcon, propio: true },
-  { id: 4, nombre: 'Shield', icono: shieldIcon, propio: true },
-  { id: 1, nombre: 'Freeze', icono: freezeIcon, propio: false },
-  { id: 2, nombre: 'Sabotage', icono: sabotageIcon, propio: false },
+  { id: 3, nombre: 'Good Luck', icono: luckIcon },
+  { id: 4, nombre: 'Shield', icono: shieldIcon },
+  { id: 1, nombre: 'Freeze', icono: freezeIcon },
+  { id: 2, nombre: 'Sabotage', icono: sabotageIcon },
 ] as const
+
+const ICONO_BOOSTER: Record<number, string> = {
+  1: freezeIcon,
+  2: sabotageIcon,
+  3: luckIcon,
+  4: shieldIcon,
+}
+
+const ICONO_EFECTO: Record<TipoEfectoBoosterOnline, string> = {
+  freeze: freezeIcon,
+  sabotage: sabotageIcon,
+  luck: luckIcon,
+  shield: shieldIcon,
+}
 
 const FONDOS_NIVELES = [
   fondoNivel1,
@@ -371,6 +421,7 @@ const {
   ranking,
   chat,
   errorSala,
+  efectos,
 } = online
 
 const nieblaProgramada = ref(false)
@@ -425,19 +476,15 @@ const ipRed = ref('')
 const copiado = ref(false)
 const entrada = ref(false)
 const boosterActivo = ref<number | null>(null)
-const gastados = ref<Record<number, number>>({})
 const proyectiles = ref<Proyectil[]>([])
-const efectos = ref<Record<string, Efecto>>({})
+const impactos = ref<Record<string, Impacto>>({})
+const lanzando = ref(false)
 let proyectilSeq = 0
 let relojEfectos: ReturnType<typeof setInterval> | null = null
 let cierreCarga: ReturnType<typeof setTimeout> | null = null
+let lanzandoTimer: ReturnType<typeof setTimeout> | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
-const rankingVisible = computed(() => {
-  if (ranking.value.length > 0) return ranking.value
-  const nombre = progress.displayName || auth.usuario?.nombre || 'Tú'
-  return [{ nombre, puntos: 0, victorias: 0 }]
-})
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
 const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
 const metodoNombre = computed(() =>
@@ -467,9 +514,13 @@ function cazarDragones() {
 const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
 const enlaceSala = computed(() => {
   const salaCodigo = espera.value?.codigo
-  if (!salaCodigo || !ipRed.value) return ''
+  if (!salaCodigo) return ''
+  const publicBase = String(import.meta.env.VITE_PUBLIC_APP_URL ?? '').trim().replace(/\/$/, '')
+  const localHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname)
   const puerto = location.port ? `:${location.port}` : ''
-  return `${location.protocol}//${ipRed.value}${puerto}/online?sala=${salaCodigo}`
+  const base = publicBase || (localHost ? (ipRed.value ? `${location.protocol}//${ipRed.value}${puerto}` : '') : location.origin)
+  if (!base) return ''
+  return `${base}/online?sala=${salaCodigo}`
 })
 const textoErrorSala = computed(() => {
   if (errorSala.value === 'Esa sala no existe.') {
@@ -477,24 +528,46 @@ const textoErrorSala = computed(() => {
   }
   return errorSala.value
 })
-const apuntando = computed(() => {
-  const id = boosterActivo.value
-  if (id === null) return false
-  return !BOOSTERS.find((b) => b.id === id)?.propio
-})
+const apuntando = computed(() => boosterActivo.value !== null)
+const nombreBoosterActivo = computed(
+  () => BOOSTERS.find((b) => b.id === boosterActivo.value)?.nombre ?? '',
+)
 
 const ahora = ref(Date.now())
 
-function efectoDe(id: string): Efecto['tipo'] | null {
-  const efecto = efectos.value[id]
-  if (!efecto || efecto.hasta <= ahora.value) return null
-  return efecto.tipo
+function efectosDe(id: string): EfectoActivoOnline[] {
+  return (efectos.value[id] ?? []).filter((efecto) => efecto.hasta > ahora.value)
 }
 
-const estoyCongelado = computed(() => efectoDe(usuarioId) === 'hielo')
-const estoySaboteado = computed(() => efectoDe(usuarioId) === 'sabotaje')
-const tengoSuerte = computed(() => efectoDe(usuarioId) === 'suerte')
-const tengoEscudo = computed(() => efectoDe(usuarioId) === 'escudo')
+function tieneEfecto(id: string, tipo: TipoEfectoBoosterOnline): boolean {
+  return efectosDe(id).some((efecto) => efecto.tipo === tipo)
+}
+
+function segundosEfecto(efecto: EfectoActivoOnline): number {
+  return Math.max(0, Math.ceil((efecto.hasta - ahora.value) / 1000))
+}
+
+function impactoDe(id: string): number | null {
+  const impacto = impactos.value[id]
+  if (!impacto || impacto.hasta <= ahora.value) return null
+  return impacto.boosterId
+}
+
+function iconoPorBooster(boosterId: number): string {
+  return ICONO_BOOSTER[boosterId] ?? freezeIcon
+}
+
+function iconoPorEfecto(tipo: TipoEfectoBoosterOnline): string {
+  return ICONO_EFECTO[tipo]
+}
+
+const estoyCongelado = computed(() => tieneEfecto(usuarioId, 'freeze'))
+const estoySaboteado = computed(() => tieneEfecto(usuarioId, 'sabotage'))
+const tengoSuerte = computed(() => tieneEfecto(usuarioId, 'luck'))
+const tengoEscudo = computed(() => tieneEfecto(usuarioId, 'shield'))
+const efectoSabotaje = computed(() => efectosDe(usuarioId).find((efecto) => efecto.tipo === 'sabotage'))
+const casillasSaboteadas = computed(() => efectoSabotaje.value?.casillasBloqueadas ?? [])
+const numerosFalsos = computed(() => efectoSabotaje.value?.numerosFalsos ?? {})
 
 function pararCarga() {
   if (cierreCarga) clearTimeout(cierreCarga)
@@ -545,11 +618,11 @@ function retrato(nombre: string, avatarUrl?: string | null): string | null {
 }
 
 function cantidad(id: number): number {
-  return Math.max(0, progress.boosterCount(id) - (gastados.value[id] ?? 0))
+  return progress.boosterCount(id)
 }
 
-function puedeApuntar(id: string): boolean {
-  return apuntando.value && id !== usuarioId
+function puedeApuntar(): boolean {
+  return apuntando.value
 }
 
 function marcarCelda(i: number) {
@@ -558,8 +631,8 @@ function marcarCelda(i: number) {
     online.mostrarAviso('Estás congelado.')
     return
   }
-  if (estoySaboteado.value) {
-    online.mostrarAviso('Tu cartón está saboteado.')
+  if (casillasSaboteadas.value.includes(i)) {
+    online.mostrarAviso('El sabotaje bloqueó esta casilla temporalmente.')
     return
   }
   const antes = tuCarton.value[i]
@@ -633,9 +706,9 @@ function cantar() {
 }
 
 function jugarOtraVez() {
-  gastados.value = {}
-  efectos.value = {}
+  impactos.value = {}
   boosterActivo.value = null
+  lanzando.value = false
   online.reiniciar()
   online.buscar()
 }
@@ -670,75 +743,119 @@ function enviarTexto(texto: string) {
 }
 
 function pulsarBooster(id: number) {
-  if (fase.value !== 'jugando') return
-  if (cantidad(id) <= 0) return
-  const booster = BOOSTERS.find((item) => item.id === id)
-  if (!booster) return
-  if (booster.propio) {
-    disparar(id, usuarioId)
+  if (fase.value !== 'jugando' || lanzando.value) return
+  if (cantidad(id) <= 0) {
+    online.mostrarAviso('No te quedan unidades de este booster.')
     return
   }
   boosterActivo.value = boosterActivo.value === id ? null : id
 }
 
+function cancelarSeleccion() {
+  boosterActivo.value = null
+}
+
 function elegirObjetivo(id: string) {
-  if (!puedeApuntar(id) || boosterActivo.value === null) return
+  if (!puedeApuntar() || boosterActivo.value === null) return
   const boosterId = boosterActivo.value
   boosterActivo.value = null
   disparar(boosterId, id)
 }
 
 function disparar(boosterId: number, objetivoId: string) {
-  if (cantidad(boosterId) <= 0) return
-  gastados.value = { ...gastados.value, [boosterId]: (gastados.value[boosterId] ?? 0) + 1 }
+  if (fase.value !== 'jugando' || cantidad(boosterId) <= 0 || lanzando.value) return
+  lanzando.value = true
   online.lanzarBooster(boosterId, objetivoId)
-  animarVuelo({ deId: usuarioId, deNombre: '', boosterId, objetivoId })
+  if (lanzandoTimer) clearTimeout(lanzandoTimer)
+  lanzandoTimer = window.setTimeout(() => {
+    lanzando.value = false
+    void progress.hidratarDesdeApi().catch(() => {})
+    lanzandoTimer = null
+  }, 3000)
+}
+
+function centroDe(elemento: HTMLElement): { x: number; y: number } {
+  const caja = elemento.getBoundingClientRect()
+  return { x: caja.left + caja.width / 2, y: caja.top + caja.height / 2 }
 }
 
 function animarVuelo(vuelo: VueloBoosterOnline) {
   const origen = document.querySelector(`[data-booster="${vuelo.boosterId}"]`)
   const destino = document.querySelector(`[data-jugador="${vuelo.objetivoId}"]`)
   if (!(origen instanceof HTMLElement) || !(destino instanceof HTMLElement)) {
-    aplicarEfecto(vuelo)
+    marcarImpacto(vuelo)
     return
   }
-  const desde = origen.getBoundingClientRect()
-  const hacia = destino.getBoundingClientRect()
+
+  const desde = centroDe(origen)
+  const hacia = centroDe(destino)
   const id = ++proyectilSeq
   proyectiles.value = [
     ...proyectiles.value,
-    { id, boosterId: vuelo.boosterId, x: desde.left + desde.width / 2 - 11, y: desde.top + desde.height / 2 - 11 },
+    { id, boosterId: vuelo.boosterId, x: desde.x, y: desde.y },
   ]
   requestAnimationFrame(() => {
-    proyectiles.value = proyectiles.value.map((bola) =>
-      bola.id === id
-        ? { ...bola, x: hacia.left + hacia.width / 2 - 11, y: hacia.top + hacia.height / 2 - 11 }
-        : bola,
-    )
+    requestAnimationFrame(() => {
+      proyectiles.value = proyectiles.value.map((bola) =>
+        bola.id === id ? { ...bola, x: hacia.x, y: hacia.y } : bola,
+      )
+    })
   })
   window.setTimeout(() => {
     proyectiles.value = proyectiles.value.filter((bola) => bola.id !== id)
-    aplicarEfecto(vuelo)
-  }, 700)
+    marcarImpacto(vuelo)
+  }, 760)
 }
 
-function aplicarEfecto(vuelo: VueloBoosterOnline) {
-  if ((vuelo.boosterId === 1 || vuelo.boosterId === 2) && vuelo.objetivoId === usuarioId && tengoEscudo.value) {
-    return
-  }
-  const tipo =
-    vuelo.boosterId === 1 ? 'hielo' : vuelo.boosterId === 2 ? 'sabotaje' : vuelo.boosterId === 3 ? 'suerte' : 'escudo'
-  const segundos = vuelo.boosterId === 4 ? 12 : 8
-  efectos.value = {
-    ...efectos.value,
-    [vuelo.objetivoId]: { tipo, hasta: Date.now() + segundos * 1000 },
+function marcarImpacto(vuelo: VueloBoosterOnline) {
+  const boosterId = vuelo.bloqueadoPorEscudo ? 4 : vuelo.boosterId
+  impactos.value = {
+    ...impactos.value,
+    [vuelo.objetivoId]: { boosterId, hasta: Date.now() + 1200 },
   }
 }
 
 function alVuelo(evento: Event) {
   const vuelo = (evento as CustomEvent<VueloBoosterOnline>).detail
-  if (!vuelo || vuelo.deId === usuarioId) return
+  if (!vuelo) return
+
+  if (vuelo.deId === usuarioId) {
+    if (typeof vuelo.stockRestante === 'number') {
+      progress.actualizarStockBooster(vuelo.boosterId, vuelo.stockRestante)
+    } else {
+      void progress.hidratarDesdeApi().catch(() => {})
+    }
+    lanzando.value = false
+    if (lanzandoTimer) {
+      clearTimeout(lanzandoTimer)
+      lanzandoTimer = null
+    }
+  }
+
+  if (vuelo.bloqueadoPorEscudo) {
+    const nombre = vuelo.objetivoNombre ?? 'El objetivo'
+    if (vuelo.objetivoId === usuarioId) {
+      online.mostrarAviso('Tu escudo bloqueó el ataque.')
+    } else if (vuelo.deId === usuarioId) {
+      online.mostrarAviso(`El escudo de ${nombre} bloqueó el ataque.`)
+    }
+  }
+
   animarVuelo(vuelo)
+}
+
+function alRechazo() {
+  lanzando.value = false
+  if (lanzandoTimer) {
+    clearTimeout(lanzandoTimer)
+    lanzandoTimer = null
+  }
+}
+
+function alTecla(evento: KeyboardEvent) {
+  if (evento.key === 'Escape' && boosterActivo.value !== null) {
+    cancelarSeleccion()
+  }
 }
 
 onMounted(() => {
@@ -750,6 +867,8 @@ onMounted(() => {
     online.unirseSala(salaInvitada)
   }
   window.addEventListener('df-booster-vuelo', alVuelo)
+  window.addEventListener('df-booster-rechazo', alRechazo)
+  window.addEventListener('keydown', alTecla)
   relojEfectos = setInterval(() => {
     ahora.value = Date.now()
   }, 400)
@@ -757,7 +876,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('df-booster-vuelo', alVuelo)
+  window.removeEventListener('df-booster-rechazo', alRechazo)
+  window.removeEventListener('keydown', alTecla)
   if (relojEfectos) clearInterval(relojEfectos)
+  if (lanzandoTimer) clearTimeout(lanzandoTimer)
   pararCarga()
 })
 </script>
@@ -1174,7 +1296,8 @@ onUnmounted(() => {
 }
 
 .ficha.objetivo .foto {
-  box-shadow: 0 0 0 3px #7ad7ff, 0 0 16px #7ad7ff;
+  box-shadow: 0 0 0 3px #7ad7ff, 0 0 18px #7ad7ff;
+  animation: objetivo-pulsa 1.15s ease-in-out infinite;
 }
 
 .ficha.hielo .foto {
@@ -1189,6 +1312,248 @@ onUnmounted(() => {
 .ficha.suerte .foto,
 .ficha.escudo .foto {
   box-shadow: 0 0 0 3px #f0d78c;
+}
+
+.foto {
+  position: relative;
+}
+
+.capa-efecto {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.capa-freeze {
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.75), transparent 30%),
+    linear-gradient(160deg, rgba(154, 215, 255, 0.42), rgba(55, 120, 200, 0.18));
+  box-shadow: inset 0 0 18px rgba(154, 215, 255, 0.95);
+  animation: escarcha-brilla 1.8s ease-in-out infinite;
+}
+
+.capa-freeze::before,
+.capa-freeze::after {
+  content: '';
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  border: 1px solid rgba(220, 245, 255, 0.85);
+  transform: rotate(35deg) scaleX(0.42);
+}
+
+.capa-freeze::after {
+  transform: rotate(-35deg) scaleX(0.42);
+}
+
+.capa-sabotage {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(226, 59, 59, 0.42) 0 2px,
+    transparent 2px 5px
+  );
+  box-shadow: inset 0 0 16px rgba(226, 59, 59, 0.85);
+  mix-blend-mode: screen;
+  animation: interferencia 0.18s steps(2) infinite;
+}
+
+.capa-luck {
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(255, 236, 160, 0.62),
+    rgba(240, 200, 90, 0.16) 58%,
+    transparent 76%
+  );
+  box-shadow: inset 0 0 18px rgba(240, 215, 140, 0.95);
+  animation: oro-brilla 1.6s ease-in-out infinite;
+}
+
+.capa-shield {
+  border: 3px solid rgba(140, 220, 255, 0.9);
+  background: radial-gradient(
+    circle,
+    transparent 52%,
+    rgba(120, 200, 255, 0.2) 68%,
+    rgba(120, 200, 255, 0.38)
+  );
+  box-shadow: inset 0 0 12px rgba(120, 200, 255, 0.75), 0 0 14px rgba(120, 200, 255, 0.55);
+  animation: escudo-pulsa 1.4s ease-in-out infinite;
+}
+
+.impacto {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.impacto img {
+  width: 62%;
+  height: 62%;
+  object-fit: contain;
+}
+
+.impacto-1 {
+  animation: impacto-hielo 0.95s ease-out forwards;
+}
+
+.impacto-2 {
+  animation: impacto-sabotaje 0.75s steps(2) 2;
+}
+
+.impacto-3 {
+  animation: impacto-suerte 0.95s ease-out forwards;
+}
+
+.impacto-4 {
+  animation: impacto-escudo 0.95s ease-out forwards;
+}
+
+.ficha.impacto-freeze .foto {
+  animation: foto-hielo 0.95s ease-out;
+}
+
+.ficha.impacto-sabotage .foto {
+  animation: foto-sabotaje 0.75s steps(2) 2;
+}
+
+.ficha.impacto-luck .foto {
+  animation: foto-suerte 0.95s ease-out;
+}
+
+.ficha.impacto-shield .foto {
+  animation: foto-escudo 0.95s ease-out;
+}
+
+.efectos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.efecto-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px 1px 2px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  line-height: 1.2;
+  background: rgba(6, 14, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.efecto-chip img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.efecto-chip b {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.chip-freeze {
+  border-color: #9ad7ff;
+  color: #d6f0ff;
+  box-shadow: 0 0 8px rgba(154, 215, 255, 0.5);
+}
+
+.chip-sabotage {
+  border-color: #e23b3b;
+  color: #ffd5d5;
+  box-shadow: 0 0 8px rgba(226, 59, 59, 0.5);
+}
+
+.chip-luck {
+  border-color: #f0d78c;
+  color: #fff0c0;
+  box-shadow: 0 0 8px rgba(240, 215, 140, 0.55);
+}
+
+.chip-shield {
+  border-color: #8cdcff;
+  color: #dff5ff;
+  box-shadow: 0 0 8px rgba(140, 220, 255, 0.55);
+}
+
+@keyframes objetivo-pulsa {
+  0%, 100% { box-shadow: 0 0 0 3px #7ad7ff, 0 0 12px #7ad7ff; }
+  50% { box-shadow: 0 0 0 5px rgba(122, 215, 255, 0.55), 0 0 24px #7ad7ff; }
+}
+
+@keyframes escarcha-brilla {
+  0%, 100% { opacity: 0.75; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.25); }
+}
+
+@keyframes interferencia {
+  0% { opacity: 0.55; transform: translateX(-1px); }
+  50% { opacity: 0.9; transform: translateX(1px); }
+  100% { opacity: 0.6; transform: translateX(-1px); }
+}
+
+@keyframes oro-brilla {
+  0%, 100% { opacity: 0.7; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.3); }
+}
+
+@keyframes escudo-pulsa {
+  0%, 100% { transform: scale(0.94); opacity: 0.75; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes impacto-hielo {
+  0% { opacity: 0; transform: scale(0.4) rotate(-12deg); filter: blur(2px); }
+  35% { opacity: 1; transform: scale(1.15) rotate(0deg); filter: blur(0); }
+  100% { opacity: 0; transform: scale(1.6) rotate(10deg); }
+}
+
+@keyframes impacto-sabotaje {
+  0% { opacity: 0.9; transform: translateX(-4px) scale(0.9); }
+  50% { opacity: 0.35; transform: translateX(4px) scale(1.05); }
+  100% { opacity: 0.9; transform: translateX(-4px) scale(0.9); }
+}
+
+@keyframes impacto-suerte {
+  0% { opacity: 0; transform: scale(0.5) rotate(-20deg); }
+  40% { opacity: 1; transform: scale(1.2) rotate(8deg); }
+  100% { opacity: 0; transform: scale(1.7) rotate(20deg); }
+}
+
+@keyframes impacto-escudo {
+  0% { opacity: 0; transform: scale(0.4); }
+  35% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+
+@keyframes foto-hielo {
+  0%, 100% { filter: saturate(1); transform: translateX(0); }
+  25% { filter: saturate(0.2) brightness(1.4); transform: translateX(-2px); }
+  60% { filter: saturate(0.4) brightness(1.1); transform: translateX(2px); }
+}
+
+@keyframes foto-sabotaje {
+  0%, 100% { transform: translateX(0); filter: hue-rotate(0deg); }
+  50% { transform: translateX(3px); filter: hue-rotate(-25deg) saturate(1.6); }
+}
+
+@keyframes foto-suerte {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  45% { filter: brightness(1.35) sepia(0.25); transform: scale(1.04); }
+}
+
+@keyframes foto-escudo {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  45% { filter: brightness(1.2) saturate(1.2); transform: scale(1.05); }
 }
 
 .mesa {
@@ -1344,6 +1709,11 @@ onUnmounted(() => {
   outline: 2px solid #f0d78c;
 }
 
+.carton-wrap.escudo :deep(.board) {
+  outline: 2px solid #8cdcff;
+  box-shadow: 0 0 18px rgba(140, 220, 255, 0.45);
+}
+
 .lista {
   background: rgba(8, 16, 32, 0.72);
   border: 1px solid rgba(120, 160, 220, 0.35);
@@ -1461,6 +1831,79 @@ onUnmounted(() => {
 @keyframes bingo-llama {
   0%, 100% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 0 2px rgba(240, 215, 140, 0.18), 0 0 14px rgba(240, 151, 54, 0.32); }
   50% { transform: scale(1.045); filter: brightness(1.18); box-shadow: 0 0 0 4px rgba(240, 215, 140, 0.3), 0 0 28px rgba(240, 151, 54, 0.62); }
+}
+
+.pista {
+  position: fixed;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(92vw, 640px);
+  padding: 10px 16px;
+  background: rgba(8, 18, 34, 0.94);
+  border: 1px solid #7ad7ff;
+  border-radius: 12px;
+  color: #dff4ff;
+  font-size: 0.9rem;
+  z-index: 10050;
+  box-shadow: 0 0 22px rgba(122, 215, 255, 0.35);
+}
+
+.pista strong {
+  color: #f0d78c;
+}
+
+.cancelar-objetivo {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #a05050;
+  background: #4a1f1f;
+  color: #ffd7d7;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
+.cancelar-objetivo:hover {
+  filter: brightness(1.15);
+}
+
+.proyectil {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  z-index: 10055;
+  pointer-events: none;
+  transition: left 0.72s cubic-bezier(0.4, 0, 0.2, 1), top 0.72s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.proyectil img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.proyectil.tipo-1 {
+  filter: drop-shadow(0 0 10px #9ad7ff) drop-shadow(0 0 20px rgba(154, 215, 255, 0.7));
+}
+
+.proyectil.tipo-2 {
+  filter: drop-shadow(0 0 10px #e23b3b) drop-shadow(0 0 20px rgba(226, 59, 59, 0.7));
+  animation: interferencia 0.16s steps(2) infinite;
+}
+
+.proyectil.tipo-3 {
+  filter: drop-shadow(0 0 10px #f0d78c) drop-shadow(0 0 22px rgba(240, 215, 140, 0.75));
+}
+
+.proyectil.tipo-4 {
+  filter: drop-shadow(0 0 10px #8cdcff) drop-shadow(0 0 22px rgba(140, 220, 255, 0.75));
 }
 
 /* El aviso ya no se coloca encima del botón ¡BINGO! (lo tapaba) */

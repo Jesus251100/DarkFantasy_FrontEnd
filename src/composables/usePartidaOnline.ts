@@ -5,9 +5,11 @@ import { checkWin } from '../game/bingo'
 import { useProgressStore } from '../stores/progress'
 import type { BingoCell } from '../domain/bingo/tipos'
 import type {
+  EfectoActivoOnline,
   FaseOnline,
   FilaRankingOnline,
   MensajeChatOnline,
+  RechazoBoosterOnline,
   ResumenOnline,
   SalaEsperaOnline,
   VistaSalaOnline,
@@ -38,6 +40,7 @@ export function usePartidaOnline(usuarioId: string) {
   const ranking = ref<FilaRankingOnline[]>([])
   const chat = ref<MensajeChatOnline[]>([])
   const errorSala = ref<string | null>(null)
+  const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
 
   let avisoTimer: ReturnType<typeof setTimeout> | null = null
   let alertaTimer: ReturnType<typeof setTimeout> | null = null
@@ -58,10 +61,47 @@ export function usePartidaOnline(usuarioId: string) {
     }, 8000)
   }
 
+  function sincronizarEfectos(vista: VistaSalaOnline) {
+    const base = Date.now()
+    const mapa: Record<string, EfectoActivoOnline[]> = {}
+    for (const jugador of vista.jugadores ?? []) {
+      const activos = (jugador.efectos ?? []).filter((efecto) => efecto.restanteMs > 0)
+      if (activos.length === 0) continue
+      mapa[jugador.id] = activos.map((efecto) => ({
+        tipo: efecto.tipo,
+        hasta: base + efecto.restanteMs,
+        lanzadoPorNombre: efecto.lanzadoPorNombre,
+        casillasBloqueadas: efecto.casillasBloqueadas,
+        numerosFalsos: efecto.numerosFalsos,
+      }))
+    }
+    efectos.value = mapa
+  }
+
+  function aplicarEfectoVuelo(vuelo: VueloBoosterOnline) {
+    if (!vuelo.aplicado) return
+    const previos = efectos.value[vuelo.objetivoId] ?? []
+    const sinRepetir = previos.filter((efecto) => efecto.tipo !== vuelo.tipo)
+    efectos.value = {
+      ...efectos.value,
+      [vuelo.objetivoId]: [
+        ...sinRepetir,
+        {
+          tipo: vuelo.tipo,
+          hasta: Date.now() + vuelo.restanteMs,
+          lanzadoPorNombre: vuelo.deNombre,
+          casillasBloqueadas: vuelo.casillasBloqueadas,
+          numerosFalsos: vuelo.numerosFalsos,
+        },
+      ],
+    }
+  }
+
   function aplicarVista(vista: VistaSalaOnline) {
     if (!vista?.salaId || !Array.isArray(vista.calledList)) return
     const salaNueva = sala.value?.salaId !== vista.salaId
     sala.value = vista
+    sincronizarEfectos(vista)
     const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
     if (salaNueva) {
       marcas.value = new Set()
@@ -136,11 +176,20 @@ export function usePartidaOnline(usuarioId: string) {
   socket.on('ranking:lista', (filas: FilaRankingOnline[]) => {
     ranking.value = filas
   })
+  socket.on('ranking:error', (payload: { mensaje?: string }) => {
+    ranking.value = []
+    mostrarAviso(payload?.mensaje ?? 'No se pudo cargar el ranking.')
+  })
   socket.on('chat:message', (mensaje: MensajeChatOnline) => {
     chat.value = [...chat.value, mensaje].slice(-40)
   })
-  socket.on('booster:vuelo', (vuelo: VueloBoosterOnline) => {
+  socket.on('booster:lanzado', (vuelo: VueloBoosterOnline) => {
+    aplicarEfectoVuelo(vuelo)
     window.dispatchEvent(new CustomEvent('df-booster-vuelo', { detail: vuelo }))
+  })
+  socket.on('booster:rechazo', (payload: RechazoBoosterOnline) => {
+    mostrarAviso(payload?.mensaje ?? 'No se pudo lanzar el booster.')
+    window.dispatchEvent(new CustomEvent('df-booster-rechazo', { detail: payload }))
   })
 
   function conectar() {
@@ -150,6 +199,7 @@ export function usePartidaOnline(usuarioId: string) {
   function buscar() {
     errorConexion.value = null
     espera.value = null
+    chat.value = []
     conectar()
     fase.value = 'cola'
     if (socket.connected) socket.emit('queue:join')
@@ -173,6 +223,7 @@ export function usePartidaOnline(usuarioId: string) {
 
   function crearSala() {
     errorSala.value = null
+    chat.value = []
     const crear = () => socket.emit('room:create')
     conectar()
     if (socket.connected) crear()
@@ -181,6 +232,7 @@ export function usePartidaOnline(usuarioId: string) {
 
   function unirseSala(codigo: string) {
     errorSala.value = null
+    chat.value = []
     const codigoLimpio = codigo.trim().toUpperCase()
     if (!codigoLimpio) return
     const unirse = () => socket.emit('room:join', { codigo: codigoLimpio })
@@ -244,6 +296,7 @@ export function usePartidaOnline(usuarioId: string) {
     alerta.value = null
     showRuleta.value = false
     espera.value = null
+    efectos.value = {}
     fase.value = 'idle'
   }
 
@@ -330,6 +383,7 @@ export function usePartidaOnline(usuarioId: string) {
     ranking,
     chat,
     errorSala,
+    efectos,
     buscar,
     pedirRanking,
     enviarChat,

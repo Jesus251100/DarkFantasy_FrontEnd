@@ -1,6 +1,6 @@
 import type { WinMode } from '../bingo/tipos'
 
-export type EventoFase = 'ninguno' | 'ruleta'
+export type EventoFase = 'ninguno' | 'ruleta' | 'niebla'
 
 export interface ConfigFase {
   size: number
