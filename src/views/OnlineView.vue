@@ -1,6 +1,5 @@
 <template>
   <div class="online">
-    <button type="button" class="btn-atras" aria-label="Volver" @click="atras">←</button>
     <section v-if="mostrarCarga" class="carga" :class="{ preparando: entrada }">
       <div class="panel-carga">
         <div class="emblema-carga" aria-hidden="true">
@@ -33,6 +32,11 @@
     </section>
 
     <section v-else-if="enPartida" class="partida">
+      <header class="recursos-partida" aria-label="Tus recursos">
+        <span>🪙 {{ progress.coins }}</span>
+        <span>◆ {{ progress.diamonds }}</span>
+        <span>🏆 {{ puntosRanking }}</span>
+      </header>
       <div class="fila-jugadores">
         <button
           v-for="j in jugadores"
@@ -168,7 +172,9 @@
         >
           {{ cantoListo ? '¡CANTA BINGO!' : '¡BINGO!' }}
         </button>
-        <div class="barra-lado" aria-hidden="true"></div>
+        <div class="barra-lado">
+          <button type="button" class="accion suave abandonar" @click="abriendoAbandono = true">ABANDONAR</button>
+        </div>
       </div>
 
       <div v-if="apuntando" class="pista">
@@ -195,30 +201,46 @@
       <header class="top">
         <span>🪙 {{ progress.coins }}</span>
         <span>◆ {{ progress.diamonds }}</span>
+        <span>🏆 {{ puntosRanking }}</span>
       </header>
       <div class="centro room-centro">
-        <p class="titulo">ROOM</p>
+        <p class="sobrelinea">SALA PRIVADA</p>
+        <p class="titulo">Esperando aventureros</p>
+        <p class="hint">Comparte este código de cuatro letras para que tus compañeros entren a la misma sala.</p>
+        <div class="sala-carga" aria-hidden="true">
+          <span class="sala-carga-aro"></span>
+          <img src="@/assets/img/dragon.png" alt="" />
+        </div>
+        <p class="estado-sala">{{ espera.jugadores.length === 4 ? 'La sala está completa.' : 'El dragón espera a que lleguen más jugadores…' }}</p>
         <p class="codigo">{{ espera.codigo }}</p>
-        <p class="hint">Tu amigo debe abrir este enlace en su portátil. Si lo escribe en su propio localhost, la sala no existe allá.</p>
-        <p class="enlace">{{ enlaceSala || 'Buscando la dirección de esta red…' }}</p>
-        <button type="button" class="accion" :disabled="!enlaceSala" @click="copiarEnlace">
-          {{ copiado ? 'ENLACE COPIADO' : 'COPIAR ENLACE' }}
+        <button type="button" class="accion copiar-codigo" @click="copiarCodigoSala">
+          {{ copiado ? 'CÓDIGO COPIADO' : 'COPIAR CÓDIGO' }}
         </button>
+        <p class="enlace">{{ enlaceSala || 'Comparte el código desde la opción “Unirse a una sala”.' }}</p>
         <aside class="panel lista-room">
-          <h2>LISTA DE JUGADORES</h2>
+          <h2>JUGADORES · {{ espera.jugadores.length }}/4</h2>
           <ul>
-            <li v-for="j in espera.jugadores" :key="j.id">
+            <li v-for="(j, index) in slotsSala" :key="j?.id ?? `slot-${index}`" :class="{ vacio: !j }">
+              <template v-if="j">
               <span class="mini-foto">
                 <img v-if="retrato(j.nombre, j.avatarUrl)" :src="retrato(j.nombre, j.avatarUrl) || ''" alt="" />
                 <span v-else>{{ inicial(j.nombre) }}</span>
               </span>
               <span>{{ j.nombre }}</span>
               <span v-if="j.id === espera.anfitrionId" class="estado">anfitrión</span>
+              </template>
+              <template v-else><span class="slot-vacio">✧</span><span>Esperando jugador…</span></template>
             </li>
           </ul>
         </aside>
-        <button v-if="soyAnfitrion" type="button" class="accion" @click="empezar">JUGAR</button>
-        <p v-else class="hint">Esperando a que el anfitrión empiece.</p>
+        <label v-if="soyAnfitrion" class="bot-option">
+          <input type="checkbox" :checked="espera.completarConBots" @change="configurarBotsSala($event)" />
+          <span><strong>Completar espacios vacíos con bots</strong><small>Solo tú, como anfitrión, puedes activar esta opción.</small></span>
+        </label>
+        <button v-if="soyAnfitrion" type="button" class="accion" :disabled="espera.jugadores.length < 4 && !espera.completarConBots" @click="empezar">
+          {{ espera.jugadores.length === 4 ? 'EMPEZAR PARTIDA' : 'EMPEZAR CON BOTS' }}
+        </button>
+        <p v-else class="hint">La sala está abierta. Esperando a que el anfitrión inicie la partida.</p>
         <ChatSala :mensajes="chat" @enviar="enviarTexto" />
         <button type="button" class="accion suave" @click="volverSala">SALIR</button>
       </div>
@@ -229,6 +251,7 @@
         <span>🪙 {{ progress.coins }}</span>
         <span class="conexion" :class="{ on: conectado }">{{ conectado ? 'en línea' : 'sin conexión' }}</span>
         <span>◆ {{ progress.diamonds }}</span>
+        <span>🏆 {{ puntosRanking }}</span>
       </header>
 
       <div class="cuerpo">
@@ -274,7 +297,7 @@
       <form class="modal union" @submit.prevent="unirse">
         <h2>UNIRSE</h2>
         <p>Escribe el código de la sala.</p>
-        <input v-model="codigo" maxlength="4" placeholder="CÓDIGO" />
+        <input v-model="codigo" maxlength="4" pattern="[A-Za-z]{4}" autocomplete="off" placeholder="CÓDIGO" @input="codigo = codigo.replace(/[^a-z]/gi, '').toUpperCase()" />
         <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
         <div class="acciones-modal">
           <button type="submit" class="accion">ENTRAR</button>
@@ -288,10 +311,21 @@
         <h2>{{ esGanador ? '¡BINGO! GANASTE' : 'Fin de la partida' }}</h2>
         <p v-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
         <p v-else>Nadie completó el patrón.</p>
-        <p v-if="esGanador" class="premio">+25 monedas</p>
+        <p class="premio">{{ esGanador ? '+75 XP · +25 monedas' : '+25 XP por participar' }}</p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="jugarOtraVez">JUGAR</button>
           <button type="button" class="accion suave" @click="salir">SALIR</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="abriendoAbandono" class="modal-backdrop" @click.self="abriendoAbandono = false">
+      <div class="modal">
+        <h2>¿Abandonar la partida?</h2>
+        <p>Perderás hasta 50 XP, 10 monedas y 25 puntos de ranking. Si solo perdiste la conexión, podrás volver durante el tiempo de reconexión sin penalización.</p>
+        <div class="acciones-modal">
+          <button type="button" class="accion" @click="confirmarAbandono">ABANDONAR Y ACEPTAR PENALIZACIÓN</button>
+          <button type="button" class="accion suave" @click="abriendoAbandono = false">SEGUIR JUGANDO</button>
         </div>
       </div>
     </div>
@@ -419,6 +453,7 @@ const {
   ganador,
   espera,
   ranking,
+  puntosRanking,
   chat,
   errorSala,
   efectos,
@@ -472,6 +507,7 @@ function quitarCasillaDeLaFigura() {
 const boosters = BOOSTERS
 const codigo = ref('')
 const abriendoUnion = ref(false)
+const abriendoAbandono = ref(false)
 const ipRed = ref('')
 const copiado = ref(false)
 const entrada = ref(false)
@@ -485,6 +521,7 @@ let cierreCarga: ReturnType<typeof setTimeout> | null = null
 let lanzandoTimer: ReturnType<typeof setTimeout> | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
+const slotsSala = computed(() => Array.from({ length: 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
 const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
 const metodoNombre = computed(() =>
@@ -671,9 +708,9 @@ async function buscarIpRed() {
   }
 }
 
-async function copiarEnlace() {
-  if (!enlaceSala.value) return
-  await navigator.clipboard.writeText(enlaceSala.value)
+async function copiarCodigoSala() {
+  if (!espera.value?.codigo) return
+  await navigator.clipboard.writeText(espera.value.codigo)
   copiado.value = true
 }
 
@@ -694,6 +731,11 @@ watch(espera, (salaEspera) => {
 
 function empezar() {
   online.empezarSala()
+}
+
+function configurarBotsSala(evento: Event) {
+  if (!soyAnfitrion.value) return
+  online.configurarBotsSala((evento.target as HTMLInputElement).checked)
 }
 
 function volverSala() {
@@ -719,24 +761,12 @@ async function salir() {
   void router.push('/lobby')
 }
 
-function atras() {
-  if (fase.value === 'cola') {
-    cancelarBusqueda()
-    return
-  }
-  if (entrada.value) {
-    salir()
-    return
-  }
-  if (enPartida.value) {
-    salir()
-    return
-  }
-  if (espera.value) {
-    volverSala()
-    return
-  }
-  salir()
+async function confirmarAbandono() {
+  abriendoAbandono.value = false
+  await online.abandonarPartida()
+  await progress.hidratarDesdeApi().catch(() => {})
+  online.desconectar()
+  void router.push('/lobby')
 }
 
 function enviarTexto(texto: string) {
@@ -862,7 +892,7 @@ function alTecla(evento: KeyboardEvent) {
 onMounted(() => {
   buscarIpRed()
   const salaInvitada = String(route.query.sala ?? '').trim().toUpperCase()
-  if (/^[A-Z0-9]{4}$/.test(salaInvitada)) {
+  if (/^[A-Z]{4}$/.test(salaInvitada)) {
     codigo.value = salaInvitada
     abriendoUnion.value = true
     online.unirseSala(salaInvitada)
@@ -1041,26 +1071,6 @@ onUnmounted(() => {
   border: 1px solid rgba(191, 157, 83, .42);
 }
 
-.btn-atras {
-  position: fixed;
-  top: 18px;
-  left: 18px;
-  z-index: 20;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  border: 2px solid rgba(0, 200, 255, 0.55);
-  background: rgba(4, 16, 40, 0.8);
-  color: #e8f4ff;
-  font-size: 1.4rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.btn-atras:hover {
-  background: rgba(0, 70, 130, 0.9);
-}
-
 .hub {
   display: flex;
   flex-direction: column;
@@ -1143,6 +1153,30 @@ onUnmounted(() => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 0.92rem;
 }
+
+.lista-room li.vacio { opacity: .62; }
+.slot-vacio { width: 36px; text-align: center; color: #f0d78c; font-size: 1.3rem; }
+.sala-carga { position: relative; width: 112px; height: 112px; display: grid; place-items: center; margin: 2px auto; }
+.sala-carga-aro { position: absolute; inset: 2px; border: 1px solid rgba(191, 157, 83, .58); border-top-color: #efd58b; border-radius: 50%; animation: sello-gira 8s linear infinite; }
+.sala-carga img { width: 68px; height: 68px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(191, 157, 83, .36)); animation: dragon-respira 2.8s ease-in-out infinite; }
+.estado-sala { margin: 0; color: #d4c59e; font-size: .9rem; }
+.bot-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: min(440px, 100%);
+  box-sizing: border-box;
+  padding: 13px 16px;
+  text-align: left;
+  color: #e8e0c8;
+  background: rgba(10, 18, 34, .78);
+  border: 1px solid var(--noche-borde);
+  border-radius: 12px;
+}
+.bot-option input { accent-color: #bf9d53; margin-top: 3px; }
+.bot-option span { display: grid; gap: 4px; }
+.bot-option small { color: #b7c6dc; line-height: 1.35; }
+.abandonar { min-height: 42px; padding: 8px 12px; border-color: rgba(179, 72, 72, .6); color: #f0c6c6; }
 
 .vacio,
 .hint,
@@ -1238,13 +1272,24 @@ onUnmounted(() => {
 
 .partida {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-height: 100dvh;
   height: 100dvh;
   box-sizing: border-box;
   padding: 12px 16px 16px;
   gap: 10px;
   position: relative;
+}
+
+.recursos-partida {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: clamp(12px, 2vw, 24px);
+  min-height: 28px;
+  padding-right: 4px;
+  color: #f0d78c;
+  font-size: .92rem;
 }
 
 .fila-jugadores {
@@ -2024,9 +2069,9 @@ onUnmounted(() => {
   .panel { min-height: 220px; }
   .chat-sala { min-height: 220px; }
   .ranking { max-height: 260px; }
-  .room .room-centro { width: 100%; box-sizing: border-box; padding: 64px 16px 20px; }
+  .room .room-centro { width: 100%; box-sizing: border-box; padding: 20px 16px; }
   .codigo { font-size: clamp(2rem, 12vw, 3.2rem); letter-spacing: 0.22em; }
-  .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto; padding: max(58px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
+  .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto auto; padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
   .fila-jugadores { gap: 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px 2px 8px; }
   .ficha { width: 82px; flex: 0 0 82px; font-size: 0.8rem; }
   .ficha .foto { width: 48px; height: 48px; }

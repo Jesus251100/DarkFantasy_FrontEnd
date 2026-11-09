@@ -38,6 +38,7 @@ export function usePartidaOnline(usuarioId: string) {
   const errorConexion = ref<string | null>(null)
   const espera = ref<SalaEsperaOnline | null>(null)
   const ranking = ref<FilaRankingOnline[]>([])
+  const puntosRanking = ref(0)
   const chat = ref<MensajeChatOnline[]>([])
   const errorSala = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
@@ -211,6 +212,13 @@ export function usePartidaOnline(usuarioId: string) {
   socket.on('ranking:lista', (filas: FilaRankingOnline[]) => {
     ranking.value = filas
   })
+  socket.on('ranking:perfil', (payload: { puntos?: number }) => {
+    puntosRanking.value = Math.max(0, Math.floor(Number(payload?.puntos ?? 0)))
+  })
+  socket.on('profile:refresh', () => {
+    void progress.hidratarDesdeApi().catch(() => {})
+    pedirRanking()
+  })
   socket.on('ranking:error', (payload: { mensaje?: string }) => {
     ranking.value = []
     mostrarAviso(payload?.mensaje ?? 'No se pudo cargar el ranking.')
@@ -282,7 +290,7 @@ export function usePartidaOnline(usuarioId: string) {
   function abandonarPartida(): Promise<void> {
     if (!socket.connected) return Promise.resolve()
     return new Promise((resolve) => {
-      socket.timeout(1200).emit('game:leave', (error: Error | null) => {
+      socket.timeout(5000).emit('game:leave', (error: Error | null) => {
         void error
         resolve()
       })
@@ -296,6 +304,10 @@ export function usePartidaOnline(usuarioId: string) {
 
   function empezarSala() {
     socket.emit('room:start')
+  }
+
+  function configurarBotsSala(habilitado: boolean) {
+    socket.emit('room:bots', { habilitado })
   }
 
   function lanzarBooster(boosterId: number, objetivoId: string) {
@@ -438,6 +450,7 @@ export function usePartidaOnline(usuarioId: string) {
     ganador,
     espera,
     ranking,
+    puntosRanking,
     chat,
     errorSala,
     efectos,
@@ -448,6 +461,7 @@ export function usePartidaOnline(usuarioId: string) {
     unirseSala,
     salirSala,
     empezarSala,
+    configurarBotsSala,
     lanzarBooster,
     mostrarAviso,
     cancelar,

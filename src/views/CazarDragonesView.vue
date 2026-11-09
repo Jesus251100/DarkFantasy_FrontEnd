@@ -136,7 +136,7 @@
       <form class="modal" @submit.prevent="unirseCodigo">
         <h2>UNIRSE</h2>
         <p class="texto">Escribe el código de la caza.</p>
-        <input v-model="codigoUnion" maxlength="4" placeholder="CÓDIGO" autocomplete="off" />
+        <input v-model="codigoUnion" maxlength="4" pattern="[A-Za-z]{4}" placeholder="CÓDIGO" autocomplete="off" @input="codigoUnion = codigoUnion.replace(/[^a-z]/gi, '').toUpperCase()" />
         <button type="submit" class="accion">ENTRAR</button>
         <button type="button" class="accion suave" @click="abriendoUnion = false">CANCELAR</button>
       </form>
@@ -168,7 +168,7 @@
         <p v-if="aterrizo" class="texto">
           {{
             pagado
-              ? `Cada cazador recibe ${formato(premioCaido)} diamantes.`
+              ? `Cada cazador recibe ${formato(premioCaido)} diamantes y 100 XP.`
               : `La ruleta cayó en ${formato(premioCaido)}, pero no se pudo guardar el premio.`
           }}
         </p>
@@ -257,7 +257,8 @@ const codigoUnion = ref('')
 const copiado = ref(false)
 const copiadoEnlace = ref(false)
 const ipRed = ref('')
-const codigoUrl = String(route.query.caza ?? '').trim().toUpperCase()
+const codigoUrlBruto = String(route.query.caza ?? '').trim().toUpperCase()
+const codigoUrl = /^[A-Z]{4}$/.test(codigoUrlBruto) ? codigoUrlBruto : ''
 const conectado = ref(false)
 const esperando = ref(0)
 const error = ref('')
@@ -553,10 +554,10 @@ onMounted(() => {
     quiereBuscar = false
     abrirRuleta(data.diamantes, data.pagado)
   })
-  socket.on('dragon:fin', (data: { mensaje: string }) => {
+  socket.on('dragon:fin', (data: { mensaje: string; xp?: number }) => {
     if (fase.value === 'ruleta') return
     quiereBuscar = false
-    mensajeFin.value = data.mensaje
+    mensajeFin.value = data.xp ? `${data.mensaje} · +${data.xp} XP por participar.` : data.mensaje
     fase.value = 'fin'
   })
   void buscarIpRed()

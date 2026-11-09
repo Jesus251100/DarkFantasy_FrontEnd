@@ -38,6 +38,7 @@ export const useProgressStore = defineStore('progress', () => {
   const coins = ref(campania.jugador.monedas)
   const diamonds = ref(campania.jugador.diamantes)
   const wins = ref(campania.wins)
+  const xp = ref(campania.xp)
   const displayName = ref(campania.jugador.nombre)
   const boosters = ref({ ...campania.jugador.boosters })
   const hidratado = ref(false)
@@ -49,6 +50,7 @@ export const useProgressStore = defineStore('progress', () => {
     coins.value = campania.jugador.monedas
     diamonds.value = campania.jugador.diamantes
     wins.value = campania.wins
+    xp.value = campania.xp
     displayName.value = campania.jugador.nombre
     boosters.value = { ...campania.jugador.boosters }
   }
@@ -56,7 +58,9 @@ export const useProgressStore = defineStore('progress', () => {
   const completedCount = computed(() => completed.value.length)
   const progressPercent = computed(() => Math.round((completed.value.length / MAX_LEVEL) * 100))
   const campaignLevel = computed(() => Math.max(1, completed.value.length))
-  const xp = computed(() => completed.value.length * 100)
+  const nivelJugador = computed(() => Math.floor(xp.value / 500) + 1)
+  const xpNivel = computed(() => xp.value % 500)
+  const xpProgressPercent = computed(() => Math.round((xpNivel.value / 500) * 100))
 
   function isUnlocked(level: number): boolean {
     if (useAuthStore().usuario?.rol === 'administrador') {
@@ -171,6 +175,9 @@ export const useProgressStore = defineStore('progress', () => {
     progressPercent,
     campaignLevel,
     xp,
+    nivelJugador,
+    xpNivel,
+    xpProgressPercent,
     hidratado,
     isUnlocked,
     isCompleted,

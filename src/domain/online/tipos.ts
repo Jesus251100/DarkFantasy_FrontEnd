@@ -70,6 +70,7 @@ export interface JugadorEsperaOnline {
 export interface SalaEsperaOnline {
   codigo: string
   anfitrionId: string
+  completarConBots: boolean
   jugadores: JugadorEsperaOnline[]
 }
 

@@ -80,11 +80,12 @@
               </span>
             </p>
             <p v-if="usuario?.correo" class="profile-line">Correo: {{ usuario.correo }}</p>
-            <p class="profile-line">Nivel: {{ progress.campaignLevel }}</p>
+            <p class="profile-line">Nivel de cuenta: {{ progress.nivelJugador }}</p>
             <p class="profile-line xp-line">Experiencia: {{ progress.xp }} XP</p>
             <div class="xp-bar" aria-hidden="true">
-              <div class="xp-fill" :style="{ width: progress.progressPercent + '%' }"></div>
+              <div class="xp-fill" :style="{ width: progress.xpProgressPercent + '%' }"></div>
             </div>
+            <p class="profile-line">{{ progress.xpNivel }}/500 XP para el siguiente nivel</p>
           </div>
         </div>
 
