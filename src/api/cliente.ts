@@ -31,7 +31,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     res = await fetch(urlApi(path), { ...init, headers })
   } catch {
     throw new ApiError(
-      'No se pudo conectar con el servidor. Arranca Docker (docker compose up) o el backend en el puerto 3001.',
+      'No se pudo conectar con la API. Revisa que el backend esté activo y que permita el origen de esta página.',
       0,
     )
   }

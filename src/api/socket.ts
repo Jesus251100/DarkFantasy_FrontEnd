@@ -13,7 +13,7 @@ function token(): string {
  * se defina VITE_API_URL.
  */
 export function crearSocketOnline(): Socket {
-  const base = String(import.meta.env.VITE_API_URL ?? '').trim()
+  const base = String(import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
   return io(base || undefined, {
     path: '/socket.io',
     auth: { token: token() },

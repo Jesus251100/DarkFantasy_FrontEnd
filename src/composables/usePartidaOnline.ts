@@ -42,6 +42,35 @@ export function usePartidaOnline(usuarioId: string) {
   const errorSala = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
 
+  function claveMarcas(salaId: string): string {
+    return `df-online-marcas:${salaId}`
+  }
+
+  function persistirMarcas() {
+    const salaId = sala.value?.salaId
+    if (!salaId) return
+    try {
+      sessionStorage.setItem(claveMarcas(salaId), JSON.stringify([...marcas.value]))
+    } catch {
+      /* La partida sigue funcionando aunque el navegador no permita guardar. */
+    }
+  }
+
+  function restaurarMarcas(vista: VistaSalaOnline): Set<number> {
+    try {
+      const guardadas: unknown = JSON.parse(sessionStorage.getItem(claveMarcas(vista.salaId)) ?? '[]')
+      if (!Array.isArray(guardadas)) return new Set()
+      const cantadas = new Set(vista.calledList)
+      return new Set(guardadas.filter((indice): indice is number => {
+        if (typeof indice !== 'number' || !Number.isInteger(indice) || indice < 0 || indice >= vista.tuCarton.length) return false
+        const celda = vista.tuCarton[indice]
+        return !!celda && !celda.free && cantadas.has(celda.number)
+      }))
+    } catch {
+      return new Set()
+    }
+  }
+
   let avisoTimer: ReturnType<typeof setTimeout> | null = null
   let alertaTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -104,7 +133,7 @@ export function usePartidaOnline(usuarioId: string) {
     sincronizarEfectos(vista)
     const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
     if (salaNueva) {
-      marcas.value = new Set()
+      marcas.value = restaurarMarcas(vista)
       showRuleta.value = vista.estado !== 'finished' && (pool?.length ?? 0) > 0
     }
     if (vista.calledList.length >= cantadas.value.length) {
@@ -161,6 +190,12 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('claim:rejected', (p: { mensaje: string }) => mostrarAviso(p.mensaje))
   socket.on('queue:warning', (p: { mensaje: string }) => mostrarAlerta(p.mensaje))
+  socket.on('game:connection-paused', (p: { nombre?: string }) => {
+    mostrarAlerta(`${p?.nombre ?? 'Un jugador'} perdió conexión. La partida se pausó mientras vuelve.`)
+  })
+  socket.on('game:connection-resumed', (p: { nombre?: string }) => {
+    mostrarAviso(`${p?.nombre ?? 'El jugador'} volvió a la partida.`)
+  })
   socket.on('room:state', (vista: SalaEsperaOnline) => {
     if (!vista || !('codigo' in vista)) return
     espera.value = vista
@@ -235,10 +270,23 @@ export function usePartidaOnline(usuarioId: string) {
     chat.value = []
     const codigoLimpio = codigo.trim().toUpperCase()
     if (!codigoLimpio) return
-    const unirse = () => socket.emit('room:join', { codigo: codigoLimpio })
+    const unirse = () => {
+      if (espera.value?.codigo === codigoLimpio || sala.value) return
+      socket.emit('room:join', { codigo: codigoLimpio })
+    }
     conectar()
     if (socket.connected) unirse()
     else socket.once('connect', unirse)
+  }
+
+  function abandonarPartida(): Promise<void> {
+    if (!socket.connected) return Promise.resolve()
+    return new Promise((resolve) => {
+      socket.timeout(1200).emit('game:leave', (error: Error | null) => {
+        void error
+        resolve()
+      })
+    })
   }
 
   function salirSala() {
@@ -272,6 +320,7 @@ export function usePartidaOnline(usuarioId: string) {
     if (yaMarcada) siguiente.delete(indice)
     else siguiente.add(indice)
     marcas.value = siguiente
+    persistirMarcas()
   }
 
   function quitarMarca(indice: number) {
@@ -279,6 +328,7 @@ export function usePartidaOnline(usuarioId: string) {
     const siguiente = new Set(marcas.value)
     siguiente.delete(indice)
     marcas.value = siguiente
+    persistirMarcas()
   }
 
   function onMetodoElegido() {
@@ -286,6 +336,13 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function reiniciar() {
+    if (sala.value?.salaId) {
+      try {
+        sessionStorage.removeItem(claveMarcas(sala.value.salaId))
+      } catch {
+        /* Ignorar si el almacenamiento de sesión está bloqueado. */
+      }
+    }
     sala.value = null
     cantadas.value = []
     marcas.value = new Set()
@@ -399,6 +456,7 @@ export function usePartidaOnline(usuarioId: string) {
     quitarMarca,
     onMetodoElegido,
     reiniciar,
+    abandonarPartida,
     desconectar,
     conectar,
   }

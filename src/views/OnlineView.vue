@@ -713,7 +713,8 @@ function jugarOtraVez() {
   online.buscar()
 }
 
-function salir() {
+async function salir() {
+  await online.abandonarPartida()
   online.desconectar()
   void router.push('/lobby')
 }
