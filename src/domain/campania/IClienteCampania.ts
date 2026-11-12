@@ -36,6 +36,6 @@ export interface IClienteCampania {
   cerrarRonda(rondaId: string): Promise<void>
   reclamarVictoria(rondaId: string, cartonIndex: number): Promise<ConfirmacionVictoriaRemota>
   comprarBooster(id: number, cantidad: number): Promise<DatosCampania>
-  intercambiar(modo: 'diamonds-to-coins' | 'coins-to-diamonds'): Promise<DatosCampania>
+  intercambiar(modo: 'diamonds-to-coins' | 'coins-to-diamonds', cantidad: number): Promise<DatosCampania>
   cambiarNombre(nombre: string): Promise<DatosCampania>
 }

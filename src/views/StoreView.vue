@@ -34,10 +34,43 @@
     <!-- Modal INTERCAMBIO -->
     <div v-if="exchangeModal" class="modal-overlay" @click.self="cerrarIntercambio">
       <div class="modal modal-exchange" role="dialog" aria-labelledby="exchange-title">
-        <h2 id="exchange-title">INTERCAMBIO</h2>
-        <p class="exchange-question">{{ exchangeQuestion }}</p>
+        <h2 id="exchange-title">{{ tituloIntercambio }}</h2>
+        <p class="exchange-rate">{{ MONEDAS_POR_DIAMANTE }} monedas = 1 diamante</p>
+        <p class="exchange-rate">1 diamante = {{ MONEDAS_POR_DIAMANTE }} monedas</p>
+        <p v-if="maxMonedas < MONEDAS_POR_DIAMANTE" class="buy-error">
+          {{ avisoSinSaldo }}
+        </p>
+        <template v-else>
+          <label class="exchange-label" for="exchange-range">{{ etiquetaBarra }}</label>
+          <div class="exchange-scale">
+            <span>{{ minimoBarra }}</span>
+            <span>{{ maximoBarra }}</span>
+          </div>
+          <input
+            id="exchange-range"
+            class="exchange-range"
+            type="range"
+            :min="minimoBarra"
+            :max="maximoBarra"
+            :step="pasoBarra"
+            :value="valorBarra"
+            :disabled="intercambiando"
+            @input="ajustarBarra"
+          />
+          <div class="exchange-sides">
+            <p class="exchange-side">
+              <span>Entregas</span>
+              <strong>{{ entregaTexto }}</strong>
+            </p>
+            <p class="exchange-side recibe">
+              <span>Recibes</span>
+              <strong>{{ recibeTexto }}</strong>
+            </p>
+          </div>
+          <p class="exchange-question">{{ resumenIntercambio }}</p>
+        </template>
         <div class="modal-buttons">
-          <button type="button" class="btn-si" :disabled="intercambiando" @click="confirmarIntercambio">{{ intercambiando ? 'PROCESANDO…' : 'SI' }}</button>
+          <button type="button" class="btn-si" :disabled="intercambiando || monedasValidas < MONEDAS_POR_DIAMANTE" @click="confirmarIntercambio">{{ intercambiando ? 'PROCESANDO…' : 'SI' }}</button>
           <button type="button" class="btn-no" :disabled="intercambiando" @click="cerrarIntercambio">NO</button>
         </div>
       </div>
@@ -80,12 +113,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import '../assets/css/shop.css'
 import { useProgressStore } from '../stores/progress'
 import { CatalogoBoosters } from '../domain/boosters/CatalogoBoosters'
+import { MAX_DIAMANTES_POR_CAMBIO, MONEDAS_POR_DIAMANTE } from '../domain/campania/ReglasIntercambio'
 import freeze from '../assets/img/freeze.png'
 import sabotage from '../assets/img/sabotage 2.png'
 import luck from '../assets/img/goodluck 2.png'
@@ -125,6 +159,7 @@ const boosters: Booster[] = CatalogoBoosters.listar().map((b) => ({
 const exchangeModal = ref(false)
 const exchangeMode = ref<ExchangeMode>('diamonds-to-coins')
 const intercambiando = ref(false)
+const monedasElegidas = ref(MONEDAS_POR_DIAMANTE)
 
 const buyModal = ref(false)
 const boosterSeleccionado = ref<Booster | null>(null)
@@ -133,11 +168,71 @@ const buyError = ref('')
 const toast = ref<string | null>(null)
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
-const exchangeQuestion = computed(() => {
-  if (exchangeMode.value === 'diamonds-to-coins') {
-    return '¿Intercambiar 1 diamante por 50 monedas?'
+const maxMonedas = computed(() => {
+  const topeSaldo =
+    exchangeMode.value === 'coins-to-diamonds'
+      ? Math.floor(coins.value / MONEDAS_POR_DIAMANTE) * MONEDAS_POR_DIAMANTE
+      : Math.max(0, diamonds.value) * MONEDAS_POR_DIAMANTE
+  return Math.min(topeSaldo, MAX_DIAMANTES_POR_CAMBIO * MONEDAS_POR_DIAMANTE)
+})
+
+const monedasValidas = computed(() => {
+  const tope = maxMonedas.value
+  if (tope < MONEDAS_POR_DIAMANTE) return 0
+  const pasos = Math.round(monedasElegidas.value / MONEDAS_POR_DIAMANTE) * MONEDAS_POR_DIAMANTE
+  return Math.min(tope, Math.max(MONEDAS_POR_DIAMANTE, pasos))
+})
+
+const diamantesDelCambio = computed(() => monedasValidas.value / MONEDAS_POR_DIAMANTE)
+const haciaMonedas = computed(() => exchangeMode.value === 'diamonds-to-coins')
+
+const tituloIntercambio = computed(() =>
+  haciaMonedas.value ? 'DIAMANTES POR MONEDAS' : 'MONEDAS POR DIAMANTES',
+)
+
+const minimoBarra = computed(() => (haciaMonedas.value ? 1 : MONEDAS_POR_DIAMANTE))
+const maximoBarra = computed(() =>
+  haciaMonedas.value ? maxMonedas.value / MONEDAS_POR_DIAMANTE : maxMonedas.value,
+)
+const pasoBarra = computed(() => (haciaMonedas.value ? 1 : MONEDAS_POR_DIAMANTE))
+const valorBarra = computed(() => (haciaMonedas.value ? diamantesDelCambio.value : monedasValidas.value))
+
+const etiquetaBarra = computed(() =>
+  haciaMonedas.value ? 'Diamantes que vas a cambiar' : 'Monedas que vas a cambiar',
+)
+
+const entregaTexto = computed(() =>
+  haciaMonedas.value
+    ? `${textoDiamantes(diamantesDelCambio.value)} 💎`
+    : `${monedasValidas.value} monedas 🪙`,
+)
+
+const recibeTexto = computed(() =>
+  haciaMonedas.value
+    ? `${monedasValidas.value} monedas 🪙`
+    : `${textoDiamantes(diamantesDelCambio.value)} 💎`,
+)
+
+const avisoSinSaldo = computed(() =>
+  exchangeMode.value === 'coins-to-diamonds'
+    ? `Hacen falta ${MONEDAS_POR_DIAMANTE} monedas para obtener 1 diamante.`
+    : 'Hace falta al menos 1 diamante para recibir monedas.',
+)
+
+function textoDiamantes(n: number): string {
+  return `${n} ${n === 1 ? 'diamante' : 'diamantes'}`
+}
+
+const resumenIntercambio = computed(() => {
+  const diamantes = textoDiamantes(diamantesDelCambio.value)
+  if (exchangeMode.value === 'coins-to-diamonds') {
+    return `Cambias ${monedasValidas.value} monedas y recibes ${diamantes}.`
   }
-  return '¿Intercambiar 50 monedas por 1 diamante?'
+  return `Cambias ${diamantes} y recibes ${monedasValidas.value} monedas.`
+})
+
+watch(maxMonedas, (tope) => {
+  if (monedasElegidas.value > tope) monedasElegidas.value = Math.max(0, tope)
 })
 
 const precioTotal = computed(() => {
@@ -153,8 +248,18 @@ function showToast(msg: string) {
   }, 2200)
 }
 
+function ajustarBarra(evento: Event) {
+  const valor = Number((evento.target as HTMLInputElement).value)
+  if (!Number.isFinite(valor)) {
+    monedasElegidas.value = MONEDAS_POR_DIAMANTE
+    return
+  }
+  monedasElegidas.value = haciaMonedas.value ? valor * MONEDAS_POR_DIAMANTE : valor
+}
+
 function abrirIntercambio(mode: ExchangeMode) {
   exchangeMode.value = mode
+  monedasElegidas.value = MONEDAS_POR_DIAMANTE
   exchangeModal.value = true
 }
 
@@ -166,7 +271,15 @@ async function confirmarIntercambio() {
   if (intercambiando.value) return
   intercambiando.value = true
   try {
-    await progress.intercambiarEnServidor(exchangeMode.value)
+    const diamantes = diamantesDelCambio.value
+    const monedas = monedasValidas.value
+    if (diamantes < 1) return
+    await progress.intercambiarEnServidor(exchangeMode.value, diamantes)
+    showToast(
+      exchangeMode.value === 'diamonds-to-coins'
+        ? `Intercambio realizado: +${monedas} monedas`
+        : `Intercambio realizado: +${textoDiamantes(diamantes)}`,
+    )
   } catch (e) {
     showToast(e instanceof Error ? e.message : 'No se pudo intercambiar')
     cerrarIntercambio()
@@ -174,11 +287,6 @@ async function confirmarIntercambio() {
   } finally {
     intercambiando.value = false
   }
-  showToast(
-    exchangeMode.value === 'diamonds-to-coins'
-      ? 'Intercambio realizado: +50 monedas'
-      : 'Intercambio realizado: +1 diamante',
-  )
   cerrarIntercambio()
 }
 
@@ -243,7 +351,7 @@ async function confirmarCompra() {
 
 .modal-exchange,
 .modal-buy {
-  width: min(340px, 92vw);
+  width: min(420px, 92vw);
   background: #2a2e36;
   border: 2px solid rgba(90, 100, 110, 0.9);
   border-radius: 16px;
@@ -259,8 +367,67 @@ async function confirmarCompra() {
   color: #f0f4f8;
 }
 
+.exchange-rate {
+  margin: 0 0 12px;
+  color: #ffe9a0;
+  font-weight: 700;
+}
+
+.exchange-label {
+  display: block;
+  margin: 0 0 6px;
+  color: #dce4ec;
+  font-size: 0.92rem;
+}
+
+.exchange-scale {
+  display: flex;
+  justify-content: space-between;
+  color: #9eb0c0;
+  font-size: 0.8rem;
+}
+
+.exchange-range {
+  width: 100%;
+  margin: 6px 0 10px;
+  accent-color: #e8c86a;
+  cursor: pointer;
+}
+
+.exchange-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.exchange-side {
+  margin: 0;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+.exchange-side span {
+  display: block;
+  margin-bottom: 4px;
+  color: #9eb0c0;
+  font-size: 0.78rem;
+  letter-spacing: 0.4px;
+}
+
+.exchange-side strong {
+  color: #dce4ec;
+  font-size: 0.98rem;
+}
+
+.exchange-side.recibe strong {
+  color: #ffe9a0;
+}
+
 .exchange-question {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   color: #dce4ec;
   font-size: 1rem;
   line-height: 1.4;
@@ -360,6 +527,13 @@ async function confirmarCompra() {
 .btn-no:hover,
 .btn-cancelar:hover {
   filter: brightness(1.12);
+}
+
+.btn-si:disabled,
+.btn-no:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
 }
 
 .shop-toast {

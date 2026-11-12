@@ -67,10 +67,13 @@ export class ApiCampaniaCliente implements IClienteCampania {
     return data.campania
   }
 
-  async intercambiar(modo: 'diamonds-to-coins' | 'coins-to-diamonds'): Promise<DatosCampania> {
+  async intercambiar(
+    modo: 'diamonds-to-coins' | 'coins-to-diamonds',
+    cantidad: number,
+  ): Promise<DatosCampania> {
     const data = await api<{ campania: DatosCampania }>('/api/campania/intercambiar', {
       method: 'POST',
-      body: JSON.stringify({ modo }),
+      body: JSON.stringify({ modo, cantidad }),
     })
     return data.campania
   }

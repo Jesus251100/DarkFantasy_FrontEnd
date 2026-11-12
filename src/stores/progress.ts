@@ -132,8 +132,11 @@ export const useProgressStore = defineStore('progress', () => {
     aplicarDatos(await cliente.comprarBooster(id, cantidad))
   }
 
-  async function intercambiarEnServidor(modo: 'diamonds-to-coins' | 'coins-to-diamonds') {
-    aplicarDatos(await cliente.intercambiar(modo))
+  async function intercambiarEnServidor(
+    modo: 'diamonds-to-coins' | 'coins-to-diamonds',
+    cantidad: number,
+  ) {
+    aplicarDatos(await cliente.intercambiar(modo, cantidad))
   }
 
   function boosterCount(id: number): number {
