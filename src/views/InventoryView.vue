@@ -33,12 +33,14 @@ import freeze from '../assets/img/freeze.png'
 import sabotage from '../assets/img/sabotage 2.png'
 import luck from '../assets/img/goodluck 2.png'
 import shield from '../assets/img/shield 1.png'
+import localizador from '../assets/img/localizador.png'
 
 const ICONOS: Record<string, string> = {
   freeze,
   sabotage,
   luck,
   shield,
+  localizador,
 }
 
 const router = useRouter()

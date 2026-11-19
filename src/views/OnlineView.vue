@@ -188,9 +188,9 @@
               type="button"
               class="booster"
               :data-booster="b.id"
-              :title="b.nombre"
-              :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0 }"
-              :disabled="fase !== 'jugando' || lanzando"
+              :title="tituloBooster(b)"
+              :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0, bloqueado: localizadorBloqueado(b.id) }"
+              :disabled="fase !== 'jugando' || lanzando || localizadorBloqueado(b.id)"
               @click="pulsarBooster(b.id)"
             >
               <img :src="b.icono" :alt="b.nombre" />
@@ -279,6 +279,7 @@
           <div class="apuesta-sala">
             <p>Apuesta: {{ espera.apuesta ? espera.apuesta + ' monedas' : 'sin apuesta' }}</p>
             <p class="hint">Se cobra al empezar. Si sales antes, no se descuenta.</p>
+            <p class="hint">Escaneo de sala: {{ espera.escaneo ? 'puede salir (5%)' : 'apagado' }}</p>
             <div class="opciones-apuesta">
               <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(20)">BASE 20</button>
               <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(100)">BASE 100</button>
@@ -366,6 +367,11 @@
           <button type="button" :class="{ on: mesa.cupo === 6 }" @click="fijarMesa('equipos', 6)">6</button>
           <button type="button" :class="{ on: mesa.cupo === 8 }" @click="fijarMesa('equipos', 8)">8</button>
         </div>
+        <label v-if="eligiendo === 'crear'" class="escaneo-sala">
+          <input v-model="escaneoSala" type="checkbox" />
+          <span>Escaneo de sala</span>
+        </label>
+        <p v-if="eligiendo === 'crear'" class="hint">Si queda activo, esta sala entra al 5% del radar. Si lo apagas, el radar no sale.</p>
         <p class="hint">{{ pistaMesa }}</p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="confirmarMesa">{{ eligiendo === 'crear' ? 'CREAR' : 'BUSCAR' }}</button>
@@ -427,6 +433,14 @@
       kicker="Modo online"
       @elegido="onMetodoElegido"
     />
+
+    <div v-if="radar" class="radar-velo" aria-live="polite">
+      <div class="radar-disco">
+        <img :src="localizadorIcon" alt="" />
+        <span class="radar-barrido"></span>
+      </div>
+      <p class="radar-leyenda">{{ radar.nombre }} · {{ radar.hechas }} de {{ radar.total }}</p>
+    </div>
   </div>
 </template>
 
@@ -458,6 +472,7 @@ import freezeIcon from '@/assets/img/freeze.png'
 import shieldIcon from '@/assets/img/shield 1.png'
 import luckIcon from '@/assets/img/goodluck 2.png'
 import sabotageIcon from '@/assets/img/sabotage 2.png'
+import localizadorIcon from '@/assets/img/localizador.png'
 import fondoNivel1 from '@/assets/img/level1 1.png'
 import fondoNivel2 from '@/assets/img/level2 1.png'
 import fondoNivel3 from '@/assets/img/level3 1.png'
@@ -485,6 +500,7 @@ const BOOSTERS = [
   { id: 4, nombre: 'Shield', icono: shieldIcon },
   { id: 1, nombre: 'Freeze', icono: freezeIcon },
   { id: 2, nombre: 'Sabotage', icono: sabotageIcon },
+  { id: 5, nombre: 'Localizador', icono: localizadorIcon },
 ] as const
 
 const ICONO_BOOSTER: Record<number, string> = {
@@ -492,6 +508,7 @@ const ICONO_BOOSTER: Record<number, string> = {
   2: sabotageIcon,
   3: luckIcon,
   4: shieldIcon,
+  5: localizadorIcon,
 }
 
 const ICONO_EFECTO: Record<TipoEfectoBoosterOnline, string> = {
@@ -540,6 +557,7 @@ const {
   indicesGanadores,
   ganador,
   espera,
+  radar,
   ranking,
   puntosRanking,
   chat,
@@ -599,6 +617,7 @@ type MesaElegidaVista = { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 
 
 const eligiendo = ref<'jugar' | 'crear' | null>(null)
 const mesa = ref<MesaElegidaVista>({ modo: 'mesa', cupo: 4 })
+const escaneoSala = ref(true)
 const tituloBusqueda = ref('BUSCANDO RIVAL')
 const detalleBusqueda = ref('El oráculo busca un rival en las sombras…')
 const abriendoAbandono = ref(false)
@@ -829,6 +848,7 @@ const pistaMesa = computed(() => {
 
 function abrirMesa(destino: 'jugar' | 'crear') {
   mesa.value = { modo: 'mesa', cupo: 4 }
+  escaneoSala.value = true
   eligiendo.value = destino
 }
 
@@ -842,7 +862,7 @@ function confirmarMesa() {
   eligiendo.value = null
   if (destino === 'crear') {
     copiado.value = false
-    online.crearSala(elegida)
+    online.crearSala({ ...elegida, radar: escaneoSala.value })
     return
   }
   tituloBusqueda.value = 'BUSCANDO PARTIDA'
@@ -923,10 +943,31 @@ function enviarTexto(texto: string) {
   online.enviarChat(texto)
 }
 
+function localizadorBloqueado(id: number): boolean {
+  if (id !== 5) return false
+  return !!sala.value?.radarProgramado || (sala.value?.localizadorEspera ?? 0) > 0
+}
+
+function tituloBooster(booster: { id: number; nombre: string }): string {
+  if (booster.id !== 5) return booster.nombre
+  if (sala.value?.radarProgramado) return 'El escaneo de la sala está activo'
+  const esperaLocalizador = sala.value?.localizadorEspera ?? 0
+  if (esperaLocalizador > 0) {
+    const palabra = esperaLocalizador === 1 ? 'partida' : 'partidas'
+    return `Te faltan ${esperaLocalizador} ${palabra}`
+  }
+  return 'Localizador'
+}
+
 function pulsarBooster(id: number) {
-  if (fase.value !== 'jugando' || lanzando.value) return
+  if (fase.value !== 'jugando' || lanzando.value || localizadorBloqueado(id)) return
   if (cantidad(id) <= 0) {
     online.mostrarAviso('No te quedan unidades de este booster.')
+    return
+  }
+  if (id === 5) {
+    boosterActivo.value = null
+    disparar(5, usuarioId)
     return
   }
   if (esDefensa(id)) {
@@ -2176,8 +2217,8 @@ onUnmounted(() => {
 }
 
 .booster {
-  width: 74px;
-  height: 74px;
+  width: 64px;
+  height: 64px;
   border-radius: 12px;
   border: 1px solid #3d5f93;
   background: rgba(10, 22, 44, 0.85);
@@ -2187,8 +2228,8 @@ onUnmounted(() => {
 }
 
 .booster img {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
@@ -2197,6 +2238,11 @@ onUnmounted(() => {
   right: 6px;
   bottom: 4px;
   font-size: 0.8rem;
+}
+
+.booster.bloqueado {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .booster.activo {
@@ -2420,6 +2466,73 @@ onUnmounted(() => {
   box-shadow: inset 0 0 12px rgba(240, 215, 140, .16);
 }
 .mesa-modal .hint { margin: 0 0 14px; }
+
+.escaneo-sala {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+  color: #f0d78c;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.escaneo-sala input {
+  width: 18px;
+  height: 18px;
+  accent-color: #c9a227;
+}
+
+.radar-velo {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(4, 8, 16, 0.38);
+  pointer-events: none;
+}
+
+.radar-disco {
+  position: relative;
+  width: min(58vh, 440px);
+  aspect-ratio: 1;
+}
+
+.radar-disco img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(80, 255, 140, 0.28));
+}
+
+.radar-barrido {
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 70%, rgba(90, 255, 140, 0.55) 86%, transparent 100%);
+  mix-blend-mode: screen;
+  animation: radar-giro 2s linear infinite;
+}
+
+.radar-leyenda {
+  margin: 0;
+  padding: 8px 16px;
+  border: 1px solid rgba(240, 215, 140, 0.45);
+  border-radius: 999px;
+  background: rgba(8, 12, 20, 0.72);
+  color: #f0d78c;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+@keyframes radar-giro {
+  to { transform: rotate(360deg); }
+}
 
 .acciones-modal {
   display: flex;

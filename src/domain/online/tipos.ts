@@ -50,6 +50,8 @@ export interface VistaSalaOnline {
   cartonRival?: { id: string; nombre: string; celdas: BingoCell[] } | null
   ganador: string | null
   apuesta?: number
+  radarProgramado?: boolean
+  localizadorEspera?: number
   serie?: {
     ronda: number
     equipo1: number
@@ -87,7 +89,14 @@ export interface SalaEsperaOnline {
   cupo: 2 | 4 | 6 | 8
   permiteBots: boolean
   apuesta?: 0 | 20 | 100
+  escaneo?: boolean
   jugadores: JugadorEsperaOnline[]
+}
+
+export interface RadarVisible {
+  nombre: string
+  hechas: number
+  total: number
 }
 
 export interface FilaRankingOnline {

@@ -11,6 +11,7 @@ import type {
   MensajeChatOnline,
   RechazoBoosterOnline,
   ResumenOnline,
+  RadarVisible,
   SalaEsperaOnline,
   VistaSalaOnline,
   VueloBoosterOnline,
@@ -38,6 +39,17 @@ export function usePartidaOnline(usuarioId: string) {
   const showRuleta = ref(false)
   const errorConexion = ref<string | null>(null)
   const espera = ref<SalaEsperaOnline | null>(null)
+  const radar = ref<RadarVisible | null>(null)
+  let radarTimer: ReturnType<typeof setTimeout> | null = null
+
+  function mostrarRadar(contacto: RadarVisible) {
+    radar.value = contacto
+    if (radarTimer) clearTimeout(radarTimer)
+    radarTimer = setTimeout(() => {
+      radar.value = null
+      radarTimer = null
+    }, 5000)
+  }
   const ranking = ref<FilaRankingOnline[]>([])
   const puntosRanking = ref(0)
   const chat = ref<MensajeChatOnline[]>([])
@@ -253,6 +265,24 @@ export function usePartidaOnline(usuarioId: string) {
     mostrarAviso(payload?.mensaje ?? 'No se pudo lanzar el booster.')
     window.dispatchEvent(new CustomEvent('df-booster-rechazo', { detail: payload }))
   })
+  socket.on('radar:evento', (contacto: RadarVisible) => {
+    if (quiereHub || !contacto?.nombre) return
+    mostrarRadar(contacto)
+  })
+  socket.on('radar:resultado', (contacto: RadarVisible & { stockRestante?: number; espera?: number }) => {
+    if (quiereHub || !contacto?.nombre) return
+    if (sala.value && typeof contacto.espera === 'number') {
+      sala.value = { ...sala.value, localizadorEspera: contacto.espera }
+    }
+    if (typeof contacto.stockRestante === 'number') {
+      progress.actualizarStockBooster(5, contacto.stockRestante)
+    }
+    mostrarRadar(contacto)
+  })
+  socket.on('radar:aviso', (payload: { mensaje?: string }) => {
+    if (quiereHub) return
+    mostrarAviso(payload?.mensaje || 'Alguien acaba de escanear.')
+  })
   socket.on('pvp:marcas', (payload: { jugadorId?: string; marcas?: number[] }) => {
     if (!payload || payload.jugadorId !== sala.value?.cartonRival?.id) return
     const lista = Array.isArray(payload.marcas) ? payload.marcas : []
@@ -290,11 +320,11 @@ export function usePartidaOnline(usuarioId: string) {
     else socket.once('connect', mandar)
   }
 
-  function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 }) {
+  function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; radar?: boolean }) {
     quiereHub = false
     errorSala.value = null
     chat.value = []
-    const crear = () => socket.emit('room:create', mesa ?? { modo: 'mesa', cupo: 4 })
+    const crear = () => socket.emit('room:create', mesa ?? { modo: 'mesa', cupo: 4, radar: false })
     conectar()
     if (socket.connected) crear()
     else socket.once('connect', crear)
@@ -415,6 +445,9 @@ export function usePartidaOnline(usuarioId: string) {
     alerta.value = null
     showRuleta.value = false
     espera.value = null
+    radar.value = null
+    if (radarTimer) clearTimeout(radarTimer)
+    radarTimer = null
     efectos.value = {}
     fase.value = 'idle'
   }
@@ -488,6 +521,7 @@ export function usePartidaOnline(usuarioId: string) {
   onUnmounted(() => {
     if (avisoTimer) clearTimeout(avisoTimer)
     if (alertaTimer) clearTimeout(alertaTimer)
+    if (radarTimer) clearTimeout(radarTimer)
     socket.emit('queue:leave')
     socket.removeAllListeners()
     socket.disconnect()
@@ -517,6 +551,7 @@ export function usePartidaOnline(usuarioId: string) {
     indicesGanadores,
     ganador,
     espera,
+    radar,
     ranking,
     puntosRanking,
     chat,
