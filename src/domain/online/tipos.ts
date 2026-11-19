@@ -28,6 +28,7 @@ export interface JugadorVistaOnline {
   esBot: boolean
   conectado: boolean
   ganador: boolean
+  equipo?: 1 | 2
   efectos?: EfectoBoosterVistaOnline[]
 }
 
@@ -42,9 +43,20 @@ export interface VistaSalaOnline {
   maxNumber: number
   calledList: number[]
   lastDrawn: number | null
+  modo?: 'mesa' | 'pvp' | 'equipos'
+  cupo?: number
   jugadores: JugadorVistaOnline[]
   tuCarton: BingoCell[]
+  cartonRival?: { id: string; nombre: string; celdas: BingoCell[] } | null
   ganador: string | null
+  apuesta?: number
+  serie?: {
+    ronda: number
+    equipo1: number
+    equipo2: number
+    aviso: string | null
+    equipoGanador: 1 | 2 | null
+  } | null
 }
 
 export interface ResumenOnline {
@@ -71,6 +83,10 @@ export interface SalaEsperaOnline {
   codigo: string
   anfitrionId: string
   completarConBots: boolean
+  modo: 'mesa' | 'pvp' | 'equipos'
+  cupo: 2 | 4 | 6 | 8
+  permiteBots: boolean
+  apuesta?: 0 | 20 | 100
   jugadores: JugadorEsperaOnline[]
 }
 

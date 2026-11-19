@@ -12,14 +12,14 @@
         </div>
         <div class="mensaje-carga" role="status" aria-live="polite">
           <p class="cargando">
-            {{ entrada ? 'PREPARANDO LA PARTIDA' : conectado ? 'BUSCANDO RIVAL' : 'RECONECTANDO' }}
+            {{ entrada ? 'PREPARANDO LA PARTIDA' : conectado ? tituloBusqueda : 'RECONECTANDO' }}
           </p>
           <p class="carga-detalle">
             {{
               entrada
                 ? 'Las runas sellan la mesa de juego…'
                 : conectado
-                  ? 'El oráculo busca un rival en las sombras…'
+                  ? detalleBusqueda
                   : 'Restableciendo la conexión con el servidor…'
             }}
           </p>
@@ -58,7 +58,8 @@
           :data-jugador="j.id"
           :class="{
             yo: j.id === usuarioId,
-            objetivo: puedeApuntar(),
+            objetivo: puedeRecibir(j.id),
+            'fuera-de-tiro': apuntando && !puedeRecibir(j.id),
             hielo: tieneEfecto(j.id, 'freeze'),
             sabotaje: tieneEfecto(j.id, 'sabotage'),
             suerte: tieneEfecto(j.id, 'luck'),
@@ -91,7 +92,7 @@
             </span>
           </span>
           <span class="fnombre">{{ j.nombre }}</span>
-          <span class="fmeta">{{ j.id === usuarioId ? 'tú' : j.esBot ? 'rival' : 'jugador' }}</span>
+          <span class="fmeta">{{ etiquetaJugador(j) }}</span>
           <span v-if="efectosDe(j.id).length" class="efectos">
             <span
               v-for="efecto in efectosDe(j.id)"
@@ -106,6 +107,14 @@
           </span>
         </button>
       </div>
+
+      <p v-if="sala?.apuesta" class="apuesta-activa">Apuesta {{ sala.apuesta }} monedas</p>
+      <p v-if="sala?.serie" class="serie">
+        <span>Equipo 1 · {{ sala.serie.equipo1 }}</span>
+        <span>Ronda {{ sala.serie.ronda }} de 3</span>
+        <span>Equipo 2 · {{ sala.serie.equipo2 }}</span>
+      </p>
+      <p v-if="sala?.serie?.aviso" class="aviso-ronda">{{ sala.serie.aviso }}</p>
 
       <div class="mesa">
         <div class="oraculo">
@@ -143,6 +152,20 @@
         </div>
 
         <aside class="lista">
+          <section v-if="cartonRival" class="carton-rival" :aria-label="'Cartón de ' + cartonRival.nombre">
+            <p class="rival-titulo">Cartón de {{ cartonRival.nombre }}</p>
+            <div class="rival-letras" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
+              <span v-for="(letra, i) in letrasBingo" :key="i">{{ letra }}</span>
+            </div>
+            <div class="rival-board" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
+              <span
+                v-for="(celda, indice) in celdasRival"
+                :key="indice"
+                class="rival-cell"
+                :class="{ marcada: celda.marked, libre: celda.free, llamada: !celda.free && cantadas.includes(celda.number) }"
+              >{{ celda.free ? 'FREE' : celda.number }}</span>
+            </div>
+          </section>
           <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
         </aside>
       </div>
@@ -192,22 +215,26 @@
 
       <div v-if="apuntando" class="pista">
         <span>
-          Elige el objetivo de <strong>{{ nombreBoosterActivo }}</strong>. Puedes lanzarlo sobre ti o sobre
-          cualquier jugador de la sala.
+          Elige a otro jugador para <strong>{{ nombreBoosterActivo }}</strong>. Este ataque no cae sobre ti.
         </span>
         <button type="button" class="cancelar-objetivo" @click="cancelarSeleccion">CANCELAR</button>
       </div>
       <p v-if="aviso" class="aviso">{{ aviso }}</p>
 
-      <span
-        v-for="bola in proyectiles"
-        :key="bola.id"
-        class="proyectil"
-        :class="'tipo-' + bola.boosterId"
-        :style="{ left: bola.x + 'px', top: bola.y + 'px' }"
-      >
-        <img :src="iconoPorBooster(bola.boosterId)" alt="" />
-      </span>
+      <Teleport to="body">
+        <span
+          v-for="bola in proyectiles"
+          :key="bola.id"
+          class="proyectil"
+          :class="'tipo-' + bola.boosterId"
+          :style="{ left: bola.x + 'px', top: bola.y + 'px' }"
+          aria-hidden="true"
+        >
+          <span class="proyectil-cuerpo">
+            <img :src="iconoPorBooster(bola.boosterId)" alt="" />
+          </span>
+        </span>
+      </Teleport>
     </section>
 
     <section v-else-if="espera" class="hub room">
@@ -218,13 +245,13 @@
       </header>
       <div class="room-layout">
         <section class="room-invite">
-          <p class="sobrelinea">SALA PRIVADA</p>
+          <p class="sobrelinea">{{ tituloSala }}</p>
           <h1>Esperando aventureros</h1>
           <div class="sala-carga" aria-hidden="true">
             <span class="sala-carga-aro"></span>
             <img src="@/assets/img/dragon.png" alt="" />
           </div>
-          <p class="estado-sala">{{ espera.jugadores.length === 4 ? 'Sala completa' : 'El dragón espera…' }}</p>
+          <p class="estado-sala">{{ textoEsperaSala }}</p>
           <p class="codigo">{{ espera.codigo }}</p>
           <button type="button" class="accion copiar-codigo" @click="copiarCodigoSala">
             {{ copiado ? 'COPIADO' : 'COPIAR CÓDIGO' }}
@@ -232,7 +259,7 @@
         </section>
         <div class="room-side">
         <aside class="panel lista-room">
-          <h2>JUGADORES <span>{{ espera.jugadores.length }}/4</span></h2>
+          <h2>JUGADORES <span>{{ espera.jugadores.length }}/{{ espera.cupo }}</span></h2>
           <ul>
             <li v-for="(j, index) in slotsSala" :key="j?.id ?? `slot-${index}`" :class="{ vacio: !j }">
               <template v-if="j">
@@ -242,20 +269,33 @@
               </span>
               <span>{{ j.nombre }}</span>
               <span v-if="j.id === espera.anfitrionId" class="estado">anfitrión</span>
+              <span v-if="espera.modo === 'equipos'" class="estado">equipo {{ index < espera.cupo / 2 ? 1 : 2 }}</span>
               </template>
-              <template v-else><span class="slot-vacio">✧</span><span>Esperando jugador…</span></template>
+              <template v-else><span class="slot-vacio">✧</span><span>{{ espera.modo === 'equipos' ? `Equipo ${index < espera.cupo / 2 ? 1 : 2}` : 'Esperando jugador…' }}</span></template>
             </li>
           </ul>
         </aside>
-        <label v-if="soyAnfitrion" class="bot-option">
-          <input type="checkbox" :checked="espera.completarConBots" @change="configurarBotsSala($event)" />
-          <span><strong>Completar espacios vacíos con bots</strong><small>Solo tú, como anfitrión, puedes activar esta opción.</small></span>
-        </label>
         <div class="room-actions">
-          <button v-if="soyAnfitrion" type="button" class="accion" :disabled="espera.jugadores.length < 4 && !espera.completarConBots" @click="empezar">
-            {{ espera.jugadores.length === 4 ? 'EMPEZAR' : 'EMPEZAR CON BOTS' }}
-          </button>
-          <p v-else class="hint">Esperando al anfitrión</p>
+          <div class="apuesta-sala">
+            <p>Apuesta: {{ espera.apuesta ? espera.apuesta + ' monedas' : 'sin apuesta' }}</p>
+            <p class="hint">Se cobra al empezar. Si sales antes, no se descuenta.</p>
+            <div class="opciones-apuesta">
+              <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(20)">BASE 20</button>
+              <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(100)">BASE 100</button>
+              <button v-if="espera.apuesta === 20" type="button" class="accion" @click="ponerApuesta(100)">SUBIR A 100</button>
+            </div>
+          </div>
+          <template v-if="soyAnfitrion">
+            <button type="button" class="accion" :disabled="espera.jugadores.length < 2" @click="empezar('sala')">
+              JUGAR CON LA SALA
+            </button>
+            <button v-if="espera.permiteBots" type="button" class="accion" :disabled="espera.jugadores.length >= espera.cupo" @click="empezar('bots')">
+              RELLENAR CON BOTS
+            </button>
+            <p class="hint">{{ pistaAnfitrion }}</p>
+          </template>
+          <p v-else class="hint">El anfitrión elige si juegan ustedes o si entran rivales.</p>
+          <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
           <button type="button" class="accion suave" @click="volverSala">SALIR DE LA SALA</button>
         </div>
         <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
@@ -282,9 +322,9 @@
           </div>
           <img src="@/assets/img/logo.png" alt="Dark Fantasy" class="logo" />
           <div class="acciones-online">
-            <button type="button" class="accion accion-principal" @click="jugar">JUGAR PARTIDA</button>
+            <button type="button" class="accion accion-principal" @click="abrirMesa('jugar')">JUGAR PARTIDA</button>
             <button type="button" class="accion accion-secundaria" @click="abriendoUnion = true">UNIRSE A UNA SALA</button>
-            <button type="button" class="accion accion-secundaria" @click="crear">CREAR SALA</button>
+            <button type="button" class="accion accion-secundaria" @click="abrirMesa('crear')">CREAR SALA</button>
             <button type="button" class="accion accion-caza" @click="cazarDragones">CAZAR DRAGONES</button>
             <button type="button" class="accion suave accion-salir" @click="salir">SALIR</button>
           </div>
@@ -310,6 +350,30 @@
       </div>
     </section>
 
+    <div v-if="eligiendo" class="modal-backdrop" @click.self="eligiendo = null">
+      <div class="modal mesa-modal">
+        <h2>{{ eligiendo === 'crear' ? 'CREAR SALA' : 'JUGAR PARTIDA' }}</h2>
+        <p>Elige la mesa. El cupo queda fijo para esta partida.</p>
+        <div class="opciones-mesa">
+          <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 4 }" @click="fijarMesa('mesa', 4)">MESA DE 4</button>
+          <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 6 }" @click="fijarMesa('mesa', 6)">MESA DE 6</button>
+          <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 8 }" @click="fijarMesa('mesa', 8)">MESA DE 8</button>
+          <button type="button" class="ancho" :class="{ on: mesa.modo === 'pvp' }" @click="fijarMesa('pvp', 2)">PVP · 2 JUGADORES</button>
+          <button type="button" class="ancho" :class="{ on: mesa.modo === 'equipos' }" @click="fijarMesa('equipos', mesa.cupo === 2 ? 4 : mesa.cupo)">BATALLA DE EQUIPOS</button>
+        </div>
+        <div v-if="mesa.modo === 'equipos'" class="opciones-mesa">
+          <button type="button" :class="{ on: mesa.cupo === 4 }" @click="fijarMesa('equipos', 4)">4</button>
+          <button type="button" :class="{ on: mesa.cupo === 6 }" @click="fijarMesa('equipos', 6)">6</button>
+          <button type="button" :class="{ on: mesa.cupo === 8 }" @click="fijarMesa('equipos', 8)">8</button>
+        </div>
+        <p class="hint">{{ pistaMesa }}</p>
+        <div class="acciones-modal">
+          <button type="button" class="accion" @click="confirmarMesa">{{ eligiendo === 'crear' ? 'CREAR' : 'BUSCAR' }}</button>
+          <button type="button" class="accion suave" @click="eligiendo = null">CANCELAR</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="abriendoUnion" class="modal-backdrop" @click.self="abriendoUnion = false">
       <form class="modal union" @submit.prevent="unirse">
         <h2>UNIRSE</h2>
@@ -325,13 +389,18 @@
 
     <div v-if="fase === 'terminado'" class="modal-backdrop">
       <div class="modal" :class="{ gane: esGanador }">
-        <h2>{{ esGanador ? '¡BINGO! GANASTE' : 'Fin de la partida' }}</h2>
-        <p v-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
+        <h2>{{ tituloFin }}</h2>
+        <p v-if="sala?.modo === 'equipos' && sala.serie?.equipoGanador">
+          Ganó el equipo {{ sala.serie.equipoGanador }} · {{ sala.serie.equipo1 }} a {{ sala.serie.equipo2 }}
+        </p>
+        <p v-else-if="sala?.modo === 'equipos'">La serie quedó empatada.</p>
+        <p v-else-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
         <p v-else>Nadie completó el patrón.</p>
         <p class="premio">{{ esGanador ? '+75 XP · +25 monedas' : '+25 XP por participar' }}</p>
+        <p v-if="sala?.apuesta" class="premio">{{ esGanador ? 'También te llevas la apuesta.' : 'La apuesta de esta partida no regresa.' }}</p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="jugarOtraVez">JUGAR</button>
-          <button type="button" class="accion suave" @click="salir">SALIR</button>
+          <button type="button" class="accion suave" @click="volverAlLobbyOnline">SALIR</button>
         </div>
       </div>
     </div>
@@ -463,6 +532,8 @@ const {
   showRuleta,
   oracleSlots,
   tuCarton,
+  cartonRival,
+  celdasRival,
   metodosVictoria,
   metodoVictoria,
   esGanador,
@@ -524,6 +595,12 @@ function quitarCasillaDeLaFigura() {
 const boosters = BOOSTERS
 const codigo = ref('')
 const abriendoUnion = ref(false)
+type MesaElegidaVista = { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 }
+
+const eligiendo = ref<'jugar' | 'crear' | null>(null)
+const mesa = ref<MesaElegidaVista>({ modo: 'mesa', cupo: 4 })
+const tituloBusqueda = ref('BUSCANDO RIVAL')
+const detalleBusqueda = ref('El oráculo busca un rival en las sombras…')
 const abriendoAbandono = ref(false)
 const copiado = ref(false)
 const entrada = ref(false)
@@ -538,7 +615,7 @@ let cierreCarga: ReturnType<typeof setTimeout> | null = null
 let lanzandoTimer: ReturnType<typeof setTimeout> | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
-const slotsSala = computed(() => Array.from({ length: 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
+const slotsSala = computed(() => Array.from({ length: espera.value?.cupo ?? 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
 const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
 const metodoNombre = computed(() =>
@@ -565,7 +642,37 @@ function cazarDragones() {
   router.push('/cazar-dragones')
 }
 
+const tituloFin = computed(() => {
+  if (sala.value?.modo === 'equipos') return esGanador.value ? '¡GANÓ TU EQUIPO!' : 'Fin de la serie'
+  return esGanador.value ? '¡BINGO! GANASTE' : 'Fin de la partida'
+})
+
 const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
+const tituloSala = computed(() => {
+  const salaEspera = espera.value
+  if (!salaEspera) return 'SALA PRIVADA'
+  if (salaEspera.modo === 'pvp') return 'DUELO PVP'
+  if (salaEspera.modo === 'equipos') return `EQUIPOS · ${salaEspera.cupo}`
+  return `MESA DE ${salaEspera.cupo}`
+})
+const textoEsperaSala = computed(() => {
+  const salaEspera = espera.value
+  const cantidad = salaEspera?.jugadores.length ?? 0
+  const cupo = salaEspera?.cupo ?? 4
+  if (cantidad >= cupo) return 'Sala completa'
+  if (salaEspera?.modo === 'pvp') return 'El duelo espera a un rival'
+  if (cantidad <= 1) return 'Falta alguien para jugar solo con la sala'
+  return 'Pueden empezar entre ustedes o completar con bots'
+})
+const pistaAnfitrion = computed(() => {
+  const salaEspera = espera.value
+  const cantidad = salaEspera?.jugadores.length ?? 0
+  const cupo = salaEspera?.cupo ?? 4
+  if (salaEspera?.modo === 'pvp') return 'El duelo es de dos. Aquí no entran rivales invocados.'
+  if (cantidad >= cupo) return 'La mesa está llena. La partida empieza con estos jugadores.'
+  if (cantidad <= 1) return 'Con un jugador, el dragón tiene que ocupar los puestos vacíos.'
+  return 'Jugar con la sala no mete rivales. Rellenar ocupa los puestos que faltan.'
+})
 const textoErrorSala = computed(() => {
   if (errorSala.value === 'Esa sala no existe.') {
     return 'No se encontró esa sala. Comprueba el código y que el anfitrión siga esperando.'
@@ -665,8 +772,19 @@ function cantidad(id: number): number {
   return progress.boosterCount(id)
 }
 
-function puedeApuntar(): boolean {
-  return apuntando.value
+function esAtaque(id: number): boolean {
+  return id === 1 || id === 2
+}
+
+function esDefensa(id: number): boolean {
+  return id === 3 || id === 4
+}
+
+function puedeRecibir(idJugador: string): boolean {
+  const boosterId = boosterActivo.value
+  if (boosterId === null) return false
+  if (esAtaque(boosterId)) return idJugador !== usuarioId
+  return idJugador === usuarioId
 }
 
 function marcarCelda(i: number) {
@@ -690,9 +808,47 @@ function onMetodoElegido() {
   online.onMetodoElegido()
 }
 
-function jugar() {
+function etiquetaMesa(elegida: MesaElegidaVista): string {
+  if (elegida.modo === 'pvp') return 'duelo PvP'
+  if (elegida.modo === 'equipos') return `equipos de ${elegida.cupo}`
+  return `mesa de ${elegida.cupo}`
+}
+
+function etiquetaJugador(jugador: { id: string; esBot: boolean; equipo?: 1 | 2 }): string {
+  const lado = jugador.equipo ? `equipo ${jugador.equipo}` : ''
+  if (jugador.id === usuarioId) return lado ? `tú · ${lado}` : 'tú'
+  if (lado) return lado
+  return jugador.esBot ? 'rival' : 'jugador'
+}
+
+const pistaMesa = computed(() => {
+  if (mesa.value.modo === 'pvp') return 'Un duelo de dos. No se rellena con bots.'
+  if (mesa.value.modo === 'equipos') return 'La mesa se parte en dos bandos del mismo tamaño.'
+  return 'Todos contra todos. Los puestos vacíos se pueden llenar con bots.'
+})
+
+function abrirMesa(destino: 'jugar' | 'crear') {
+  mesa.value = { modo: 'mesa', cupo: 4 }
+  eligiendo.value = destino
+}
+
+function fijarMesa(modo: MesaElegidaVista['modo'], cupo: MesaElegidaVista['cupo']) {
+  mesa.value = { modo, cupo }
+}
+
+function confirmarMesa() {
+  const destino = eligiendo.value
+  const elegida = { ...mesa.value }
+  eligiendo.value = null
+  if (destino === 'crear') {
+    copiado.value = false
+    online.crearSala(elegida)
+    return
+  }
+  tituloBusqueda.value = 'BUSCANDO PARTIDA'
+  detalleBusqueda.value = `Buscando ${etiquetaMesa(elegida)}…`
   boosterActivo.value = null
-  online.buscar()
+  online.buscar(elegida)
 }
 
 function cancelarBusqueda() {
@@ -706,11 +862,6 @@ async function copiarCodigoSala() {
   copiado.value = true
 }
 
-function crear() {
-  copiado.value = false
-  online.crearSala()
-}
-
 function unirse() {
   online.unirseSala(codigo.value)
 }
@@ -721,13 +872,12 @@ watch(espera, (salaEspera) => {
   codigo.value = ''
 })
 
-function empezar() {
-  online.empezarSala()
+function empezar(modo: 'sala' | 'bots') {
+  online.empezarSala(modo)
 }
 
-function configurarBotsSala(evento: Event) {
-  if (!soyAnfitrion.value) return
-  online.configurarBotsSala((evento.target as HTMLInputElement).checked)
+function ponerApuesta(monto: 20 | 100) {
+  online.fijarApuesta(monto)
 }
 
 function volverSala() {
@@ -740,11 +890,16 @@ function cantar() {
 }
 
 function jugarOtraVez() {
+  const previa: MesaElegidaVista = sala.value?.modo && sala.value.cupo
+    ? { modo: sala.value.modo, cupo: sala.value.cupo as MesaElegidaVista['cupo'] }
+    : { ...mesa.value }
   impactos.value = {}
   boosterActivo.value = null
   lanzando.value = false
+  tituloBusqueda.value = 'BUSCANDO PARTIDA'
+  detalleBusqueda.value = `Buscando ${etiquetaMesa(previa)}…`
   online.reiniciar()
-  online.buscar()
+  online.buscar(previa)
 }
 
 async function salir() {
@@ -753,12 +908,15 @@ async function salir() {
   void router.push('/lobby')
 }
 
-async function confirmarAbandono() {
+async function volverAlLobbyOnline() {
   abriendoAbandono.value = false
-  await online.abandonarPartida()
+  await online.volverAlLobby()
   await progress.hidratarDesdeApi().catch(() => {})
-  online.desconectar()
-  void router.push('/lobby')
+  if (router.currentRoute.value.path !== '/online') void router.push('/online')
+}
+
+async function confirmarAbandono() {
+  await volverAlLobbyOnline()
 }
 
 function enviarTexto(texto: string) {
@@ -771,6 +929,11 @@ function pulsarBooster(id: number) {
     online.mostrarAviso('No te quedan unidades de este booster.')
     return
   }
+  if (esDefensa(id)) {
+    boosterActivo.value = null
+    disparar(id, usuarioId)
+    return
+  }
   boosterActivo.value = boosterActivo.value === id ? null : id
 }
 
@@ -779,8 +942,14 @@ function cancelarSeleccion() {
 }
 
 function elegirObjetivo(id: string) {
-  if (!puedeApuntar() || boosterActivo.value === null) return
   const boosterId = boosterActivo.value
+  if (boosterId === null) return
+  if (!puedeRecibir(id)) {
+    if (esAtaque(boosterId) && id === usuarioId) {
+      online.mostrarAviso('El hielo y el sabotaje solo se lanzan a los demás.')
+    }
+    return
+  }
   boosterActivo.value = null
   disparar(boosterId, id)
 }
@@ -802,8 +971,21 @@ function centroDe(elemento: HTMLElement): { x: number; y: number } {
   return { x: caja.left + caja.width / 2, y: caja.top + caja.height / 2 }
 }
 
+const VUELO_MS = 1100
+
+function origenDelVuelo(vuelo: VueloBoosterOnline): HTMLElement | null {
+  if (vuelo.deId === usuarioId) {
+    const boton = document.querySelector(`[data-booster="${vuelo.boosterId}"]`)
+    if (boton instanceof HTMLElement) return boton
+  }
+  const retrato = document.querySelector(`[data-jugador="${vuelo.deId}"]`)
+  if (retrato instanceof HTMLElement) return retrato
+  const boton = document.querySelector(`[data-booster="${vuelo.boosterId}"]`)
+  return boton instanceof HTMLElement ? boton : null
+}
+
 function animarVuelo(vuelo: VueloBoosterOnline) {
-  const origen = document.querySelector(`[data-booster="${vuelo.boosterId}"]`)
+  const origen = origenDelVuelo(vuelo)
   const destino = document.querySelector(`[data-jugador="${vuelo.objetivoId}"]`)
   if (!(origen instanceof HTMLElement) || !(destino instanceof HTMLElement)) {
     marcarImpacto(vuelo)
@@ -827,14 +1009,14 @@ function animarVuelo(vuelo: VueloBoosterOnline) {
   window.setTimeout(() => {
     proyectiles.value = proyectiles.value.filter((bola) => bola.id !== id)
     marcarImpacto(vuelo)
-  }, 760)
+  }, VUELO_MS)
 }
 
 function marcarImpacto(vuelo: VueloBoosterOnline) {
   const boosterId = vuelo.bloqueadoPorEscudo ? 4 : vuelo.boosterId
   impactos.value = {
     ...impactos.value,
-    [vuelo.objetivoId]: { boosterId, hasta: Date.now() + 1200 },
+    [vuelo.objetivoId]: { boosterId, hasta: Date.now() + 1600 },
   }
 }
 
@@ -1123,13 +1305,15 @@ onUnmounted(() => {
   padding: clamp(10px, 1.5vw, 18px);
 }
 .room-side .lista-room { grid-row: 1 / 4; min-height: 0; overflow: hidden; }
-.room-side .lista-room ul { min-height: 0; margin-block: 5px; overflow: hidden; }
+.room-side .lista-room ul { min-height: 0; margin-block: 5px; overflow: auto; }
 .room-side .lista-room li { min-height: 40px; padding: 3px 0; font-size: .82rem; }
 .room-side .lista-room h2 { display: flex; justify-content: space-between; margin: 0; font-size: .92rem; }
 .room-side .bot-option { width: auto; padding: 9px 10px; font-size: .78rem; }
 .room-side .bot-option small { font-size: .7rem; }
 .room-actions { display: grid; align-content: center; gap: 7px; }
 .room-actions .accion { min-width: 0; width: 100%; padding: 10px 8px; font-size: .74rem; }
+.room-actions .accion:disabled { opacity: .45; cursor: default; }
+.room-actions .hint { margin: 0; font-size: .72rem; line-height: 1.35; }
 .room-side :deep(.chat-sala) { min-height: 0; height: 100%; max-height: none; }
 .room-side :deep(.chat-sala form) { padding-top: 4px; }
 .room-side :deep(.chat-sala input) { min-height: 32px; }
@@ -1367,6 +1551,41 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.serie {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin: 2px 0 8px;
+  color: #f0d78c;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.aviso-ronda {
+  margin: 0 0 8px;
+  text-align: center;
+  color: #ffe9a8;
+}
+
+.apuesta-activa {
+  margin: 0 0 8px;
+  text-align: center;
+  color: #f0d78c;
+}
+
+.apuesta-sala {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.opciones-apuesta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ficha {
   width: 132px;
   border: 0;
@@ -1407,6 +1626,11 @@ onUnmounted(() => {
 
 .ficha.objetivo {
   cursor: pointer;
+}
+
+.ficha.fuera-de-tiro {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .ficha.objetivo .foto {
@@ -1854,6 +2078,53 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.carton-rival {
+  margin-bottom: 12px;
+}
+
+.rival-titulo {
+  margin: 0 0 8px;
+  color: #f0d78c;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+.rival-letras,
+.rival-board {
+  display: grid;
+  gap: 4px;
+}
+
+.rival-letras {
+  margin-bottom: 4px;
+  color: #d5e6f2;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.rival-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid #3d5f93;
+  background: rgba(12, 28, 58, 0.88);
+  color: #d7e4f7;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rival-cell.llamada {
+  box-shadow: inset 0 0 0 1px rgba(122, 215, 255, 0.35);
+}
+
+.rival-cell.marcada,
+.rival-cell.libre {
+  background: linear-gradient(180deg, #3a2f10, #243018);
+  color: #ffe9a8;
+  border-color: #e8c86a;
+}
+
 .lista :deep(.chat-sala) {
   flex: 1;
   width: 100%;
@@ -2002,35 +2273,80 @@ onUnmounted(() => {
 
 .proyectil {
   position: fixed;
-  width: 32px;
-  height: 32px;
-  transform: translate(-50%, -50%);
   z-index: 10055;
+  width: 74px;
+  height: 74px;
+  margin-left: -37px;
+  margin-top: -37px;
   pointer-events: none;
-  transition: left 0.72s cubic-bezier(0.4, 0, 0.2, 1), top 0.72s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  transition: left 1.1s cubic-bezier(0.2, 0.72, 0.2, 1), top 1.1s cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.proyectil-cuerpo {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(8, 12, 24, 0.94) 0 46%, transparent 70%);
+  animation: proyectil-arco 1.1s ease-in-out;
+}
+
+.proyectil-cuerpo::before,
+.proyectil-cuerpo::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.proyectil-cuerpo::before {
+  inset: -14px;
+  border: 2px solid transparent;
+  animation: anillo-vuelo 1.1s ease-out;
+}
+
+.proyectil-cuerpo::after {
+  inset: 8px;
+  filter: blur(8px);
+  opacity: 0.85;
 }
 
 .proyectil img {
-  width: 100%;
-  height: 100%;
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
 }
 
-.proyectil.tipo-1 {
-  filter: drop-shadow(0 0 10px #9ad7ff) drop-shadow(0 0 20px rgba(154, 215, 255, 0.7));
+.proyectil.tipo-1 .proyectil-cuerpo::before { border-color: #9ad7ff; }
+.proyectil.tipo-1 .proyectil-cuerpo::after { background: #9ad7ff; }
+.proyectil.tipo-1 img { filter: drop-shadow(0 0 12px #9ad7ff); }
+
+.proyectil.tipo-2 .proyectil-cuerpo::before { border-color: #e23b3b; }
+.proyectil.tipo-2 .proyectil-cuerpo::after { background: #e23b3b; }
+.proyectil.tipo-2 img { filter: drop-shadow(0 0 12px #e23b3b); }
+
+.proyectil.tipo-3 .proyectil-cuerpo::before { border-color: #f0d78c; }
+.proyectil.tipo-3 .proyectil-cuerpo::after { background: #7dff8a; }
+.proyectil.tipo-3 img { filter: drop-shadow(0 0 12px #f0d78c); }
+
+.proyectil.tipo-4 .proyectil-cuerpo::before { border-color: #8cdcff; }
+.proyectil.tipo-4 .proyectil-cuerpo::after { background: #8cdcff; }
+.proyectil.tipo-4 img { filter: drop-shadow(0 0 12px #8cdcff); }
+
+@keyframes proyectil-arco {
+  0% { transform: translateY(0) scale(0.72) rotate(-18deg); }
+  45% { transform: translateY(-78px) scale(1.18) rotate(8deg); }
+  100% { transform: translateY(0) scale(1) rotate(0deg); }
 }
 
-.proyectil.tipo-2 {
-  filter: drop-shadow(0 0 10px #e23b3b) drop-shadow(0 0 20px rgba(226, 59, 59, 0.7));
-  animation: interferencia 0.16s steps(2) infinite;
-}
-
-.proyectil.tipo-3 {
-  filter: drop-shadow(0 0 10px #f0d78c) drop-shadow(0 0 22px rgba(240, 215, 140, 0.75));
-}
-
-.proyectil.tipo-4 {
-  filter: drop-shadow(0 0 10px #8cdcff) drop-shadow(0 0 22px rgba(140, 220, 255, 0.75));
+@keyframes anillo-vuelo {
+  0% { transform: scale(0.55); opacity: 0.2; }
+  40% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0.35; }
 }
 
 /* El aviso ya no se coloca encima del botón ¡BINGO! (lo tapaba) */
@@ -2081,6 +2397,29 @@ onUnmounted(() => {
   text-align: center;
   text-transform: uppercase;
 }
+
+.opciones-mesa {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+.opciones-mesa button {
+  min-height: 42px;
+  border: 1px solid rgba(142, 176, 232, .45);
+  border-radius: 10px;
+  background: rgba(8, 14, 26, .8);
+  color: #e8e0c8;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.opciones-mesa button.ancho { grid-column: 1 / -1; }
+.opciones-mesa button.on {
+  border-color: #f0d78c;
+  color: #f0d78c;
+  box-shadow: inset 0 0 12px rgba(240, 215, 140, .16);
+}
+.mesa-modal .hint { margin: 0 0 14px; }
 
 .acciones-modal {
   display: flex;

@@ -29,6 +29,7 @@ export function usePartidaOnline(usuarioId: string) {
   const sala = ref<VistaSalaOnline | null>(null)
   const cantadas = ref<number[]>([])
   const marcas = ref<Set<number>>(new Set())
+  const rivalMarcas = ref<Set<number>>(new Set())
   const ultimaBola = ref<number | null>(null)
   const ganadorId = ref<string | null>(null)
   const resumen = ref<ResumenOnline | null>(null)
@@ -42,6 +43,8 @@ export function usePartidaOnline(usuarioId: string) {
   const chat = ref<MensajeChatOnline[]>([])
   const errorSala = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
+  /** Quien ya volvió al lobby online no debe reentrar a la partida por un evento tardío. */
+  let quiereHub = false
 
   function claveMarcas(salaId: string): string {
     return `df-online-marcas:${salaId}`
@@ -128,8 +131,12 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function aplicarVista(vista: VistaSalaOnline) {
+    if (quiereHub) return
     if (!vista?.salaId || !Array.isArray(vista.calledList)) return
     const salaNueva = sala.value?.salaId !== vista.salaId
+    const rondaAnterior = sala.value?.serie?.ronda ?? 0
+    const rondaNueva = vista.serie?.ronda ?? 0
+    const cambiaRonda = !salaNueva && rondaNueva > rondaAnterior
     sala.value = vista
     sincronizarEfectos(vista)
     const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
@@ -137,10 +144,19 @@ export function usePartidaOnline(usuarioId: string) {
       marcas.value = restaurarMarcas(vista)
       showRuleta.value = vista.estado !== 'finished' && (pool?.length ?? 0) > 0
     }
-    if (vista.calledList.length >= cantadas.value.length) {
+    if (cambiaRonda) {
+      marcas.value = new Set()
+      persistirMarcas()
+      cantadas.value = [...vista.calledList]
+      ultimaBola.value = vista.lastDrawn
+    }
+    rivalMarcas.value = new Set(
+      (vista.cartonRival?.celdas ?? []).flatMap((celda, indice) => (celda.marked && !celda.free ? [indice] : [])),
+    )
+    if (!cambiaRonda && vista.calledList.length >= cantadas.value.length) {
       cantadas.value = [...vista.calledList]
     }
-    if (vista.lastDrawn !== null) ultimaBola.value = vista.lastDrawn
+    if (!cambiaRonda && vista.lastDrawn !== null) ultimaBola.value = vista.lastDrawn
     if (vista.estado === 'finished') {
       ganadorId.value = vista.ganador
       showRuleta.value = false
@@ -172,15 +188,18 @@ export function usePartidaOnline(usuarioId: string) {
     if (fase.value === 'cola') fase.value = 'idle'
   })
   socket.on('match:found', () => {
+    if (quiereHub) return
     espera.value = null
     fase.value = 'jugando'
   })
   socket.on('room:state', (vista: VistaSalaOnline) => aplicarVista(vista))
   socket.on('ball:called', (payload: { numero: number }) => {
+    if (quiereHub) return
     ultimaBola.value = payload.numero
     if (!cantadas.value.includes(payload.numero)) cantadas.value.push(payload.numero)
   })
   socket.on('game:over', (vista: VistaSalaOnline) => {
+    if (quiereHub) return
     aplicarVista(vista)
     ganadorId.value = vista.ganador
     fase.value = 'terminado'
@@ -234,19 +253,26 @@ export function usePartidaOnline(usuarioId: string) {
     mostrarAviso(payload?.mensaje ?? 'No se pudo lanzar el booster.')
     window.dispatchEvent(new CustomEvent('df-booster-rechazo', { detail: payload }))
   })
+  socket.on('pvp:marcas', (payload: { jugadorId?: string; marcas?: number[] }) => {
+    if (!payload || payload.jugadorId !== sala.value?.cartonRival?.id) return
+    const lista = Array.isArray(payload.marcas) ? payload.marcas : []
+    rivalMarcas.value = new Set(lista.filter((indice) => Number.isInteger(indice) && indice >= 0))
+  })
 
   function conectar() {
     if (!socket.connected) socket.connect()
   }
 
-  function buscar() {
+  function buscar(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 }) {
+    quiereHub = false
     errorConexion.value = null
     espera.value = null
     chat.value = []
     conectar()
     fase.value = 'cola'
-    if (socket.connected) socket.emit('queue:join')
-    else socket.once('connect', () => socket.emit('queue:join'))
+    const entrar = () => socket.emit('queue:join', mesa ?? { modo: 'mesa', cupo: 4 })
+    if (socket.connected) entrar()
+    else socket.once('connect', entrar)
   }
 
   function pedirRanking() {
@@ -264,16 +290,18 @@ export function usePartidaOnline(usuarioId: string) {
     else socket.once('connect', mandar)
   }
 
-  function crearSala() {
+  function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 }) {
+    quiereHub = false
     errorSala.value = null
     chat.value = []
-    const crear = () => socket.emit('room:create')
+    const crear = () => socket.emit('room:create', mesa ?? { modo: 'mesa', cupo: 4 })
     conectar()
     if (socket.connected) crear()
     else socket.once('connect', crear)
   }
 
   function unirseSala(codigo: string) {
+    quiereHub = false
     errorSala.value = null
     chat.value = []
     const codigoLimpio = codigo.trim().toUpperCase()
@@ -297,13 +325,27 @@ export function usePartidaOnline(usuarioId: string) {
     })
   }
 
+  /** Sale de la partida y se queda en el lobby de Modo online, con una conexión nueva. */
+  function volverAlLobby(): Promise<void> {
+    quiereHub = true
+    return abandonarPartida().then(() => {
+      reiniciar()
+      socket.disconnect()
+      socket.connect()
+    })
+  }
+
   function salirSala() {
     socket.emit('room:leave')
     espera.value = null
   }
 
-  function empezarSala() {
-    socket.emit('room:start')
+  function empezarSala(modo: 'sala' | 'bots') {
+    socket.emit('room:start', { modo })
+  }
+
+  function fijarApuesta(monto: 20 | 100) {
+    socket.emit('room:apuesta', { monto })
   }
 
   function configurarBotsSala(habilitado: boolean) {
@@ -333,6 +375,7 @@ export function usePartidaOnline(usuarioId: string) {
     else siguiente.add(indice)
     marcas.value = siguiente
     persistirMarcas()
+    publicarMarca(indice, !yaMarcada)
   }
 
   function quitarMarca(indice: number) {
@@ -341,6 +384,12 @@ export function usePartidaOnline(usuarioId: string) {
     siguiente.delete(indice)
     marcas.value = siguiente
     persistirMarcas()
+    publicarMarca(indice, false)
+  }
+
+  function publicarMarca(indice: number, activa: boolean) {
+    if (sala.value?.modo !== 'pvp') return
+    socket.emit('pvp:marcar', { indice, activa })
   }
 
   function onMetodoElegido() {
@@ -358,6 +407,7 @@ export function usePartidaOnline(usuarioId: string) {
     sala.value = null
     cantadas.value = []
     marcas.value = new Set()
+    rivalMarcas.value = new Set()
     ultimaBola.value = null
     ganadorId.value = null
     resumen.value = null
@@ -394,6 +444,15 @@ export function usePartidaOnline(usuarioId: string) {
     })),
   )
 
+  const cartonRival = computed(() => sala.value?.cartonRival ?? null)
+
+  const celdasRival = computed<BingoCell[]>(() =>
+    (cartonRival.value?.celdas ?? []).map((celda, indice) => ({
+      ...celda,
+      marked: celda.free || rivalMarcas.value.has(indice),
+    })),
+  )
+
   const metodosVictoria = computed(() => {
     const actual = sala.value
     if (!actual) return []
@@ -402,7 +461,14 @@ export function usePartidaOnline(usuarioId: string) {
   })
   const metodoVictoria = computed(() => sala.value?.winModes[0] ?? null)
 
-  const esGanador = computed(() => !!ganadorId.value && ganadorId.value === usuarioId)
+  const esGanador = computed(() => {
+    if (sala.value?.modo === 'equipos') {
+      const equipo = sala.value.serie?.equipoGanador
+      const mio = sala.value.jugadores.find((jugador) => jugador.id === usuarioId)?.equipo
+      return !!equipo && equipo === mio
+    }
+    return !!ganadorId.value && ganadorId.value === usuarioId
+  })
 
   const indicesGanadores = computed<number[]>(() => {
     if (!sala.value || !esGanador.value) return []
@@ -443,6 +509,8 @@ export function usePartidaOnline(usuarioId: string) {
     llamadasRecientes,
     oracleSlots,
     tuCarton,
+    cartonRival,
+    celdasRival,
     metodosVictoria,
     metodoVictoria,
     esGanador,
@@ -461,6 +529,7 @@ export function usePartidaOnline(usuarioId: string) {
     unirseSala,
     salirSala,
     empezarSala,
+    fijarApuesta,
     configurarBotsSala,
     lanzarBooster,
     mostrarAviso,
@@ -471,6 +540,7 @@ export function usePartidaOnline(usuarioId: string) {
     onMetodoElegido,
     reiniciar,
     abandonarPartida,
+    volverAlLobby,
     desconectar,
     conectar,
   }
