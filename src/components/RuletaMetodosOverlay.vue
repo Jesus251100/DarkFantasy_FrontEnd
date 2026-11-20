@@ -35,7 +35,7 @@
 
           <p class="ruleta-name" :class="{ landed }">{{ nombreMetodo(actual) }}</p>
           <p class="ruleta-hint">
-            {{ landed ? 'La suerte ha sido sellada' : spinning ? 'El destino se decide…' : 'Preparando la ruleta…' }}
+            {{ landed ? 'Método elegido' : spinning ? 'Eligiendo método…' : 'Preparando…' }}
           </p>
         </section>
       </div>

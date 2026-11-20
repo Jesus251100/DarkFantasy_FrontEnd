@@ -35,9 +35,9 @@
       <div class="apuesta-marco">
         <header class="apuesta-cabecera">
           <span class="apuesta-sello">✦ · ✧ · ✦</span>
-          <p>EL DESTINO YA REUNIÓ A LOS RIVALES</p>
-          <h1>Hagan sus apuestas,<br /><em>señores</em></h1>
-          <span class="apuesta-runa">La ruleta aguardará hasta que todos confirmen</span>
+          <p>ANTES DE EMPEZAR</p>
+          <h1>Confirma tu apuesta</h1>
+          <span class="apuesta-runa">La partida inicia cuando todos confirmen.</span>
         </header>
         <div class="apuesta-contenido">
           <div class="apuesta-control">
@@ -50,7 +50,7 @@
               <button v-for="monto in montosSugeridos" :key="monto" type="button" :class="{ activa: montoGlobalApuesta === monto }" @click="montoGlobalApuesta = monto">{{ monto.toLocaleString('es-CO') }}</button>
             </div>
             <label class="apuesta-rango">
-              <span>ELIGE TU RIESGO <b>200 — 2.000</b></span>
+              <span>Apuesta <b>200 — 2.000</b></span>
               <input v-model.number="montoGlobalApuesta" type="range" min="200" max="2000" step="50" />
               <span class="rango-extremos"><small>200 · prudente</small><small>2.000 · audaz</small></span>
             </label>
@@ -80,7 +80,7 @@
             </div>
           </aside>
         </div>
-        <footer class="apuesta-pie"><span>Las apuestas se cobran cuando todos confirman.</span><span>El equipo ganador comparte el pozo.</span></footer>
+        <footer class="apuesta-pie"><span>El pozo se reparte entre los ganadores.</span></footer>
       </div>
     </section>
 
@@ -229,6 +229,13 @@
         <aside class="lista">
           <section v-if="cartonRival" class="carton-rival" :aria-label="'Cartón de ' + cartonRival.nombre">
             <p class="rival-titulo">Cartón de {{ cartonRival.nombre }}</p>
+            <div class="rival-progreso" role="status">
+              <span>Progreso</span>
+              <strong>{{ progresoRival.porcentaje }}%</strong>
+              <div class="rival-progreso-barra" role="progressbar" :aria-valuenow="progresoRival.porcentaje" aria-valuemin="0" aria-valuemax="100" :aria-label="`Progreso de ${cartonRival.nombre}`"><i :style="{ width: `${progresoRival.porcentaje}%` }"></i></div>
+              <small>{{ progresoRival.hechas }}/{{ progresoRival.total }} para {{ metodoNombre }}</small>
+            </div>
+            <p v-if="progresoRival.porcentaje >= 80" class="rival-peligro" aria-live="polite">{{ cartonRival.nombre }} está cerca de completar la figura</p>
             <div class="rival-letras" :style="{ gridTemplateColumns: `repeat(${sala?.size ?? 5}, 1fr)` }">
               <span v-for="(letra, i) in letrasBingo" :key="i">{{ letra }}</span>
             </div>
@@ -343,7 +350,7 @@
       <div class="room-layout">
         <section class="room-invite">
           <p class="sobrelinea">{{ tituloSala }}</p>
-          <h1>Esperando aventureros</h1>
+          <h1>Esperando jugadores</h1>
           <div class="sala-carga" aria-hidden="true">
             <span class="sala-carga-aro"></span>
             <img src="@/assets/img/dragon.png" alt="" />
@@ -382,7 +389,7 @@
               </div>
               <input v-model.number="montoSala" class="slider-apuesta" type="range" min="200" max="2000" step="50" @change="online.fijarApuestaSala(montoSala)" />
             </div>
-            <p class="hint">Cada jugador debe tener {{ espera.apuesta }} monedas disponibles para iniciar.</p>
+          <p class="hint">Cada jugador necesita {{ espera.apuesta }} monedas.</p>
             <label v-if="espera.permiteBots" class="bots-toggle">
               <input type="checkbox" :checked="espera.completarConBots" @change="cambiarRellenoBots" />
               <span>{{ espera.modo === 'equipos' ? 'Rellenar con bots (opcional)' : 'Completar los puestos vacíos con bots' }}<small v-if="espera.modo === 'equipos'">Mínimo: una persona en cada equipo.</small></span>
@@ -392,7 +399,7 @@
             </button>
             <p class="hint">{{ pistaAnfitrion }}</p>
           </template>
-          <p v-else class="hint">El anfitrión elige si juegan ustedes o si entran rivales.</p>
+          <p v-else class="hint">La sala inicia cuando el anfitrión esté listo.</p>
           <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
           <button type="button" class="accion suave" @click="volverSala">SALIR DE LA SALA</button>
         </div>
@@ -414,9 +421,8 @@
 
         <div class="centro">
           <div class="encabezado-online">
-            <p class="sobrelinea">EL REINO TE ESPERA</p>
+            <p class="sobrelinea">DARK FANTASY</p>
             <p class="titulo">MODO ONLINE</p>
-            <p class="subtitulo-online">Forma equipo, desafía rivales y conquista la mesa.</p>
           </div>
           <img src="@/assets/img/logo.png" alt="Dark Fantasy" class="logo" />
           <div class="acciones-online">
@@ -469,11 +475,12 @@
           <input v-model.number="montoApuesta" class="slider-apuesta" type="range" min="200" max="2000" step="50" />
           <small>La sala inicia si cada jugador cubre su apuesta. Tu saldo: {{ progress.coins.toLocaleString('es-CO') }} 🪙</small>
         </div>
-        <label v-if="eligiendo === 'crear'" class="escaneo-sala">
+        <label v-if="eligiendo === 'crear' && mesa.modo !== 'pvp'" class="escaneo-sala">
           <input v-model="escaneoSala" type="checkbox" />
           <span>Escaneo de sala</span>
         </label>
-        <p v-if="eligiendo === 'crear'" class="hint">Si queda activo, esta sala entra al 5% del radar. Si lo apagas, el radar no sale.</p>
+        <p v-if="eligiendo === 'crear' && mesa.modo !== 'pvp'" class="hint">El escaneo global puede activarse durante la partida.</p>
+        <p v-if="eligiendo === 'crear' && mesa.modo === 'pvp'" class="hint">Duelo 1 vs 1 con jugadores reales. Sin bots ni Localizador.</p>
         <div v-else class="apuesta-despues">✧ La apuesta se elige al encontrar rivales, antes de la ruleta ✧</div>
         <p class="hint">{{ pistaMesa }}</p>
         <div class="acciones-modal">
@@ -486,7 +493,7 @@
     <div v-if="abriendoUnion" class="modal-backdrop" @click.self="abriendoUnion = false">
       <form class="modal union" @submit.prevent="unirse">
         <h2>UNIRSE</h2>
-        <p>Escribe el código de la sala.</p>
+        <p>Ingresa el código de 4 letras.</p>
         <input v-model="codigo" maxlength="4" pattern="[A-Za-z]{4}" autocomplete="off" placeholder="CÓDIGO" @input="codigo = codigo.replace(/[^a-z]/gi, '').toUpperCase()" />
         <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
         <div class="acciones-modal">
@@ -506,6 +513,7 @@
         <p v-else-if="sala?.modo === 'equipos'">La serie quedó empatada.</p>
         <p v-else-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
         <p v-else>Nadie completó el patrón.</p>
+        <p v-if="sala?.modo === 'pvp'" class="premio">Figura del duelo: {{ metodoNombre }}</p>
         <p class="premio">{{ esGanador ? '+75 XP · +250 monedas · +1 diamante' : '+25 XP · +75 monedas por participar' }}</p>
         <p v-if="resumen?.pozo" class="premio">
           {{ resumen.pozoPagado ? (esGanador ? `Tu parte del pozo: +${(resumen.pozoPorGanador?.[usuarioId] ?? resumen.pozo).toLocaleString('es-CO')} monedas.` : 'El pozo fue para el equipo ganador.') : 'El pozo se devolvió porque ganó un bot o no hubo ganador humano.' }}
@@ -723,7 +731,7 @@ function quitarCasillaDeLaFigura() {
   online.mostrarAviso('Te equivocaste. La niebla te quitó una casilla de la figura.')
 }
 
-const boosters = BOOSTERS
+const boosters = computed(() => sala.value?.modo === 'pvp' ? BOOSTERS.filter((booster) => booster.id !== 5) : BOOSTERS)
 const codigo = ref('')
 const abriendoUnion = ref(false)
 type MesaElegidaVista = { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; apuesta: number }
@@ -775,6 +783,21 @@ const progresoMetodo = computed(() => {
   const modo = metodoVictoria.value
   if (!modo) return 0
   return progresoDeFigura(tuCarton.value, patronDesdeModo(modo).indices(sala.value?.size ?? 5))
+})
+const progresoRival = computed(() => {
+  const modo = metodoVictoria.value
+  const celdas = celdasRival.value
+  if (!modo || !celdas.length) return { hechas: 0, total: 0, porcentaje: 0 }
+  const figuras = patronDesdeModo(modo).indices(sala.value?.size ?? 5)
+  let mejor = { hechas: 0, total: 0, ratio: 0 }
+  for (const figura of figuras) {
+    const utiles = figura.filter((indice) => celdas[indice] && !celdas[indice]?.free)
+    if (!utiles.length) continue
+    const hechas = utiles.filter((indice) => celdas[indice]?.marked).length
+    const ratio = hechas / utiles.length
+    if (ratio > mejor.ratio) mejor = { hechas, total: utiles.length, ratio }
+  }
+  return { ...mejor, porcentaje: Math.round(mejor.ratio * 100) }
 })
 const cantidadCasillasMetodo = computed(() => {
   const modo = metodoVictoria.value
@@ -833,26 +856,29 @@ const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
 const tituloSala = computed(() => {
   const salaEspera = espera.value
   if (!salaEspera) return 'SALA PRIVADA'
+  if (salaEspera.modo === 'pvp') return 'DUELO PRIVADO · 1 VS 1'
   return salaEspera.modo === 'equipos' ? 'BATALLA DE EQUIPOS · 2 VS 2' : `MESA DE ${salaEspera.cupo}`
 })
 const textoEsperaSala = computed(() => {
   const salaEspera = espera.value
   const cantidad = salaEspera?.jugadores.length ?? 0
   const cupo = salaEspera?.cupo ?? 4
+  if (salaEspera?.modo === 'pvp') return cantidad === 2 ? 'Duelo listo para iniciar.' : 'Esperando al segundo jugador.'
   if (cantidad >= cupo) return 'Sala completa'
   const minimo = Math.ceil(cupo / 2)
-  if (cantidad < minimo) return `Faltan ${minimo - cantidad} jugador(es) para alcanzar el mínimo.`
+  if (cantidad < minimo) return `Faltan ${minimo - cantidad} jugadores reales.`
   if (cantidad >= cupo) return 'Sala completa. Ya pueden iniciar.'
-  return 'Ya pueden iniciar con los jugadores presentes o completar con bots.'
+  return 'Ya pueden iniciar con los jugadores presentes.'
 })
 const pistaAnfitrion = computed(() => {
   const salaEspera = espera.value
   const cantidad = salaEspera?.jugadores.length ?? 0
   const cupo = salaEspera?.cupo ?? 4
+  if (salaEspera?.modo === 'pvp') return cantidad < 2 ? 'Necesitas otro jugador real.' : 'Dos jugadores reales. Ya pueden empezar.'
   const minimo = Math.ceil(cupo / 2)
-  if (cantidad < minimo) return `Se necesitan ${minimo} jugadores humanos como mínimo.`
+  if (cantidad < minimo) return `Se necesitan ${minimo} jugadores reales.`
   if (cantidad >= cupo) return 'La mesa está llena. Ya pueden empezar.'
-  return 'Si activas el relleno, los bots ocuparán los puestos vacíos.'
+  return 'Puedes iniciar con los jugadores presentes.'
 })
 const textoErrorSala = computed(() => {
   if (errorSala.value === 'Esa sala no existe.') {
@@ -1015,9 +1041,10 @@ function etiquetaJugador(jugador: { id: string; esBot: boolean; equipo?: 1 | 2 }
 }
 
 const pistaMesa = computed(() => {
+  if (mesa.value.modo === 'pvp') return 'Duelo 1 vs 1. Se requieren dos jugadores reales; no usa bots ni Localizador.'
   return eligiendo.value === 'crear'
-    ? 'El anfitrión puede elegir después si rellena los puestos vacíos con bots.'
-    : 'Elige el aforo. La apuesta se decide junto a tus rivales, justo antes de la ruleta.'
+    ? 'Las salas privadas solo admiten jugadores reales.'
+    : 'Elige el aforo. La apuesta se confirma antes de jugar.'
 })
 
 function abrirMesa(destino: 'jugar' | 'crear') {
@@ -1125,9 +1152,10 @@ function cantar() {
 
 function jugarOtraVez() {
   const cupoGuardado = Number(sala.value?.cupo)
+  const modoGuardado = sala.value?.modo === 'pvp' || sala.value?.modo === 'equipos' ? sala.value.modo : 'mesa'
   const previa: MesaElegidaVista = {
-    modo: 'mesa',
-    cupo: cupoGuardado === 6 || cupoGuardado === 8 ? cupoGuardado : 4,
+    modo: modoGuardado,
+    cupo: modoGuardado === 'pvp' ? 2 : modoGuardado === 'equipos' ? 4 : cupoGuardado === 6 || cupoGuardado === 8 ? cupoGuardado : 4,
     apuesta: 200,
   }
   impactos.value = {}
@@ -2469,6 +2497,13 @@ onUnmounted(() => {
   letter-spacing: 0.06em;
 }
 
+.rival-progreso { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; margin: 0 0 8px; color: #d9d1bc; font-size: .72rem; }
+.rival-progreso strong { color: #e5c773; }
+.rival-progreso-barra { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.1); }
+.rival-progreso-barra i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #94743a, #e5c773); transition: width .25s ease; }
+.rival-progreso small { grid-column: 1 / -1; color: #aaa49a; }
+.rival-peligro { margin: 0 0 8px; color: #ff9e9e; font-size: .72rem; }
+
 .rival-letras,
 .rival-board {
   display: grid;
@@ -2487,15 +2522,15 @@ onUnmounted(() => {
   place-items: center;
   aspect-ratio: 1;
   border-radius: 6px;
-  border: 1px solid #3d5f93;
-  background: rgba(12, 28, 58, 0.88);
-  color: #d7e4f7;
+  border: 1px solid rgba(169, 142, 194, 0.28);
+  background: rgba(26, 22, 36, 0.92);
+  color: #e1dbe8;
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .rival-cell.llamada {
-  box-shadow: inset 0 0 0 1px rgba(122, 215, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(183, 161, 210, 0.4);
 }
 
 .rival-cell.marcada,

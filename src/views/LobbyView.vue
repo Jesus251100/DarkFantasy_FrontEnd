@@ -20,6 +20,7 @@
       </h1>
       <div class="menu">
         <button type="button" class="btn-full" @click="onOnline">ONLINE</button>
+        <button type="button" class="btn-full" @click="showHowToPlay = true">CÓMO JUGAR</button>
         <button type="button" class="btn-full" @click="router.push('/levels')">NIVELES</button>
         <button type="button" class="btn-full" @click="router.push('/inventory')">INVENTARIO</button>
         <div class="row">
@@ -31,6 +32,25 @@
           <button type="button" @click="openSettings">CONFIGURACIÓN</button>
         </div>
       </div>
+    </div>
+
+    <div v-if="showHowToPlay" class="howto-backdrop" @click.self="showHowToPlay = false">
+      <section class="howto-modal" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+        <header class="howto-header">
+          <div><p>GUÍA RÁPIDA</p><h2 id="howto-title">Cómo jugar</h2></div>
+          <button type="button" aria-label="Cerrar" @click="showHowToPlay = false">×</button>
+        </header>
+        <div class="howto-grid">
+          <article><h3>🎯 Objetivo</h3><p>Completa el patrón indicado en tu cartón antes que tus rivales y pulsa <strong>Bingo</strong>. Solo cuentan los números que el oráculo ya cantó; el servidor verifica cada reclamo.</p></article>
+          <article><h3>🎱 Durante la partida</h3><p>Marca cada número cantado en tu cartón. La casilla central es gratis. Sigue el patrón y el progreso que aparece en pantalla; en niveles de campaña, atiende también sus desafíos.</p></article>
+          <article><h3>⚔️ Modos online</h3><p><strong>Duelo:</strong> gana quien complete primero. <strong>Mesa:</strong> compite con el grupo. <strong>Equipos:</strong> comparte cartón con tu equipo y juega una serie de hasta tres rondas.</p></article>
+          <article><h3>🔒 Salas privadas</h3><p>Crea una sala y comparte su código. Todos los participantes deben ser personas; no se permiten bots. En partidas públicas, algunos modos pueden rellenarse automáticamente.</p></article>
+          <article><h3>✨ Boosters</h3><p><strong>Freeze</strong> impide marcar por un momento; <strong>Sabotage</strong> bloquea y altera casillas; <strong>Good Luck</strong> favorece tus números; <strong>Shield</strong> te protege de ataques. Cada uso consume una unidad del inventario.</p></article>
+          <article><h3>📡 Localizador</h3><p>En partidas compatibles, revela quién lleva más avance. Algunas salas activan un escaneo global que anuncia el progreso líder a todos. Ninguno está disponible en duelos PvP.</p></article>
+          <article><h3>📈 Progreso</h3><p>Supera los 10 niveles de campaña y juega online para ganar experiencia y recompensas. Usa monedas y diamantes en la tienda para conseguir boosters.</p></article>
+        </div>
+        <button type="button" class="howto-done" @click="showHowToPlay = false">ENTENDIDO</button>
+      </section>
     </div>
 
     <!-- ========== OVERLAY PERFIL ========== -->
@@ -242,6 +262,7 @@ const showToast = ref(false)
 const toastText = ref('CAMBIOS GUARDADOS')
 const avatarInput = ref<HTMLInputElement | null>(null)
 const subiendoAvatar = ref(false)
+const showHowToPlay = ref(false)
 
 const draftName = ref(progress.displayName)
 
