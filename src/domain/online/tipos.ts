@@ -65,20 +65,26 @@ export interface ResumenOnline {
   salaId: string
   ganadorId: string | null
   ganadorNombre: string | null
+  pozo?: number
+  pozoPagado?: boolean
+  diamantesPremio?: number
 }
 
-export type FaseOnline = 'idle' | 'cola' | 'jugando' | 'terminado'
+export type FaseOnline = 'idle' | 'cola' | 'apuesta' | 'jugando' | 'terminado'
 
 export interface MensajeChatOnline {
   id: string
+  usuarioId: string
   nombre: string
   texto: string
+  creadoEn: string
 }
 
 export interface JugadorEsperaOnline {
   id: string
   nombre: string
   avatarUrl?: string | null
+  apuesta?: number
 }
 
 export interface SalaEsperaOnline {
@@ -88,7 +94,8 @@ export interface SalaEsperaOnline {
   modo: 'mesa' | 'pvp' | 'equipos'
   cupo: 2 | 4 | 6 | 8
   permiteBots: boolean
-  apuesta?: 0 | 20 | 100
+  apuesta: number
+  global?: boolean
   escaneo?: boolean
   jugadores: JugadorEsperaOnline[]
 }
@@ -103,6 +110,7 @@ export interface FilaRankingOnline {
   usuarioId: string
   nombre: string
   avatarUrl?: string | null
+  apuesta?: number
   puntos: number
   victorias: number
 }

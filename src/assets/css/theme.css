@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: dark;
+  --df-ink: #080a12;
+  --df-panel: rgba(10, 15, 28, .88);
+  --df-panel-soft: rgba(17, 24, 40, .78);
+  --df-line: rgba(196, 165, 105, .42);
+  --df-gold: #d8bd7a;
+  --df-gold-bright: #f1dda5;
+  --df-violet: #9e8acb;
+  --df-blue: #7189c7;
+  --df-text: #eee9dd;
+  --df-muted: #b9b4aa;
+  --df-display: 'Cinzel', Georgia, serif;
+  --df-body: 'Cormorant Garamond', Georgia, serif;
+}
+
+html, body, #app { min-height: 100%; }
+body { background: var(--df-ink); color: var(--df-text); font-family: var(--df-body); font-size: 18px; }
+h1, h2, h3, button, input, select, textarea { font-family: var(--df-display); }
+button { transition: transform .2s ease, filter .2s ease, box-shadow .2s ease; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--df-gold-bright); outline-offset: 3px; }
+::selection { color: #100d08; background: var(--df-gold); }
+
+/* Shared Re:Zero inspired finish: moonlit blues, muted violet and antique gold. */
+.home-page, .login-page, .lobby {
+  background-image: linear-gradient(135deg, rgba(5, 8, 18, .34), rgba(18, 13, 28, .28)), url('../img/fondo.png');
+  background-position: center;
+  background-size: cover;
+}
+.home-page { min-height: 100svh; }
+.contenido .logo, .login-card .logo, .menu-panel .logo { filter: drop-shadow(0 8px 24px rgba(172, 148, 208, .28)); }
+.contenido .btn, .btn-login, .menu .btn-full, .menu .row button {
+  border: 1px solid rgba(219, 192, 132, .72);
+  border-radius: 12px;
+  color: #f5edda;
+  background: linear-gradient(180deg, rgba(43, 52, 82, .97), rgba(21, 25, 44, .98));
+  box-shadow: inset 0 1px rgba(255,255,255,.12), 0 8px 24px rgba(0,0,0,.38), 0 0 20px rgba(115, 103, 159, .12);
+  letter-spacing: .08em;
+}
+.contenido .btn:hover, .btn-login:hover, .menu .btn-full:hover, .menu .row button:hover {
+  filter: brightness(1.16);
+  box-shadow: inset 0 1px rgba(255,255,255,.18), 0 0 22px rgba(201, 176, 120, .3);
+}
+.login-card {
+  background: linear-gradient(145deg, rgba(12, 18, 32, .92), rgba(24, 19, 34, .87));
+  border-color: var(--df-line);
+  box-shadow: 0 22px 70px rgba(0,0,0,.52), 0 0 36px rgba(116, 102, 158, .15);
+}
+.login-card .titulo, .campo label { color: var(--df-gold-bright); }
+.campo input, .campo select { border: 1px solid rgba(192, 177, 146, .35); background: rgba(5, 9, 18, .8); color: var(--df-text); }
+.campo input:focus, .campo select:focus { box-shadow: 0 0 0 2px rgba(158, 138, 203, .42); }
+.btn-login { background: linear-gradient(180deg, #596eaa, #343251); box-shadow: 0 0 18px rgba(113, 137, 199, .28); }
+.lobby .menu-panel {
+  background: linear-gradient(145deg, rgba(9, 14, 27, .92), rgba(20, 17, 32, .9));
+  border: 1px solid var(--df-line);
+  box-shadow: 0 24px 80px rgba(0,0,0,.5), 0 0 42px rgba(158, 138, 203, .15);
+}
+.lobby .profile-avatar { border-color: var(--df-gold); box-shadow: 0 0 20px rgba(216,189,122,.32); }
+
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .home-page { min-height: 100svh; }
+  .contenido { gap: clamp(12px, 3vh, 22px); }
+  .contenido .logo { max-height: 30svh; object-fit: contain; }
+  .login-page { min-height: 100svh; }
+  .login-card { border-width: 1px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

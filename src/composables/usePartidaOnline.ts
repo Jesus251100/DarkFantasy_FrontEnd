@@ -54,9 +54,20 @@ export function usePartidaOnline(usuarioId: string) {
   const puntosRanking = ref(0)
   const chat = ref<MensajeChatOnline[]>([])
   const errorSala = ref<string | null>(null)
+  const apuestaPendiente = ref(false)
+  const salaApuestaId = ref<string | null>(null)
+  const jugadoresApuesta = ref<{ id: string; nombre: string; confirmado: boolean }[]>([])
+  const errorApuesta = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
   /** Quien ya volvió al lobby online no debe reentrar a la partida por un evento tardío. */
   let quiereHub = false
+  let contextoChat = ''
+
+  function cargarHistorialChat(contexto: string) {
+    if (!contexto || contexto === contextoChat) return
+    contextoChat = contexto
+    socket.emit('chat:history', { contexto })
+  }
 
   function claveMarcas(salaId: string): string {
     return `df-online-marcas:${salaId}`
@@ -146,6 +157,7 @@ export function usePartidaOnline(usuarioId: string) {
     if (quiereHub) return
     if (!vista?.salaId || !Array.isArray(vista.calledList)) return
     const salaNueva = sala.value?.salaId !== vista.salaId
+    const estabaEsperando = sala.value?.estado === 'waiting'
     const rondaAnterior = sala.value?.serie?.ronda ?? 0
     const rondaNueva = vista.serie?.ronda ?? 0
     const cambiaRonda = !salaNueva && rondaNueva > rondaAnterior
@@ -154,7 +166,10 @@ export function usePartidaOnline(usuarioId: string) {
     const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
     if (salaNueva) {
       marcas.value = restaurarMarcas(vista)
-      showRuleta.value = vista.estado !== 'finished' && (pool?.length ?? 0) > 0
+      showRuleta.value = vista.estado === 'playing' && (pool?.length ?? 0) > 0
+    }
+    if (!salaNueva && estabaEsperando && vista.estado === 'playing') {
+      showRuleta.value = (pool?.length ?? 0) > 0
     }
     if (cambiaRonda) {
       marcas.value = new Set()
@@ -175,12 +190,14 @@ export function usePartidaOnline(usuarioId: string) {
       fase.value = 'terminado'
       return
     }
-    fase.value = 'jugando'
+    fase.value = apuestaPendiente.value ? 'apuesta' : 'jugando'
   }
 
   socket.on('connect', () => {
     conectado.value = true
     errorConexion.value = null
+    contextoChat = ''
+    cargarHistorialChat('lobby-online')
   })
   socket.on('disconnect', () => {
     conectado.value = false
@@ -199,12 +216,53 @@ export function usePartidaOnline(usuarioId: string) {
   socket.on('queue:left', () => {
     if (fase.value === 'cola') fase.value = 'idle'
   })
-  socket.on('match:found', () => {
+  socket.on('match:found', (payload: { salaId?: string }) => {
     if (quiereHub) return
     espera.value = null
+    fase.value = apuestaPendiente.value ? 'apuesta' : 'jugando'
+    cargarHistorialChat(payload?.salaId ? `partida:${payload.salaId}` : '')
+  })
+  socket.on('room:state', (vista: VistaSalaOnline) => {
+    if ('codigo' in vista) {
+      cargarHistorialChat(`sala:${vista.codigo}`)
+    } else {
+      aplicarVista(vista)
+      cargarHistorialChat(`partida:${vista.salaId}`)
+    }
+  })
+  socket.on('betting:open', (payload: { salaId?: string; jugadores?: { id: string; nombre: string; confirmado: boolean }[] }) => {
+    if (quiereHub) return
+    apuestaPendiente.value = true
+    salaApuestaId.value = payload.salaId ?? sala.value?.salaId ?? null
+    errorApuesta.value = null
+    jugadoresApuesta.value = payload.jugadores ?? []
+    fase.value = 'apuesta'
+    if (sala.value?.salaId) cargarHistorialChat(`partida:${sala.value.salaId}`)
+  })
+  socket.on('betting:state', (payload: { jugadores?: { id: string; nombre: string; confirmado: boolean }[] }) => {
+    jugadoresApuesta.value = payload.jugadores ?? []
+  })
+  socket.on('betting:error', (payload: { mensaje?: string }) => {
+    errorApuesta.value = payload?.mensaje ?? 'No se pudo registrar la apuesta. Elige otro monto.'
+    mostrarAviso(errorApuesta.value)
+  })
+  socket.on('betting:closed', (payload: { apuestas?: Record<string, number> }) => {
+    apuestaPendiente.value = false
+    errorApuesta.value = null
+    const monto = payload?.apuestas?.[usuarioId]
+    if (sala.value && monto) sala.value = { ...sala.value, apuesta: monto }
+    salaApuestaId.value = null
     fase.value = 'jugando'
   })
-  socket.on('room:state', (vista: VistaSalaOnline) => aplicarVista(vista))
+  socket.on('betting:cancelled', (payload: { mensaje?: string }) => {
+    apuestaPendiente.value = false
+    salaApuestaId.value = null
+    jugadoresApuesta.value = []
+    fase.value = 'idle'
+    sala.value = null
+    showRuleta.value = false
+    mostrarAviso(payload?.mensaje ?? 'La preparación de la partida se canceló.')
+  })
   socket.on('ball:called', (payload: { numero: number }) => {
     if (quiereHub) return
     ultimaBola.value = payload.numero
@@ -257,6 +315,11 @@ export function usePartidaOnline(usuarioId: string) {
   socket.on('chat:message', (mensaje: MensajeChatOnline) => {
     chat.value = [...chat.value, mensaje].slice(-40)
   })
+  socket.on('chat:history', (payload: { contexto?: string; mensajes?: MensajeChatOnline[] }) => {
+    if (payload?.contexto !== contextoChat) return
+    chat.value = Array.isArray(payload.mensajes) ? payload.mensajes.slice(-100) : []
+  })
+  socket.on('chat:error', (payload: { mensaje?: string }) => mostrarAviso(payload?.mensaje ?? 'No se pudo enviar el mensaje.'))
   socket.on('booster:lanzado', (vuelo: VueloBoosterOnline) => {
     aplicarEfectoVuelo(vuelo)
     window.dispatchEvent(new CustomEvent('df-booster-vuelo', { detail: vuelo }))
@@ -298,6 +361,8 @@ export function usePartidaOnline(usuarioId: string) {
     errorConexion.value = null
     espera.value = null
     chat.value = []
+    apuestaPendiente.value = false
+    salaApuestaId.value = null
     conectar()
     fase.value = 'cola'
     const entrar = () => socket.emit('queue:join', mesa ?? { modo: 'mesa', cupo: 4 })
@@ -320,7 +385,12 @@ export function usePartidaOnline(usuarioId: string) {
     else socket.once('connect', mandar)
   }
 
-  function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; radar?: boolean }) {
+  function confirmarApuesta(monto: number) {
+    errorApuesta.value = null
+    socket.emit('betting:confirm', { salaId: salaApuestaId.value ?? sala.value?.salaId, monto })
+  }
+
+  function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; apuesta?: number; radar?: boolean }) {
     quiereHub = false
     errorSala.value = null
     chat.value = []
@@ -380,6 +450,10 @@ export function usePartidaOnline(usuarioId: string) {
 
   function configurarBotsSala(habilitado: boolean) {
     socket.emit('room:bots', { habilitado })
+  }
+
+  function fijarApuestaSala(monto: number) {
+    socket.emit('room:apuesta', { monto })
   }
 
   function lanzarBooster(boosterId: number, objetivoId: string) {
@@ -448,6 +522,10 @@ export function usePartidaOnline(usuarioId: string) {
     radar.value = null
     if (radarTimer) clearTimeout(radarTimer)
     radarTimer = null
+    apuestaPendiente.value = false
+    salaApuestaId.value = null
+    jugadoresApuesta.value = []
+    errorApuesta.value = null
     efectos.value = {}
     fase.value = 'idle'
   }
@@ -556,16 +634,21 @@ export function usePartidaOnline(usuarioId: string) {
     puntosRanking,
     chat,
     errorSala,
+    apuestaPendiente,
+    jugadoresApuesta,
+    errorApuesta,
     efectos,
     buscar,
     pedirRanking,
     enviarChat,
+    confirmarApuesta,
     crearSala,
     unirseSala,
     salirSala,
     empezarSala,
     fijarApuesta,
     configurarBotsSala,
+    fijarApuestaSala,
     lanzarBooster,
     mostrarAviso,
     cancelar,

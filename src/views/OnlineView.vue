@@ -31,6 +31,59 @@
       </div>
     </section>
 
+    <section v-else-if="fase === 'apuesta'" class="pantalla-apuesta">
+      <div class="apuesta-marco">
+        <header class="apuesta-cabecera">
+          <span class="apuesta-sello">✦ · ✧ · ✦</span>
+          <p>EL DESTINO YA REUNIÓ A LOS RIVALES</p>
+          <h1>Hagan sus apuestas,<br /><em>señores</em></h1>
+          <span class="apuesta-runa">La ruleta aguardará hasta que todos confirmen</span>
+        </header>
+        <div class="apuesta-contenido">
+          <div class="apuesta-control">
+            <div class="apuesta-monto">
+              <span>Tu apuesta</span>
+              <strong>{{ montoGlobalApuesta.toLocaleString('es-CO') }} <small>🪙</small></strong>
+              <span class="apuesta-saldo">Saldo disponible · {{ progress.coins.toLocaleString('es-CO') }} monedas</span>
+            </div>
+            <div class="apuesta-fichas" aria-label="Montos sugeridos">
+              <button v-for="monto in montosSugeridos" :key="monto" type="button" :class="{ activa: montoGlobalApuesta === monto }" @click="montoGlobalApuesta = monto">{{ monto.toLocaleString('es-CO') }}</button>
+            </div>
+            <label class="apuesta-rango">
+              <span>ELIGE TU RIESGO <b>200 — 2.000</b></span>
+              <input v-model.number="montoGlobalApuesta" type="range" min="200" max="2000" step="50" />
+              <span class="rango-extremos"><small>200 · prudente</small><small>2.000 · audaz</small></span>
+            </label>
+            <div class="apuesta-resumen">
+              <span class="resumen-icono">♜</span>
+              <span>Pozo estimado si todos apuestan lo mismo</span>
+              <strong>{{ (montoGlobalApuesta * jugadoresApuesta.length).toLocaleString('es-CO') }} 🪙</strong>
+            </div>
+            <p v-if="montoGlobalApuesta > progress.coins" class="error-apuesta">No tienes ese monto disponible. Ajusta la apuesta para confirmar.</p>
+            <p v-if="errorApuesta" class="error-apuesta">{{ errorApuesta }}</p>
+            <button type="button" class="confirmar-apuesta" :disabled="montoGlobalApuesta < 200 || montoGlobalApuesta > 2000 || montoGlobalApuesta > progress.coins" @click="confirmarApuesta(montoGlobalApuesta)">
+              <span>{{ jugadoresApuesta.find(j => j.id === usuarioId)?.confirmado ? 'ACTUALIZAR MI APUESTA' : 'CONFIRMAR APUESTA' }}</span><b>✦</b>
+            </button>
+          </div>
+          <aside class="apuesta-rivales">
+            <h2>EN LA MESA <span>{{ jugadoresApuesta.length }}</span></h2>
+            <ul>
+              <li v-for="jugador in jugadoresApuesta" :key="jugador.id" :class="{ listo: jugador.confirmado }">
+                <span class="rival-sello">{{ inicial(jugador.nombre) }}</span>
+                <span class="rival-nombre">{{ jugador.id === usuarioId ? 'Tú' : jugador.nombre }}</span>
+                <span class="rival-estado">{{ jugador.confirmado ? 'APUESTA SELLADA' : 'ELIGIENDO' }}</span>
+                <span class="rival-check">{{ jugador.confirmado ? '✓' : '…' }}</span>
+              </li>
+            </ul>
+            <div class="chat-apuesta">
+              <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
+            </div>
+          </aside>
+        </div>
+        <footer class="apuesta-pie"><span>Las apuestas se cobran cuando todos confirman.</span><span>El ganador humano reclama el pozo completo.</span></footer>
+      </div>
+    </section>
+
     <section
       v-else-if="enPartida"
       class="partida"
@@ -166,7 +219,7 @@
               >{{ celda.free ? 'FREE' : celda.number }}</span>
             </div>
           </section>
-          <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
+          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
         </aside>
       </div>
 
@@ -269,29 +322,28 @@
               </span>
               <span>{{ j.nombre }}</span>
               <span v-if="j.id === espera.anfitrionId" class="estado">anfitrión</span>
-              <span v-if="espera.modo === 'equipos'" class="estado">equipo {{ index < espera.cupo / 2 ? 1 : 2 }}</span>
               </template>
-              <template v-else><span class="slot-vacio">✧</span><span>{{ espera.modo === 'equipos' ? `Equipo ${index < espera.cupo / 2 ? 1 : 2}` : 'Esperando jugador…' }}</span></template>
+              <template v-else><span class="slot-vacio">✧</span><span>Esperando jugador…</span></template>
             </li>
           </ul>
         </aside>
         <div class="room-actions">
-          <div class="apuesta-sala">
-            <p>Apuesta: {{ espera.apuesta ? espera.apuesta + ' monedas' : 'sin apuesta' }}</p>
-            <p class="hint">Se cobra al empezar. Si sales antes, no se descuenta.</p>
-            <p class="hint">Escaneo de sala: {{ espera.escaneo ? 'puede salir (5%)' : 'apagado' }}</p>
-            <div class="opciones-apuesta">
-              <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(20)">BASE 20</button>
-              <button v-if="soyAnfitrion && !espera.apuesta" type="button" class="accion" @click="ponerApuesta(100)">BASE 100</button>
-              <button v-if="espera.apuesta === 20" type="button" class="accion" @click="ponerApuesta(100)">SUBIR A 100</button>
-            </div>
-          </div>
+          <p class="hint apuesta-visible">Apuesta acordada: <strong>{{ espera.apuesta.toLocaleString('es-CO') }} monedas</strong> por jugador.</p>
           <template v-if="soyAnfitrion">
-            <button type="button" class="accion" :disabled="espera.jugadores.length < 2" @click="empezar('sala')">
-              JUGAR CON LA SALA
-            </button>
-            <button v-if="espera.permiteBots" type="button" class="accion" :disabled="espera.jugadores.length >= espera.cupo" @click="empezar('bots')">
-              RELLENAR CON BOTS
+            <div class="apuesta-sala-selector">
+              <div class="selector-titulo"><span>APUESTA POR JUGADOR</span><strong>{{ montoSala.toLocaleString('es-CO') }} <small>🪙</small></strong></div>
+              <div class="apuesta-fichas">
+                <button v-for="monto in montosSugeridos" :key="monto" type="button" :class="{ activa: montoSala === monto }" @click="actualizarApuestaSala(monto)">{{ monto.toLocaleString('es-CO') }}</button>
+              </div>
+              <input v-model.number="montoSala" class="slider-apuesta" type="range" min="200" max="2000" step="50" @change="online.fijarApuestaSala(montoSala)" />
+            </div>
+            <p class="hint">Cada jugador debe tener {{ espera.apuesta }} monedas disponibles para iniciar.</p>
+            <label v-if="espera.permiteBots" class="bots-toggle">
+              <input type="checkbox" :checked="espera.completarConBots" @change="cambiarRellenoBots" />
+              <span>Completar los puestos vacíos con bots</span>
+            </label>
+            <button type="button" class="accion" :disabled="(espera.completarConBots ? (!espera.permiteBots || espera.jugadores.length >= espera.cupo) : (espera.jugadores.length < (espera.modo === 'pvp' ? 2 : Math.ceil(espera.cupo / 2)))) || espera.apuesta < 200 || espera.apuesta > 2000" @click="empezar(espera.completarConBots ? 'bots' : 'sala')">
+              {{ espera.completarConBots ? 'INICIAR CON BOTS' : 'INICIAR PARTIDA' }}
             </button>
             <p class="hint">{{ pistaAnfitrion }}</p>
           </template>
@@ -299,7 +351,7 @@
           <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
           <button type="button" class="accion suave" @click="volverSala">SALIR DE LA SALA</button>
         </div>
-        <ChatSala compacto :mensajes="chat" @enviar="enviarTexto" />
+          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
         </div>
       </div>
     </section>
@@ -313,7 +365,7 @@
       </header>
 
       <div class="cuerpo">
-        <ChatSala lleno :mensajes="chat" @enviar="enviarTexto" />
+        <ChatSala lleno :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
 
         <div class="centro">
           <div class="encabezado-online">
@@ -359,19 +411,26 @@
           <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 4 }" @click="fijarMesa('mesa', 4)">MESA DE 4</button>
           <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 6 }" @click="fijarMesa('mesa', 6)">MESA DE 6</button>
           <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 8 }" @click="fijarMesa('mesa', 8)">MESA DE 8</button>
-          <button type="button" class="ancho" :class="{ on: mesa.modo === 'pvp' }" @click="fijarMesa('pvp', 2)">PVP · 2 JUGADORES</button>
+          <button type="button" class="ancho" :class="{ on: mesa.modo === 'pvp' }" @click="fijarMesa('pvp', 2)">DUELO · 2 JUGADORES</button>
           <button type="button" class="ancho" :class="{ on: mesa.modo === 'equipos' }" @click="fijarMesa('equipos', mesa.cupo === 2 ? 4 : mesa.cupo)">BATALLA DE EQUIPOS</button>
         </div>
         <div v-if="mesa.modo === 'equipos'" class="opciones-mesa">
-          <button type="button" :class="{ on: mesa.cupo === 4 }" @click="fijarMesa('equipos', 4)">4</button>
-          <button type="button" :class="{ on: mesa.cupo === 6 }" @click="fijarMesa('equipos', 6)">6</button>
-          <button type="button" :class="{ on: mesa.cupo === 8 }" @click="fijarMesa('equipos', 8)">8</button>
+          <button v-for="cupo in [4, 6, 8]" :key="cupo" type="button" :class="{ on: mesa.cupo === cupo }" @click="fijarMesa('equipos', cupo)">{{ cupo }} JUGADORES</button>
+        </div>
+        <div v-if="eligiendo === 'crear'" class="apuesta-selector-modal">
+          <div class="selector-titulo"><span>APUESTA POR JUGADOR</span><strong>{{ montoApuesta.toLocaleString('es-CO') }} <small>🪙</small></strong></div>
+          <div class="apuesta-fichas">
+            <button v-for="monto in montosSugeridos" :key="monto" type="button" :class="{ activa: montoApuesta === monto }" @click="montoApuesta = monto">{{ monto.toLocaleString('es-CO') }}</button>
+          </div>
+          <input v-model.number="montoApuesta" class="slider-apuesta" type="range" min="200" max="2000" step="50" />
+          <small>La sala inicia si cada jugador cubre su apuesta. Tu saldo: {{ progress.coins.toLocaleString('es-CO') }} 🪙</small>
         </div>
         <label v-if="eligiendo === 'crear'" class="escaneo-sala">
           <input v-model="escaneoSala" type="checkbox" />
           <span>Escaneo de sala</span>
         </label>
         <p v-if="eligiendo === 'crear'" class="hint">Si queda activo, esta sala entra al 5% del radar. Si lo apagas, el radar no sale.</p>
+        <div v-else class="apuesta-despues">✧ La apuesta se elige al encontrar rivales, antes de la ruleta ✧</div>
         <p class="hint">{{ pistaMesa }}</p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="confirmarMesa">{{ eligiendo === 'crear' ? 'CREAR' : 'BUSCAR' }}</button>
@@ -402,8 +461,10 @@
         <p v-else-if="sala?.modo === 'equipos'">La serie quedó empatada.</p>
         <p v-else-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
         <p v-else>Nadie completó el patrón.</p>
-        <p class="premio">{{ esGanador ? '+75 XP · +25 monedas' : '+25 XP por participar' }}</p>
-        <p v-if="sala?.apuesta" class="premio">{{ esGanador ? 'También te llevas la apuesta.' : 'La apuesta de esta partida no regresa.' }}</p>
+        <p class="premio">{{ esGanador ? '+75 XP · +250 monedas · +1 diamante' : '+25 XP · +75 monedas por participar' }}</p>
+        <p v-if="resumen?.pozo" class="premio">
+          {{ resumen.pozoPagado ? (esGanador ? `Pozo ganado: +${resumen.pozo} monedas.` : 'El pozo fue para el ganador.') : 'El pozo se devolvió porque ganó un bot o no hubo ganador humano.' }}
+        </p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="jugarOtraVez">JUGAR</button>
           <button type="button" class="accion suave" @click="volverAlLobbyOnline">SALIR</button>
@@ -556,12 +617,15 @@ const {
   esGanador,
   indicesGanadores,
   ganador,
+  resumen,
   espera,
   radar,
   ranking,
   puntosRanking,
   chat,
   errorSala,
+  jugadoresApuesta,
+  errorApuesta,
   efectos,
 } = online
 
@@ -613,11 +677,15 @@ function quitarCasillaDeLaFigura() {
 const boosters = BOOSTERS
 const codigo = ref('')
 const abriendoUnion = ref(false)
-type MesaElegidaVista = { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8 }
+type MesaElegidaVista = { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; apuesta: number }
 
 const eligiendo = ref<'jugar' | 'crear' | null>(null)
-const mesa = ref<MesaElegidaVista>({ modo: 'mesa', cupo: 4 })
+const mesa = ref<MesaElegidaVista>({ modo: 'mesa', cupo: 4, apuesta: 200 })
 const escaneoSala = ref(true)
+const montoApuesta = ref(200)
+const montoGlobalApuesta = ref(500)
+const montosSugeridos = [200, 500, 1000, 1500, 2000]
+const montoSala = ref(200)
 const tituloBusqueda = ref('BUSCANDO RIVAL')
 const detalleBusqueda = ref('El oráculo busca un rival en las sombras…')
 const abriendoAbandono = ref(false)
@@ -670,8 +738,6 @@ const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
 const tituloSala = computed(() => {
   const salaEspera = espera.value
   if (!salaEspera) return 'SALA PRIVADA'
-  if (salaEspera.modo === 'pvp') return 'DUELO PVP'
-  if (salaEspera.modo === 'equipos') return `EQUIPOS · ${salaEspera.cupo}`
   return `MESA DE ${salaEspera.cupo}`
 })
 const textoEsperaSala = computed(() => {
@@ -679,18 +745,19 @@ const textoEsperaSala = computed(() => {
   const cantidad = salaEspera?.jugadores.length ?? 0
   const cupo = salaEspera?.cupo ?? 4
   if (cantidad >= cupo) return 'Sala completa'
-  if (salaEspera?.modo === 'pvp') return 'El duelo espera a un rival'
-  if (cantidad <= 1) return 'Falta alguien para jugar solo con la sala'
-  return 'Pueden empezar entre ustedes o completar con bots'
+  const minimo = Math.ceil(cupo / 2)
+  if (cantidad < minimo) return `Faltan ${minimo - cantidad} jugador(es) para alcanzar el mínimo.`
+  if (cantidad >= cupo) return 'Sala completa. Ya pueden iniciar.'
+  return 'Ya pueden iniciar con los jugadores presentes o completar con bots.'
 })
 const pistaAnfitrion = computed(() => {
   const salaEspera = espera.value
   const cantidad = salaEspera?.jugadores.length ?? 0
   const cupo = salaEspera?.cupo ?? 4
-  if (salaEspera?.modo === 'pvp') return 'El duelo es de dos. Aquí no entran rivales invocados.'
-  if (cantidad >= cupo) return 'La mesa está llena. La partida empieza con estos jugadores.'
-  if (cantidad <= 1) return 'Con un jugador, el dragón tiene que ocupar los puestos vacíos.'
-  return 'Jugar con la sala no mete rivales. Rellenar ocupa los puestos que faltan.'
+  const minimo = Math.ceil(cupo / 2)
+  if (cantidad < minimo) return `Se necesitan ${minimo} jugadores humanos como mínimo.`
+  if (cantidad >= cupo) return 'La mesa está llena. Ya pueden empezar.'
+  return 'Si activas el relleno, los bots ocuparán los puestos vacíos.'
 })
 const textoErrorSala = computed(() => {
   if (errorSala.value === 'Esa sala no existe.') {
@@ -829,8 +896,7 @@ function onMetodoElegido() {
 
 function etiquetaMesa(elegida: MesaElegidaVista): string {
   if (elegida.modo === 'pvp') return 'duelo PvP'
-  if (elegida.modo === 'equipos') return `equipos de ${elegida.cupo}`
-  return `mesa de ${elegida.cupo}`
+  return elegida.modo === 'equipos' ? `batalla de equipos · ${elegida.cupo}` : `mesa de ${elegida.cupo}`
 }
 
 function etiquetaJugador(jugador: { id: string; esBot: boolean; equipo?: 1 | 2 }): string {
@@ -841,24 +907,30 @@ function etiquetaJugador(jugador: { id: string; esBot: boolean; equipo?: 1 | 2 }
 }
 
 const pistaMesa = computed(() => {
-  if (mesa.value.modo === 'pvp') return 'Un duelo de dos. No se rellena con bots.'
-  if (mesa.value.modo === 'equipos') return 'La mesa se parte en dos bandos del mismo tamaño.'
-  return 'Todos contra todos. Los puestos vacíos se pueden llenar con bots.'
+  return eligiendo.value === 'crear'
+    ? 'El anfitrión puede elegir después si rellena los puestos vacíos con bots.'
+    : 'Elige el aforo. La apuesta se decide junto a tus rivales, justo antes de la ruleta.'
 })
 
 function abrirMesa(destino: 'jugar' | 'crear') {
-  mesa.value = { modo: 'mesa', cupo: 4 }
+  mesa.value = { modo: 'mesa', cupo: 4, apuesta: 200 }
   escaneoSala.value = true
+  montoApuesta.value = 200
+  montoSala.value = 200
   eligiendo.value = destino
 }
 
 function fijarMesa(modo: MesaElegidaVista['modo'], cupo: MesaElegidaVista['cupo']) {
-  mesa.value = { modo, cupo }
+  mesa.value = { ...mesa.value, modo, cupo }
 }
 
 function confirmarMesa() {
   const destino = eligiendo.value
-  const elegida = { ...mesa.value }
+  const elegida = { ...mesa.value, apuesta: montoApuesta.value }
+  if (destino === 'crear' && (!Number.isInteger(elegida.apuesta) || elegida.apuesta < 200 || elegida.apuesta > 2000 || progress.coins < elegida.apuesta)) {
+    online.mostrarAviso('Elige una apuesta válida que puedas pagar con tu saldo actual.')
+    return
+  }
   eligiendo.value = null
   if (destino === 'crear') {
     copiado.value = false
@@ -868,7 +940,7 @@ function confirmarMesa() {
   tituloBusqueda.value = 'BUSCANDO PARTIDA'
   detalleBusqueda.value = `Buscando ${etiquetaMesa(elegida)}…`
   boosterActivo.value = null
-  online.buscar(elegida)
+  online.buscar({ modo: elegida.modo, cupo: elegida.cupo })
 }
 
 function cancelarBusqueda() {
@@ -888,12 +960,23 @@ function unirse() {
 
 watch(espera, (salaEspera) => {
   if (!salaEspera) return
+  montoSala.value = salaEspera.apuesta || 200
   abriendoUnion.value = false
   codigo.value = ''
 })
 
 function empezar(modo: 'sala' | 'bots') {
   online.empezarSala(modo)
+}
+
+function cambiarRellenoBots(event: Event) {
+  const habilitado = (event.target as HTMLInputElement).checked
+  online.configurarBotsSala(habilitado)
+}
+
+function actualizarApuestaSala(monto: number) {
+  montoSala.value = monto
+  online.fijarApuestaSala(monto)
 }
 
 function ponerApuesta(monto: 20 | 100) {
@@ -910,9 +993,12 @@ function cantar() {
 }
 
 function jugarOtraVez() {
-  const previa: MesaElegidaVista = sala.value?.modo && sala.value.cupo
-    ? { modo: sala.value.modo, cupo: sala.value.cupo as MesaElegidaVista['cupo'] }
-    : { ...mesa.value }
+  const cupoGuardado = Number(sala.value?.cupo)
+  const previa: MesaElegidaVista = {
+    modo: 'mesa',
+    cupo: cupoGuardado === 6 || cupoGuardado === 8 ? cupoGuardado : 4,
+    apuesta: 200,
+  }
   impactos.value = {}
   boosterActivo.value = null
   lanzando.value = false
@@ -957,6 +1043,10 @@ function tituloBooster(booster: { id: number; nombre: string }): string {
     return `Te faltan ${esperaLocalizador} ${palabra}`
   }
   return 'Localizador'
+}
+
+function confirmarApuesta(monto: number) {
+  online.confirmarApuesta(monto)
 }
 
 function pulsarBooster(id: number) {
@@ -1352,6 +1442,65 @@ onUnmounted(() => {
 .room-side .bot-option { width: auto; padding: 9px 10px; font-size: .78rem; }
 .room-side .bot-option small { font-size: .7rem; }
 .room-actions { display: grid; align-content: center; gap: 7px; }
+.bots-toggle { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid rgba(219, 190, 119, .28); border-radius: 10px; background: rgba(7, 12, 22, .58); color: #e8dfc9; font-size: .75rem; line-height: 1.25; }
+.bots-toggle input { accent-color: #d8bd7a; width: 17px; height: 17px; flex: 0 0 auto; }
+.apuesta-selector-modal { display: grid; gap: 10px; padding: 14px; border: 1px solid rgba(201, 168, 103, .3); border-radius: 12px; background: radial-gradient(ellipse at 85% 0%, rgba(156, 109, 49, .14), transparent 55%), rgba(3, 7, 13, .56); color: #e8dfc9; font-size: .7rem; }
+.apuesta-sala-selector { display: grid; gap: 8px; padding: 10px; border: 1px solid rgba(201, 168, 103, .24); border-radius: 10px; background: radial-gradient(ellipse at 90% 0%, rgba(156, 109, 49, .12), transparent 55%), rgba(3, 7, 13, .43); color: #e8dfc9; font-size: .65rem; }
+.selector-titulo { display: flex; align-items: center; justify-content: space-between; color: #c9bb9c; letter-spacing: .12em; font-size: .63rem; }
+.selector-titulo strong { color: #f0d99e; font: 700 1.15rem Georgia, serif; letter-spacing: 0; }
+.selector-titulo small { font: inherit; }
+.apuesta-fichas { display: flex; gap: 6px; flex-wrap: wrap; }
+.apuesta-fichas button { flex: 1; min-width: 48px; padding: 7px 5px; border: 1px solid rgba(183, 155, 99, .22); border-radius: 7px; color: #c8bfae; background: rgba(17, 18, 22, .76); font: 700 .62rem Georgia, serif; cursor: pointer; transition: .2s ease; }
+.apuesta-fichas button:hover, .apuesta-fichas button.activa { border-color: rgba(224, 188, 112, .72); color: #ffedc0; background: linear-gradient(145deg, rgba(132, 92, 40, .55), rgba(52, 40, 24, .74)); box-shadow: inset 0 0 12px rgba(219, 176, 92, .08), 0 0 12px rgba(219, 176, 92, .08); }
+.slider-apuesta, .apuesta-rango input { width: 100%; accent-color: #c69b51; cursor: pointer; }
+.apuesta-despues { padding: 12px; border: 1px solid rgba(201, 168, 103, .22); border-radius: 10px; color: #d5c39c; background: rgba(5, 9, 15, .64); text-align: center; font: .76rem Georgia, serif; }
+.pantalla-apuesta { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: clamp(12px, 3vw, 34px); overflow: auto; color: #eee6d6; background: radial-gradient(ellipse at 50% 0%, rgba(100, 68, 39, .2), transparent 42%), radial-gradient(ellipse at 5% 80%, rgba(82, 31, 46, .19), transparent 45%), rgba(3, 5, 9, .97); }
+.pantalla-apuesta::before, .pantalla-apuesta::after { position: fixed; inset: 16px; content: ''; border: 1px solid rgba(195, 158, 91, .14); pointer-events: none; }
+.pantalla-apuesta::after { inset: 22px; border-color: rgba(195, 158, 91, .07); }
+.apuesta-marco { width: min(1040px, 100%); max-height: calc(100dvh - 52px); overflow: auto; padding: clamp(18px, 3vw, 34px); border: 1px solid rgba(202, 165, 97, .32); border-radius: 18px; background: linear-gradient(145deg, rgba(19, 20, 24, .97), rgba(7, 9, 14, .98) 62%); box-shadow: 0 24px 90px rgba(0, 0, 0, .64), inset 0 0 55px rgba(150, 105, 43, .045); }
+.apuesta-cabecera { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.apuesta-sello { color: #d4b36d; letter-spacing: .45em; font-size: .9rem; text-shadow: 0 0 18px rgba(224, 187, 109, .48); }
+.apuesta-cabecera p { margin: 2px 0 0; color: #a99c82; letter-spacing: .2em; font-size: .62rem; }
+.apuesta-cabecera h1 { margin: 3px 0; color: #f0e4c8; font: 500 clamp(1.8rem, 4vw, 2.75rem)/.96 Georgia, 'Times New Roman', serif; letter-spacing: .035em; text-shadow: 0 3px 24px rgba(212, 179, 109, .18); }
+.apuesta-cabecera h1 em { color: #d9b878; font-weight: 500; }
+.apuesta-runa { color: #9c9588; font: italic .79rem Georgia, serif; }
+.apuesta-contenido { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: clamp(17px, 3vw, 32px); margin-top: 23px; }
+.apuesta-control { display: grid; align-content: start; gap: 15px; padding: clamp(14px, 2.4vw, 23px); border: 1px solid rgba(190, 152, 83, .19); border-radius: 14px; background: radial-gradient(ellipse at 50% 0%, rgba(128, 90, 41, .11), transparent 56%), rgba(4, 7, 12, .66); }
+.apuesta-monto { display: grid; justify-items: center; gap: 3px; }
+.apuesta-monto > span:first-child { color: #a99f8d; text-transform: uppercase; letter-spacing: .18em; font-size: .63rem; }
+.apuesta-monto strong { color: #f5dfaa; font: 600 clamp(2rem, 5vw, 3.2rem)/1 Georgia, serif; text-shadow: 0 0 24px rgba(210, 170, 94, .18); }
+.apuesta-monto strong small { color: #d0ac63; font: 1.7rem Georgia, serif; }
+.apuesta-saldo { color: #918c81; font-size: .67rem; }
+.apuesta-rango { display: grid; gap: 8px; color: #b6aa93; font-size: .58rem; letter-spacing: .13em; }
+.apuesta-rango > span:first-child { display: flex; justify-content: space-between; }
+.apuesta-rango b { color: #d4b46e; font-weight: 600; }
+.apuesta-rango input { height: 5px; }
+.rango-extremos { display: flex; justify-content: space-between; color: #817c73; letter-spacing: .02em; }
+.apuesta-resumen { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 8px; padding: 10px; border: 1px solid rgba(210, 175, 104, .16); border-radius: 9px; background: rgba(86, 62, 30, .18); color: #b6aa93; font-size: .69rem; }
+.resumen-icono { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid rgba(211, 174, 98, .32); border-radius: 50%; color: #e1c47f; font-size: 1rem; }
+.apuesta-resumen strong { color: #f0d594; font: 700 .85rem Georgia, serif; white-space: nowrap; }
+.error-apuesta { margin: -7px 0 0; color: #e09b9a; font-size: .72rem; }
+.confirmar-apuesta { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 46px; border: 1px solid rgba(232, 198, 125, .58); border-radius: 9px; color: #f7e9c9; background: linear-gradient(135deg, #806132, #48341e 65%, #36291b); box-shadow: inset 0 1px rgba(255, 239, 201, .11), 0 7px 20px rgba(0, 0, 0, .3); font: 700 .7rem Georgia, serif; letter-spacing: .14em; cursor: pointer; transition: .2s ease; }
+.confirmar-apuesta:hover:not(:disabled) { transform: translateY(-1px); border-color: #f0d28d; box-shadow: 0 0 22px rgba(208, 170, 95, .18); }
+.confirmar-apuesta b { color: #e2c27b; }
+.confirmar-apuesta:disabled { opacity: .4; cursor: not-allowed; }
+.apuesta-rivales { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.apuesta-rivales h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: #c9b995; font: 600 .7rem Georgia, serif; letter-spacing: .18em; }
+.apuesta-rivales h2 span { display: grid; place-items: center; width: 21px; height: 21px; border: 1px solid rgba(201, 168, 103, .25); border-radius: 50%; color: #e3c47e; font-size: .62rem; }
+.apuesta-rivales > ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.apuesta-rivales > ul li { display: grid; grid-template-columns: 30px 1fr auto 20px; align-items: center; gap: 8px; min-height: 39px; padding: 5px 8px; border: 1px solid rgba(166, 151, 125, .13); border-radius: 8px; background: rgba(20, 21, 25, .62); }
+.apuesta-rivales > ul li.listo { border-color: rgba(160, 177, 117, .3); background: rgba(62, 73, 43, .17); }
+.rival-sello { display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid rgba(194, 152, 83, .28); border-radius: 50%; color: #ddc58e; background: rgba(102, 72, 36, .22); font: .75rem Georgia, serif; }
+.rival-nombre { overflow: hidden; color: #e3dac8; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; }
+.rival-estado { color: #928b7e; font-size: .49rem; letter-spacing: .09em; }
+.listo .rival-estado { color: #b1c18a; }
+.rival-check { color: #a39a87; text-align: center; }
+.listo .rival-check { color: #c5d79a; }
+.chat-apuesta { flex: 1; min-height: 140px; }
+.chat-apuesta :deep(.chat-sala.compacto) { min-height: 140px; }
+.apuesta-pie { display: flex; justify-content: space-between; gap: 10px; margin-top: 13px; padding-top: 11px; border-top: 1px solid rgba(199, 162, 94, .13); color: #847e72; font-size: .59rem; }
+@media (max-width: 760px) { .pantalla-apuesta { padding: 8px; align-items: start; } .pantalla-apuesta::before { inset: 5px; } .pantalla-apuesta::after { inset: 10px; } .apuesta-marco { max-height: calc(100dvh - 18px); padding: 16px 13px; } .apuesta-contenido { grid-template-columns: 1fr; gap: 14px; margin-top: 15px; } .apuesta-control { gap: 12px; } .apuesta-rivales { gap: 7px; } .apuesta-rivales > ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } .apuesta-rivales > ul li { grid-template-columns: 27px 1fr 18px; } .rival-estado { display: none; } .chat-apuesta { min-height: 130px; } .apuesta-pie { flex-direction: column; text-align: center; } }
+@media (max-height: 690px) and (min-width: 761px) { .apuesta-marco { padding-top: 15px; padding-bottom: 15px; } .apuesta-contenido { margin-top: 12px; } .apuesta-cabecera h1 { font-size: 1.9rem; } .apuesta-control { gap: 9px; padding: 14px; } .chat-apuesta { min-height: 110px; } }
 .room-actions .accion { min-width: 0; width: 100%; padding: 10px 8px; font-size: .74rem; }
 .room-actions .accion:disabled { opacity: .45; cursor: default; }
 .room-actions .hint { margin: 0; font-size: .72rem; line-height: 1.35; }

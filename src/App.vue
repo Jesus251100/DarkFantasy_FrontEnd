@@ -5,6 +5,7 @@
 </template>
 
 <script setup lang="ts">
+import './assets/css/theme.css'
 import ReloadBlockedOverlay from './components/ReloadBlockedOverlay.vue'
 import RouteLoadingOverlay from './components/RouteLoadingOverlay.vue'
 import { useRouteTransition } from './composables/useRouteTransition'
