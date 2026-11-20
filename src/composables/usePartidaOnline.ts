@@ -1,5 +1,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { Socket } from 'socket.io-client'
+import type { Room as LiveKitRoom, Participant as LiveKitParticipant } from 'livekit-client'
 import { crearSocketOnline } from '../api/socket'
 import { checkWin } from '../game/bingo'
 import { useProgressStore } from '../stores/progress'
@@ -61,9 +62,152 @@ export function usePartidaOnline(usuarioId: string) {
   const errorAumentoApuesta = ref<string | null>(null)
   const eventoRitmo = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
+  type EstadoVoz = 'apagada' | 'conectando' | 'conectada' | 'reconectando' | 'error'
+  const estadoVoz = ref<EstadoVoz>('apagada')
+  const microfonoSilenciado = ref(true)
+  const participantesVoz = ref<{ id: string; nombre: string; hablando: boolean }[]>([])
+  const audioVozHost = ref<HTMLElement | null>(null)
+  const audioVozPendiente = ref(false)
+  const errorVoz = ref<string | null>(null)
+  let salaVoz: LiveKitRoom | null = null
+  let generacionVoz = 0
   /** Quien ya volvió al lobby online no debe reentrar a la partida por un evento tardío. */
   let quiereHub = false
   let contextoChat = ''
+
+  function sincronizarParticipantesVoz(hablantes: ReadonlySet<string> = new Set()) {
+    if (!salaVoz) {
+      participantesVoz.value = []
+      return
+    }
+    participantesVoz.value = [...salaVoz.remoteParticipants.values()].map((persona: LiveKitParticipant) => ({
+      id: persona.identity,
+      nombre: persona.name || persona.identity,
+      hablando: hablantes.has(persona.identity),
+    }))
+  }
+
+  async function conectarVoz() {
+    const salaActual = sala.value
+    if (!salaActual || salaActual.estado !== 'playing' || fase.value !== 'jugando') {
+      errorVoz.value = 'La voz se habilita cuando la partida está en curso.'
+      estadoVoz.value = 'error'
+      return
+    }
+    if (estadoVoz.value === 'conectando' || estadoVoz.value === 'reconectando') return
+    if (salaVoz && salaVoz.state === 'connected') return
+    const intento = ++generacionVoz
+    estadoVoz.value = 'conectando'
+    errorVoz.value = null
+    try {
+      const respuesta = await new Promise<{ ok: boolean; url?: string; token?: string; error?: string }>((resolve, reject) => {
+        socket.timeout(10000).emit('voice:token', { salaId: salaActual.salaId }, (error: Error | null, resultado?: { ok: boolean; url?: string; token?: string; error?: string }) => {
+          if (error) reject(error)
+          else if (resultado) resolve(resultado)
+          else reject(new Error('No se recibió autorización del servidor de voz.'))
+        })
+      })
+      if (intento !== generacionVoz) return
+      if (!respuesta.ok || !respuesta.url || !respuesta.token) throw new Error(respuesta.error ?? 'No se pudo autorizar la voz.')
+      const { Room, RoomEvent, Track } = await import('livekit-client')
+      if (intento !== generacionVoz) return
+      const room = new Room({ adaptiveStream: true, dynacast: true })
+      salaVoz = room
+      room.on(RoomEvent.Connected, () => {
+        if (salaVoz !== room) return
+        estadoVoz.value = 'conectada'
+        sincronizarParticipantesVoz()
+      })
+      room.on(RoomEvent.Reconnecting, () => { if (salaVoz === room) estadoVoz.value = 'reconectando' })
+      room.on(RoomEvent.Reconnected, () => { if (salaVoz === room) estadoVoz.value = 'conectada' })
+      room.on(RoomEvent.ActiveSpeakersChanged, (personas) => {
+        if (salaVoz === room) sincronizarParticipantesVoz(new Set(personas.map((persona) => persona.identity)))
+      })
+      room.on(RoomEvent.ParticipantConnected, () => { if (salaVoz === room) sincronizarParticipantesVoz() })
+      room.on(RoomEvent.ParticipantDisconnected, () => { if (salaVoz === room) sincronizarParticipantesVoz() })
+      room.on(RoomEvent.TrackSubscribed, (track) => {
+        if (track.kind !== Track.Kind.Audio || !audioVozHost.value) return
+        const elemento = track.attach()
+        elemento.autoplay = true
+        elemento.setAttribute('playsinline', '')
+        audioVozHost.value.appendChild(elemento)
+      })
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
+        track.detach().forEach((elemento) => elemento.remove())
+      })
+      room.on(RoomEvent.Disconnected, () => {
+        if (salaVoz !== room) return
+        salaVoz = null
+        participantesVoz.value = []
+        microfonoSilenciado.value = true
+        estadoVoz.value = 'apagada'
+      })
+      await room.connect(respuesta.url, respuesta.token, { autoSubscribe: true })
+      if (intento !== generacionVoz || salaVoz !== room) {
+        await room.disconnect()
+        return
+      }
+      try {
+        await room.startAudio()
+        audioVozPendiente.value = false
+      } catch {
+        audioVozPendiente.value = true
+      }
+      microfonoSilenciado.value = true
+      estadoVoz.value = 'conectada'
+      sincronizarParticipantesVoz()
+    } catch (error) {
+      if (intento !== generacionVoz) return
+      const mensaje = error instanceof Error ? error.message : 'No se pudo conectar al canal de voz.'
+      errorVoz.value = mensaje
+      estadoVoz.value = 'error'
+      const room = salaVoz
+      salaVoz = null
+      if (room) void room.disconnect()
+      participantesVoz.value = []
+      microfonoSilenciado.value = true
+      estadoVoz.value = 'error'
+      mostrarAviso(mensaje)
+    }
+  }
+
+  async function alternarMicrofono() {
+    if (!salaVoz || estadoVoz.value !== 'conectada') return
+    try {
+      const habilitado = microfonoSilenciado.value
+      await salaVoz.localParticipant.setMicrophoneEnabled(habilitado)
+      microfonoSilenciado.value = !habilitado
+      errorVoz.value = null
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : 'No se pudo acceder al micrófono.'
+      errorVoz.value = mensaje
+      mostrarAviso('Revisa el permiso del micrófono en el navegador y vuelve a intentarlo.')
+    }
+  }
+
+  async function habilitarAudioVoz() {
+    if (!salaVoz) return
+    try {
+      await salaVoz.startAudio()
+      audioVozPendiente.value = false
+    } catch {
+      audioVozPendiente.value = true
+      mostrarAviso('El navegador todavía bloquea la reproducción de audio.')
+    }
+  }
+
+  async function desconectarVoz() {
+    generacionVoz += 1
+    const room = salaVoz
+    salaVoz = null
+    participantesVoz.value = []
+    microfonoSilenciado.value = true
+    audioVozPendiente.value = false
+    estadoVoz.value = 'apagada'
+    errorVoz.value = null
+    if (audioVozHost.value) audioVozHost.value.replaceChildren()
+    if (room) await room.disconnect()
+  }
 
   function cargarHistorialChat(contexto: string) {
     if (!contexto || contexto === contextoChat) return
@@ -163,6 +307,7 @@ export function usePartidaOnline(usuarioId: string) {
     const rondaAnterior = sala.value?.serie?.ronda ?? 0
     const rondaNueva = vista.serie?.ronda ?? 0
     const cambiaRonda = !salaNueva && rondaNueva > rondaAnterior
+    if (salaNueva && salaVoz) void desconectarVoz()
     sala.value = vista
     eventoRitmo.value = vista.serie?.evento ?? null
     sincronizarEfectos(vista)
@@ -209,6 +354,7 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('disconnect', () => {
     conectado.value = false
+    void desconectarVoz()
   })
   socket.on('connect_error', (err: Error) => {
     conectado.value = false
@@ -279,6 +425,7 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('game:over', (vista: VistaSalaOnline) => {
     if (quiereHub) return
+    void desconectarVoz()
     aplicarVista(vista)
     ganadorId.value = vista.ganador
     fase.value = 'terminado'
@@ -307,6 +454,7 @@ export function usePartidaOnline(usuarioId: string) {
     mostrarAviso(`${p?.nombre ?? 'Un jugador'} salió por inactividad.`)
   })
   socket.on('game:afk-removed', (p: { nombre?: string }) => {
+    void desconectarVoz()
     sala.value = null
     fase.value = 'idle'
     mostrarAlerta(`${p?.nombre ?? 'Tu jugador'} salió de la partida por inactividad.`)
@@ -531,6 +679,7 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function reiniciar() {
+    void desconectarVoz()
     if (sala.value?.salaId) {
       try {
         sessionStorage.removeItem(claveMarcas(sala.value.salaId))
@@ -561,6 +710,7 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function desconectar() {
+    void desconectarVoz()
     socket.emit('queue:leave')
     socket.disconnect()
   }
@@ -627,6 +777,7 @@ export function usePartidaOnline(usuarioId: string) {
   })
 
   onUnmounted(() => {
+    void desconectarVoz()
     if (avisoTimer) clearTimeout(avisoTimer)
     if (alertaTimer) clearTimeout(alertaTimer)
     if (radarTimer) clearTimeout(radarTimer)
@@ -637,6 +788,16 @@ export function usePartidaOnline(usuarioId: string) {
 
   return {
     conectado,
+    estadoVoz,
+    microfonoSilenciado,
+    participantesVoz,
+    audioVozHost,
+    audioVozPendiente,
+    errorVoz,
+    conectarVoz,
+    alternarMicrofono,
+    habilitarAudioVoz,
+    desconectarVoz,
     fase,
     sala,
     cantadas,
