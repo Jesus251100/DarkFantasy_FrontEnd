@@ -88,6 +88,7 @@ export interface MensajeChatOnline {
   id: string
   usuarioId: string
   nombre: string
+  avatarUrl?: string | null
   texto: string
   creadoEn: string
 }

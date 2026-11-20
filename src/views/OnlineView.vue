@@ -76,7 +76,7 @@
               </li>
             </ul>
             <div class="chat-apuesta">
-              <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
+              <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" :escribiendo-jugadores="escribiendoChat" @enviar="enviarTexto" @escribiendo="online.indicarEscribiendoChat" />
             </div>
           </aside>
         </div>
@@ -277,7 +277,7 @@
               >{{ celda.free ? 'FREE' : celda.number }}</span>
             </div>
           </section>
-          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
+          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" :escribiendo-jugadores="escribiendoChat" @enviar="enviarTexto" @escribiendo="online.indicarEscribiendoChat" />
         </aside>
       </div>
 
@@ -432,7 +432,7 @@
           <p v-if="errorSala" class="error">{{ textoErrorSala }}</p>
           <button type="button" class="accion suave" @click="volverSala">SALIR DE LA SALA</button>
         </div>
-          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
+          <ChatSala compacto :mensajes="chat" :usuario-id="usuarioId" :escribiendo-jugadores="escribiendoChat" @enviar="enviarTexto" @escribiendo="online.indicarEscribiendoChat" />
         </div>
       </div>
     </section>
@@ -446,7 +446,7 @@
       </header>
 
       <div class="cuerpo">
-        <ChatSala lleno :mensajes="chat" :usuario-id="usuarioId" @enviar="enviarTexto" />
+        <ChatSala lleno :mensajes="chat" :usuario-id="usuarioId" :escribiendo-jugadores="escribiendoChat" @enviar="enviarTexto" @escribiendo="online.indicarEscribiendoChat" />
 
         <div class="centro">
           <div class="encabezado-online">
@@ -707,6 +707,7 @@ const {
   ranking,
   puntosRanking,
   chat,
+  escribiendoChat,
   errorSala,
   jugadoresApuesta,
   errorApuesta,
@@ -1445,6 +1446,47 @@ onUnmounted(() => {
   --oro-brillo: rgba(211, 171, 83, 0.24);
 }
 
+/* Durante una partida, el escenario ocupa el viewport completo. El overflow
+   global de App.vue permite scroll por defecto y hacía que el documento se
+   desplazara aunque el chat ya tuviera su propia lista desplazable. */
+.online:has(.partida) {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* App.vue declara overflow-y:auto en html/body/#app. Anularlo solo mientras
+   existe una partida evita que esos ancestros conserven la barra del documento. */
+:global(html:has(.online .partida)),
+:global(body:has(.online .partida)),
+:global(#app:has(.online .partida)) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* El hub online también queda anclado al viewport. Si el contenedor no tiene
+   altura definida, el chat (`.lleno`) crece con cada mensaje y termina
+   expandiendo toda la página en lugar de desplazar solo su lista. */
+@media (min-width: 701px) {
+  .online:has(.hub) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  :global(html:has(.online .hub)),
+  :global(body:has(.online .hub)),
+  :global(#app:has(.online .hub)) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
 .carga,
 .hub,
 .partida {
@@ -1705,15 +1747,15 @@ onUnmounted(() => {
 .listo .rival-estado { color: #b1c18a; }
 .rival-check { color: #a39a87; text-align: center; }
 .listo .rival-check { color: #c5d79a; }
-.chat-apuesta { flex: 1; min-height: 140px; }
-.chat-apuesta :deep(.chat-sala.compacto) { min-height: 140px; }
+.chat-apuesta { flex: 1; min-height: 140px; min-width: 0; overflow: hidden; }
+.chat-apuesta :deep(.chat-sala.compacto) { width: 100%; height: 100%; min-height: 0; max-height: none; flex: 1; }
 .apuesta-pie { display: flex; justify-content: space-between; gap: 10px; margin-top: 13px; padding-top: 11px; border-top: 1px solid rgba(199, 162, 94, .13); color: #847e72; font-size: .59rem; }
 @media (max-width: 760px) { .pantalla-apuesta { padding: 8px; align-items: start; } .pantalla-apuesta::before { inset: 5px; } .pantalla-apuesta::after { inset: 10px; } .apuesta-marco { max-height: calc(100dvh - 18px); padding: 16px 13px; } .apuesta-contenido { grid-template-columns: 1fr; gap: 14px; margin-top: 15px; } .apuesta-control { gap: 12px; } .apuesta-rivales { gap: 7px; } .apuesta-rivales > ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } .apuesta-rivales > ul li { grid-template-columns: 27px 1fr 18px; } .rival-estado { display: none; } .chat-apuesta { min-height: 130px; } .apuesta-pie { flex-direction: column; text-align: center; } }
 @media (max-height: 690px) and (min-width: 761px) { .apuesta-marco { padding-top: 15px; padding-bottom: 15px; } .apuesta-contenido { margin-top: 12px; } .apuesta-cabecera h1 { font-size: 1.9rem; } .apuesta-control { gap: 9px; padding: 14px; } .chat-apuesta { min-height: 110px; } }
 .room-actions .accion { min-width: 0; width: 100%; padding: 10px 8px; font-size: .74rem; }
 .room-actions .accion:disabled { opacity: .45; cursor: default; }
 .room-actions .hint { margin: 0; font-size: .72rem; line-height: 1.35; }
-.room-side :deep(.chat-sala) { min-height: 0; height: 100%; max-height: none; }
+.room-side :deep(.chat-sala.compacto) { min-height: 0; height: 100%; max-height: none; flex: 1; }
 .room-side :deep(.chat-sala form) { padding-top: 4px; }
 .room-side :deep(.chat-sala input) { min-height: 32px; }
 
@@ -1747,6 +1789,16 @@ onUnmounted(() => {
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
+  overflow: hidden;
+}
+
+/* El chat ocupa su celda de la cuadrícula sin forzar el alto de la fila:
+   la única zona desplazable es su lista de mensajes (`.chat-sala ul`). */
+.cuerpo :deep(.chat-sala.lleno) {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
 }
 
 .panel {
@@ -1917,6 +1969,7 @@ onUnmounted(() => {
   padding: 12px 16px 16px;
   gap: 10px;
   position: relative;
+  overflow: hidden;
 }
 .efecto-pantalla { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
 .efecto-sabotaje { background: linear-gradient(90deg, rgba(90, 6, 12, .18), transparent 16% 84%, rgba(90, 6, 12, .2)); animation: pantalla-pulso-rojo 1.8s ease-in-out infinite; }
@@ -2590,13 +2643,29 @@ onUnmounted(() => {
 }
 
 .lista :deep(.chat-sala) {
-  flex: 1;
+  flex: 0 1 230px;
   width: 100%;
   min-height: 0;
-  max-height: none;
+  height: clamp(150px, 22vh, 230px);
+  max-height: 230px;
   background: transparent;
   border: 0;
   padding: 4px;
+}
+.lista {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.lista :deep(.chat-sala.compacto) {
+  flex: 0 0 clamp(150px, 22vh, 230px);
+  min-height: 0;
+  height: clamp(150px, 22vh, 230px);
+  overflow: hidden;
 }
 
 .lista ul {
@@ -3044,9 +3113,12 @@ onUnmounted(() => {
   .subtitulo-online { max-width: 28ch; line-height: 1.45; }
   .panel { min-height: 220px; }
   .chat-sala { min-height: 220px; }
+  /* En pantallas estrechas el hub se apila y la página sí se desplaza, pero
+     el chat mantiene su propia altura para que no crezca con los mensajes. */
+  .cuerpo :deep(.chat-sala.lleno) { height: 260px; min-height: 220px; max-height: 260px; }
   .ranking { max-height: 260px; }
   .codigo { font-size: clamp(2rem, 12vw, 3.2rem); letter-spacing: 0.22em; }
-  .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto auto; padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
+  .partida { min-height: 0; height: 100dvh; grid-template-rows: auto auto minmax(0, 1fr) auto; padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom)); gap: 6px; }
   .partida:has(.marcador-equipos) { height: 100dvh; min-height: 0; overflow: hidden; grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding: max(5px, env(safe-area-inset-top)) 8px max(7px, env(safe-area-inset-bottom)); gap: 4px; }
   .online:has(.marcador-equipos) { --board-h-reserve: 430px; --board-w: min(440px, calc(100vw - 108px), calc(100dvh - var(--board-h-reserve))); }
   .marcador-equipos { gap: 5px; padding: 5px; border-radius: 10px; }
@@ -3081,15 +3153,15 @@ onUnmounted(() => {
     gap: 12px;
     min-height: 0;
   }
-  .partida:has(.marcador-equipos) .mesa { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 52px; gap: 5px; min-height: 0; overflow: hidden; }
+  .partida:has(.marcador-equipos) .mesa { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 88px; gap: 5px; min-height: 0; overflow: hidden; }
   .partida:has(.marcador-equipos) .oraculo { grid-column: 1; grid-row: 1; min-width: 0; padding: 4px 0; }
   .partida:has(.marcador-equipos) .bola { width: 56px; height: 56px; font-size: 1.45rem; }
   .partida:has(.marcador-equipos) .recientes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
   .partida:has(.marcador-equipos) .mini { width: 24px; height: 22px; font-size: .64rem; }
   .partida:has(.marcador-equipos) .carton-wrap { grid-column: 2; grid-row: 1; width: min(100%, var(--board-w)); justify-self: center; align-self: center; }
   .partida:has(.marcador-equipos) .lista { grid-column: 1 / -1; grid-row: 2; min-height: 0; overflow: hidden; }
-  .partida:has(.marcador-equipos) .lista :deep(.chat-sala) { height: 48px; min-height: 0; max-height: 48px; padding: 0 5px; }
-  .partida:has(.marcador-equipos) .lista :deep(.chat-sala ul) { max-height: 22px; overflow: hidden; }
+  .partida:has(.marcador-equipos) .lista :deep(.chat-sala) { height: 84px; min-height: 0; max-height: 84px; padding: 0 5px; }
+  .partida:has(.marcador-equipos) .lista :deep(.chat-sala ul) { min-height: 0; max-height: none; overflow-y: auto; }
   .partida:has(.marcador-equipos) .lista :deep(.chat-sala form) { margin-top: 2px; }
   .partida:has(.marcador-equipos) .ficha { gap: 2px; }
   .partida:has(.marcador-equipos) .fmeta { font-size: .55rem; }

@@ -54,6 +54,8 @@ export function usePartidaOnline(usuarioId: string) {
   const ranking = ref<FilaRankingOnline[]>([])
   const puntosRanking = ref(0)
   const chat = ref<MensajeChatOnline[]>([])
+  const escribiendoChat = ref<{ usuarioId: string; nombre: string; avatarUrl?: string | null }[]>([])
+  const timersEscribiendo = new Map<string, ReturnType<typeof setTimeout>>()
   const errorSala = ref<string | null>(null)
   const apuestaPendiente = ref(false)
   const salaApuestaId = ref<string | null>(null)
@@ -212,6 +214,9 @@ export function usePartidaOnline(usuarioId: string) {
   function cargarHistorialChat(contexto: string) {
     if (!contexto || contexto === contextoChat) return
     contextoChat = contexto
+    for (const timer of timersEscribiendo.values()) clearTimeout(timer)
+    timersEscribiendo.clear()
+    escribiendoChat.value = []
     socket.emit('chat:history', { contexto })
   }
 
@@ -354,6 +359,9 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('disconnect', () => {
     conectado.value = false
+    for (const timer of timersEscribiendo.values()) clearTimeout(timer)
+    timersEscribiendo.clear()
+    escribiendoChat.value = []
     void desconectarVoz()
   })
   socket.on('connect_error', (err: Error) => {
@@ -492,6 +500,25 @@ export function usePartidaOnline(usuarioId: string) {
     if (payload?.contexto !== contextoChat) return
     chat.value = Array.isArray(payload.mensajes) ? payload.mensajes.slice(-100) : []
   })
+  socket.on('chat:typing', (payload: { usuarioId?: string; nombre?: string; avatarUrl?: string | null; escribiendo?: boolean }) => {
+    const id = String(payload?.usuarioId ?? '')
+    if (!id || id === usuarioId) return
+    const timer = timersEscribiendo.get(id)
+    if (timer) clearTimeout(timer)
+    if (!payload.escribiendo) {
+      timersEscribiendo.delete(id)
+      escribiendoChat.value = escribiendoChat.value.filter((persona) => persona.usuarioId !== id)
+      return
+    }
+    escribiendoChat.value = [
+      ...escribiendoChat.value.filter((persona) => persona.usuarioId !== id),
+      { usuarioId: id, nombre: payload.nombre ?? 'Jugador', avatarUrl: payload.avatarUrl },
+    ]
+    timersEscribiendo.set(id, setTimeout(() => {
+      timersEscribiendo.delete(id)
+      escribiendoChat.value = escribiendoChat.value.filter((persona) => persona.usuarioId !== id)
+    }, 2200))
+  })
   socket.on('chat:error', (payload: { mensaje?: string }) => mostrarAviso(payload?.mensaje ?? 'No se pudo enviar el mensaje.'))
   socket.on('booster:lanzado', (vuelo: VueloBoosterOnline) => {
     aplicarEfectoVuelo(vuelo)
@@ -556,6 +583,10 @@ export function usePartidaOnline(usuarioId: string) {
     conectar()
     if (socket.connected) mandar()
     else socket.once('connect', mandar)
+  }
+
+  function indicarEscribiendoChat(escribiendo: boolean) {
+    if (socket.connected) socket.emit('chat:typing', { escribiendo })
   }
 
   function confirmarApuesta(monto: number) {
@@ -700,6 +731,8 @@ export function usePartidaOnline(usuarioId: string) {
     espera.value = null
     radar.value = null
     if (radarTimer) clearTimeout(radarTimer)
+    for (const timer of timersEscribiendo.values()) clearTimeout(timer)
+    timersEscribiendo.clear()
     radarTimer = null
     apuestaPendiente.value = false
     salaApuestaId.value = null
@@ -824,6 +857,7 @@ export function usePartidaOnline(usuarioId: string) {
     ranking,
     puntosRanking,
     chat,
+    escribiendoChat,
     errorSala,
     apuestaPendiente,
     jugadoresApuesta,
@@ -834,6 +868,7 @@ export function usePartidaOnline(usuarioId: string) {
     buscar,
     pedirRanking,
     enviarChat,
+    indicarEscribiendoChat,
     confirmarApuesta,
     aumentarApuesta,
     crearSala,
