@@ -423,7 +423,7 @@
               <input type="checkbox" :checked="espera.completarConBots" @change="cambiarRellenoBots" />
               <span>{{ espera.modo === 'equipos' ? 'Rellenar con bots (opcional)' : 'Completar los puestos vacíos con bots' }}<small v-if="espera.modo === 'equipos'">Mínimo: una persona en cada equipo.</small></span>
             </label>
-            <button type="button" class="accion" :disabled="espera.jugadores.length < (espera.modo === 'pvp' || espera.modo === 'equipos' ? 2 : Math.ceil(espera.cupo / 2)) || (espera.completarConBots && !espera.permiteBots) || (espera.completarConBots && espera.jugadores.length < espera.cupo && !equiposRepresentados) || espera.apuesta < 200 || espera.apuesta > 2000" @click="empezar(espera.completarConBots && espera.jugadores.length < espera.cupo ? 'bots' : 'sala')">
+            <button type="button" class="accion" :disabled="espera.jugadores.length < minimoJugadoresSala || (espera.completarConBots && !espera.permiteBots) || (espera.completarConBots && espera.jugadores.length < espera.cupo && !equiposRepresentados) || espera.apuesta < 200 || espera.apuesta > 2000" @click="empezar(espera.completarConBots && espera.jugadores.length < espera.cupo ? 'bots' : 'sala')">
               {{ espera.completarConBots && espera.jugadores.length < espera.cupo ? 'INICIAR CON BOTS' : 'INICIAR PARTIDA' }}
             </button>
             <p class="hint">{{ pistaAnfitrion }}</p>
@@ -807,6 +807,13 @@ const canalVozTexto = computed(() => sala.value?.modo === 'equipos'
 const estadoVozTexto = computed(() => ({ apagada: 'apagada', conectando: 'conectando…', conectada: microfonoSilenciado.value ? 'micrófono apagado' : 'en línea', reconectando: 'reconectando…', error: 'sin conexión' })[estadoVoz.value])
 const panelVozAbierto = ref(false)
 const equiposRepresentados = computed(() => espera.value?.modo !== 'equipos' || (espera.value?.jugadores.length ?? 0) >= 2)
+const minimoJugadoresSala = computed(() => {
+  const actual = espera.value
+  if (!actual) return 1
+  if (actual.modo === 'pvp') return actual.completarConBots ? 1 : 2
+  if (actual.modo === 'equipos') return 2
+  return Math.ceil(actual.cupo / 2)
+})
 const slotsSala = computed(() => Array.from({ length: espera.value?.cupo ?? 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
 const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
