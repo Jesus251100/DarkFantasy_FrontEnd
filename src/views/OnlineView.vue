@@ -102,6 +102,35 @@
         <span>◆ {{ progress.diamonds }}</span>
         <span>🏆 {{ puntosRanking }}</span>
       </header>
+      <aside v-if="fase === 'jugando' && sala?.estado === 'playing'" class="panel-voz" :class="{ expandido: panelVozAbierto }">
+        <button class="voz-resumen" type="button" :aria-expanded="panelVozAbierto" @click="panelVozAbierto = !panelVozAbierto">
+          <span class="voz-icono" aria-hidden="true">♫</span>
+          <span class="voz-titulo">VOZ <small>{{ estadoVozTexto }}</small></span>
+          <span class="voz-led" :class="`voz-${estadoVoz}`" aria-hidden="true"></span>
+        </button>
+        <div v-if="panelVozAbierto" class="voz-detalle">
+          <p>{{ canalVozTexto }}</p>
+          <p v-if="sala?.modo === 'equipos' && !companeroVoz" class="voz-espera">Tu compañero es un bot y no puede usar el chat de voz.</p>
+          <button v-else-if="estadoVoz === 'apagada' || estadoVoz === 'error'" type="button" class="voz-accion" @click="online.conectarVoz()">CONECTAR CON VOZ</button>
+          <template v-else>
+            <div class="voz-botones">
+              <button type="button" class="voz-accion" :disabled="estadoVoz !== 'conectada'" @click="online.alternarMicrofono()">
+                {{ microfonoSilenciado ? 'ACTIVAR MICRÓFONO' : 'SILENCIAR MICRÓFONO' }}
+              </button>
+              <button type="button" class="voz-salir" @click="online.desconectarVoz()">SALIR</button>
+            </div>
+            <button v-if="audioVozPendiente" type="button" class="voz-accion voz-habilitar-audio" @click="online.habilitarAudioVoz()">HABILITAR AUDIO DEL COMPAÑERO</button>
+            <ul v-if="participantesVoz.length" class="voz-participantes">
+              <li v-for="participante in participantesVoz" :key="participante.id" :class="{ hablando: participante.hablando }">
+                <span class="voz-led" :class="{ hablando: participante.hablando }"></span>{{ participante.nombre }}{{ participante.hablando ? ' · hablando' : '' }}
+              </li>
+            </ul>
+            <p v-else class="voz-espera">Esperando a {{ sala?.modo === 'equipos' ? nombreCompaneroVoz : 'los demás jugadores' }}…</p>
+          </template>
+          <p v-if="errorVoz" class="voz-error" role="status">{{ errorVoz }}</p>
+        </div>
+        <div ref="audioVozHost" class="voz-audio-host" aria-hidden="true"></div>
+      </aside>
       <div class="fila-jugadores">
         <button
           v-for="j in jugadores"
@@ -676,6 +705,12 @@ const {
   errorAumentoApuesta,
   eventoRitmo,
   efectos,
+  estadoVoz,
+  microfonoSilenciado,
+  participantesVoz,
+  audioVozHost,
+  audioVozPendiente,
+  errorVoz,
 } = online
 
 const nieblaProgramada = ref(false)
@@ -756,6 +791,13 @@ let contextoSfx: AudioContext | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
 const equipoPropio = computed(() => sala.value?.jugadores.find((jugador) => jugador.id === usuarioId)?.equipo ?? null)
+const companeroVoz = computed(() => jugadores.value.find((jugador) => jugador.id !== usuarioId && !jugador.esBot && jugador.equipo === equipoPropio.value))
+const nombreCompaneroVoz = computed(() => companeroVoz.value?.nombre ?? 'tu compañero')
+const canalVozTexto = computed(() => sala.value?.modo === 'equipos'
+  ? `Canal privado con ${nombreCompaneroVoz.value}. El equipo rival no puede escucharlos.`
+  : 'Canal de voz de esta partida.')
+const estadoVozTexto = computed(() => ({ apagada: 'apagada', conectando: 'conectando…', conectada: microfonoSilenciado.value ? 'micrófono apagado' : 'en línea', reconectando: 'reconectando…', error: 'sin conexión' })[estadoVoz.value])
+const panelVozAbierto = ref(false)
 const equiposRepresentados = computed(() => espera.value?.modo !== 'equipos' || (espera.value?.jugadores.length ?? 0) >= 2)
 const slotsSala = computed(() => Array.from({ length: espera.value?.cupo ?? 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
@@ -3097,5 +3139,49 @@ onUnmounted(() => {
   .online {
     --board-w: min(300px, 60vw, calc(100dvh - 220px));
   }
+}
+
+.panel-voz {
+  position: fixed;
+  z-index: 24;
+  top: max(58px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  width: min(272px, calc(100vw - 24px));
+  border: 1px solid rgba(208, 174, 103, .45);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(25, 19, 25, .97), rgba(9, 10, 15, .97));
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .55), inset 0 0 18px rgba(177, 135, 62, .08);
+  color: #e6dcc8;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.voz-resumen { display: flex; width: 100%; align-items: center; gap: 9px; padding: 9px 11px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.voz-icono { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid rgba(213, 178, 103, .42); border-radius: 50%; color: #e4c982; font-size: 1.1rem; }
+.voz-titulo { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 8px; color: #e8d39e; font-size: .73rem; letter-spacing: .12em; }
+.voz-titulo small { color: #aaa195; font-size: .65rem; letter-spacing: .04em; text-transform: none; }
+.voz-led { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #69645b; box-shadow: 0 0 0 3px rgba(255,255,255,.04); }
+.voz-led.voz-conectada, .voz-led.hablando { background: #75c99a; box-shadow: 0 0 9px rgba(117, 201, 154, .8); }
+.voz-led.voz-conectando, .voz-led.voz-reconectando { background: #d8ad59; animation: voz-pulso 1s ease-in-out infinite alternate; }
+.voz-led.voz-error { background: #d46e68; }
+.voz-detalle { padding: 0 11px 11px; }
+.voz-detalle > p { margin: 0 0 8px; color: #b9afa0; font: .69rem/1.4 Georgia, serif; }
+.voz-accion, .voz-salir { min-height: 31px; padding: 6px 9px; border: 1px solid rgba(213, 178, 103, .42); border-radius: 6px; background: rgba(104, 75, 35, .24); color: #ead49e; cursor: pointer; font: 700 .62rem Georgia, serif; letter-spacing: .06em; }
+.voz-accion:disabled { cursor: wait; opacity: .52; }
+.voz-botones { display: flex; gap: 6px; }
+.voz-botones .voz-accion { flex: 1; }
+.voz-habilitar-audio { width: 100%; margin-top: 7px; }
+.voz-salir { border-color: rgba(173, 104, 89, .42); background: rgba(80, 37, 35, .25); color: #ddb5a7; }
+.voz-participantes { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.voz-participantes li { display: flex; align-items: center; gap: 7px; color: #aaa195; font: .68rem Georgia, serif; }
+.voz-participantes li.hablando { color: #e3d39c; }
+.voz-participantes .voz-led { width: 6px; height: 6px; flex-basis: 6px; }
+.voz-detalle .voz-espera { margin: 8px 0 0; color: #8e877e; font-size: .65rem; }
+.voz-detalle .voz-error { margin: 8px 0 0; color: #e89b8e; }
+.voz-audio-host { position: fixed; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+@keyframes voz-pulso { to { opacity: .45; box-shadow: 0 0 3px rgba(216, 173, 89, .35); } }
+
+@media (max-width: 700px) {
+  .panel-voz { top: max(48px, env(safe-area-inset-top)); right: max(7px, env(safe-area-inset-right)); width: min(245px, calc(100vw - 14px)); }
+  .voz-resumen { padding: 7px 9px; }
+  .voz-icono { width: 26px; height: 26px; }
 }
 </style>
