@@ -71,3 +71,31 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+body .logros { justify-content: flex-start; padding: clamp(50px, 7vh, 72px) clamp(12px, 2vw, 24px) 14px; background-attachment: fixed; }
+body .logros::before { background: linear-gradient(135deg, rgba(5, 8, 18, .84), rgba(18, 13, 28, .72)); }
+body .logros .map-hud, body .map-container .map-hud {
+  border: 1px solid rgba(216, 189, 122, .38);
+  border-radius: 12px;
+  background: rgba(10, 15, 28, .9);
+  color: var(--df-gold-bright);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+}
+body .logros .contenido { width: min(1040px, 100%); margin: 0 auto; gap: 12px; }
+body .logros .encabezado h1 { color: var(--df-gold-bright); }
+body .logros .encabezado p { color: var(--df-muted); }
+body .logros .resumen-item {
+  border: 1px solid rgba(196, 165, 105, .28);
+  border-radius: 12px;
+  background: rgba(17, 24, 40, .88);
+}
+body .logros .resumen-item strong { color: var(--df-gold-bright); }
+body .logros .resumen-item small { color: var(--df-muted); }
+body .logros .back-btn, body .map-container .back-btn {
+  border-color: rgba(216, 189, 122, .55);
+  background: linear-gradient(160deg, #24263a, #111522);
+  color: var(--df-gold-bright);
+  box-shadow: none;
+}
+body .logros .back-ico, body .map-container .back-ico { color: var(--df-gold-bright); text-shadow: none; }
+

@@ -25,7 +25,7 @@ body,
      alcanzable en lugar de quedar recortado. Las vistas se compactan para que
      no aparezca barra de scroll. */
   overflow-y: auto;
-  font-family: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
+  font-family: var(--df-body, Georgia, 'Palatino Linotype', 'Times New Roman', serif);
 }
 
 /* El ancho declarado incluye padding y borde: evita desbordes horizontales */

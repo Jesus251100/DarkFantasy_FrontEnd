@@ -63,9 +63,6 @@ export const useProgressStore = defineStore('progress', () => {
   const xpProgressPercent = computed(() => Math.round((xpNivel.value / 500) * 100))
 
   function isUnlocked(level: number): boolean {
-    if (useAuthStore().usuario?.rol === 'administrador') {
-      return level >= 1 && level <= MAX_LEVEL
-    }
     return campania.estaDesbloqueado(level)
   }
 

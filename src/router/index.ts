@@ -12,11 +12,6 @@ import InventoryView from '../views/InventoryView.vue'
 import StoreView from '../views/StoreView.vue'
 import LevelView from '../views/LevelView.vue'
 import AchivemenstView from '../views/AchivemenstView.vue'
-import ActivityRecentView from '../views/ActivityRecentView.vue'
-import NewsView from '../views/NewsView.vue'
-import DashboardView from '../views/DashboardView.vue'
-import UsersView from '../views/UsersView.vue'
-import ReportsView from '../views/ReportsView.vue'
 import Level1View from '../views/Level1View.vue'
 import Level2View from '../views/Level2View.vue'
 import Level3View from '../views/Level3View.vue'
@@ -37,22 +32,9 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: '/tipo-user',
-      redirect: (to) => {
-        const next = typeof to.query.next === 'string' ? to.query.next : ''
-        const query = next.startsWith('/') && !next.startsWith('//') ? { next } : undefined
-        if (to.query.mode === 'register') return { path: '/register', query }
-        return { path: '/login', query }
-      },
-    },
-    {
       path: '/login',
       name: 'login',
       component: LoginView,
-    },
-    {
-      path: '/login-admin',
-      redirect: '/login',
     },
     {
       path: '/recuperar',
@@ -93,31 +75,6 @@ const router = createRouter({
       path: '/achivements',
       name: 'achivements',
       component: AchivemenstView,
-    },
-    {
-      path: '/actividad-reciente',
-      name: 'actividad-reciente',
-      component: ActivityRecentView,
-    },
-    {
-      path: '/news',
-      name: 'news',
-      component: NewsView,
-    },
-    {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: DashboardView,
-    },
-    {
-      path: '/users',
-      name: 'users',
-      component: UsersView,
-    },
-    {
-      path: '/reports',
-      name: 'reports',
-      component: ReportsView,
     },
     {
       path: '/level1',
@@ -179,11 +136,6 @@ const rutasPrivadas = new Set([
   '/store',
   '/levels',
   '/achivements',
-  '/actividad-reciente',
-  '/news',
-  '/dashboard',
-  '/users',
-  '/reports',
 ])
 
 router.beforeEach(async (to) => {
@@ -205,16 +157,10 @@ router.beforeEach(async (to) => {
   if (auth.autenticado) {
     await progress.asegurarHidratado()
   }
-  if (to.path.startsWith('/dashboard') || to.path === '/users' || to.path === '/reports') {
-    if (auth.usuario?.rol !== 'administrador') {
-      return { path: '/lobby' }
-    }
-  }
   const match = /^\/level(\d+)$/.exec(to.path)
   if (!match) return true
   const level = Number(match[1])
   if (!Number.isInteger(level) || level < 1 || level > 10) return true
-  if (auth.usuario?.rol === 'administrador') return true
   if (!progress.isUnlocked(level)) {
     return { path: '/levels', query: { locked: String(level) } }
   }

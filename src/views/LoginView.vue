@@ -27,10 +27,6 @@ async function ingresar() {
     const usuario = await auth.login(email.value.trim(), password.value)
     await progress.hidratarDesdeApi()
     const next = route.query.next
-    if (usuario.rol === 'administrador' && !next) {
-      router.push('/dashboard')
-      return
-    }
     router.push(destinoTrasLogin(next))
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'No se pudo conectar con el servidor'

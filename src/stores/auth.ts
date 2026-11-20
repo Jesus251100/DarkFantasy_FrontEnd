@@ -2,12 +2,10 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api/cliente'
 
-export type Rol = 'jugador' | 'administrador'
-
 export interface UsuarioSesion {
   id: string
   correo: string
-  rol: Rol
+  rol: 'jugador'
   nombre: string
   nacionalidad?: string | null
   genero?: string | null
@@ -20,20 +18,19 @@ type AuthResponse = { token: string; usuario: UsuarioSesion }
 export const useAuthStore = defineStore('auth', () => {
   const usuario = ref<UsuarioSesion | null>(leerUsuario())
   const autenticado = computed(() => !!usuario.value && !!leerToken())
-  const esAdmin = computed(() => usuario.value?.rol === 'administrador')
 
   function persistir(token: string, u: UsuarioSesion) {
     localStorage.setItem('df_token', token)
     localStorage.setItem('df_user', JSON.stringify(u))
     sessionStorage.setItem('df_logged_in', '1')
-    sessionStorage.setItem('df_user_role', u.rol)
+    sessionStorage.removeItem('df_user_role')
     usuario.value = u
   }
 
-  async function login(correo: string, clave: string, rol?: Rol) {
+  async function login(correo: string, clave: string) {
     const data = await api<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ correo, clave, rol }),
+      body: JSON.stringify({ correo, clave }),
     })
     persistir(data.token, data.usuario)
     return data.usuario
@@ -56,7 +53,6 @@ export const useAuthStore = defineStore('auth', () => {
         clave,
         nombre,
         codigo,
-        rol: 'jugador',
         nacionalidad,
         genero,
         fechaNacimiento,
@@ -138,7 +134,7 @@ export const useAuthStore = defineStore('auth', () => {
     progress.useProgressStore().resetear()
   }
 
-  return { usuario, autenticado, esAdmin, login, registrar, ingresarConGoogle, actualizarPerfil, subirAvatar, setNombre, refrescar, cerrar }
+  return { usuario, autenticado, login, registrar, ingresarConGoogle, actualizarPerfil, subirAvatar, setNombre, refrescar, cerrar }
 })
 
 function leerToken() {

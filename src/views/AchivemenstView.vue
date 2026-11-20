@@ -316,6 +316,18 @@ h1 {
   :deep(.fila) { min-height: 0; }
 }
 
+.logros { justify-content: flex-start; padding: 62px clamp(12px, 2vw, 24px) 14px; }
+.logros::before { background: linear-gradient(135deg, rgba(5, 8, 18, .84), rgba(18, 13, 28, .72)); }
+.contenido { width: min(1040px, 100%); margin-inline: auto; gap: 12px; }
+.encabezado h1 { color: #f1dda5; }
+.encabezado p { color: #b9b4aa; }
+.resumen-item { border: 1px solid rgba(196, 165, 105, .28); border-radius: 12px; background: rgba(17, 24, 40, .88); }
+.resumen-item strong { color: #f1dda5; }
+.resumen-item small { color: #b9b4aa; }
+.map-hud { border: 1px solid rgba(216, 189, 122, .38); border-radius: 12px; background: rgba(10, 15, 28, .9); color: #f1dda5; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.back-btn { border: 1px solid rgba(216, 189, 122, .55); background: linear-gradient(160deg, #24263a, #111522); color: #f1dda5; box-shadow: none; }
+.back-ico { color: #f1dda5; text-shadow: none; }
+
 .logros { height: 100dvh; min-height: 0; overflow: hidden; }
 .contenido { flex: 1 1 auto; width: 100%; min-height: 0; margin: 0; justify-content: flex-start; gap: 8px; padding-top: 0; }
 .contenido > :deep(.tabla) { flex: 1 1 auto; min-height: 0; }

@@ -13,7 +13,6 @@ export const conexionApi = {
   salud: '/api/salud',
   auth: '/api/auth',
   campania: '/api/campania',
-  admin: '/api/admin',
 }
 
 export function urlApi(ruta: string): string {

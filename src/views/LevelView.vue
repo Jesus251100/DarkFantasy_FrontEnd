@@ -42,12 +42,10 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SigiloNivel from '../components/SigiloNivel.vue'
-import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 
 const router = useRouter()
 const route = useRoute()
-const auth = useAuthStore()
 const progress = useProgressStore()
 const lockHint = ref('')
 
@@ -88,7 +86,6 @@ const abrirNivel = (id: number) => {
 }
 
 onMounted(() => {
-  if (auth.usuario?.rol === 'administrador') return
   const locked = Number(route.query.locked)
   if (Number.isInteger(locked) && locked >= 2 && locked <= 10) {
     lockHint.value = `Gana el nivel ${locked - 1} para desbloquear el ${locked}`
@@ -336,4 +333,8 @@ onMounted(() => {
     text-align: center;
   }
 }
+.back-btn { border: 1px solid rgba(216, 189, 122, .55); background: linear-gradient(160deg, #24263a, #111522); color: #f1dda5; box-shadow: none; }
+.back-ico { color: #f1dda5; text-shadow: none; }
+.map-hud { border: 1px solid rgba(216, 189, 122, .4); border-radius: 12px; background: rgba(10, 15, 28, .9); color: #f1dda5; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.lock-hint { border: 1px solid rgba(216, 189, 122, .45); background: rgba(21, 20, 28, .94); color: #f1dda5; }
 </style>

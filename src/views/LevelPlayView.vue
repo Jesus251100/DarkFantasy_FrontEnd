@@ -437,8 +437,8 @@ function onVictoryNext() {
       v-model:show="logroVisible"
       :nombre="logroActual?.nombre ?? ''"
       :imagen="logroActual?.imagen ?? ''"
-      :monedas="logroActual?.monedas ?? 0"
-      :diamantes="logroActual?.diamantes ?? 0"
+      :monedas="lastClear?.coins ?? logroActual?.monedas ?? 0"
+      :diamantes="lastClear?.diamonds ?? logroActual?.diamantes ?? 0"
     />
     <RuletaMetodosOverlay
       :show="showRuleta"
