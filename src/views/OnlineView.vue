@@ -80,7 +80,7 @@
             </div>
           </aside>
         </div>
-        <footer class="apuesta-pie"><span>Las apuestas se cobran cuando todos confirman.</span><span>El ganador humano reclama el pozo completo.</span></footer>
+        <footer class="apuesta-pie"><span>Las apuestas se cobran cuando todos confirman.</span><span>El equipo ganador comparte el pozo.</span></footer>
       </div>
     </section>
 
@@ -111,6 +111,7 @@
           :data-jugador="j.id"
           :class="{
             yo: j.id === usuarioId,
+            aliado: sala?.modo === 'equipos' && j.equipo === equipoPropio,
             objetivo: puedeRecibir(j.id),
             'fuera-de-tiro': apuntando && !puedeRecibir(j.id),
             hielo: tieneEfecto(j.id, 'freeze'),
@@ -161,17 +162,38 @@
         </button>
       </div>
 
-      <p v-if="sala?.apuesta" class="apuesta-activa">Apuesta {{ sala.apuesta }} monedas</p>
-      <p v-if="sala?.serie" class="serie">
-        <span>Equipo 1 · {{ sala.serie.equipo1 }}</span>
-        <span>Ronda {{ sala.serie.ronda }} de 3</span>
-        <span>Equipo 2 · {{ sala.serie.equipo2 }}</span>
+      <p v-if="sala?.apuesta && !sala?.serie" class="apuesta-activa">Apuesta {{ sala.apuesta }} monedas</p>
+      <section v-if="sala?.serie" class="marcador-equipos" aria-label="Marcador de la serie">
+        <div class="lado-serie lado-carmesi">
+          <strong>{{ sala.serie.nombres.equipo1 }}</strong>
+          <span class="puntos-equipo">{{ sala.serie.equipo1 }}</span>
+          <div class="rondas-equipo" :aria-label="`Rondas de ${sala.serie.nombres.equipo1}`">
+            <span v-for="ronda in 3" :key="ronda" class="casilla-ronda" :class="claseCasillaRonda(1, ronda - 1)">{{ String(ronda).padStart(2, '0') }}</span>
+          </div>
+          <small>COMBO {{ sala.serie.combo.equipo1 }}</small>
+        </div>
+        <div class="centro-serie">
+          <span>RONDA {{ sala.serie.ronda }} / 3</span>
+          <b>VS</b>
+          <span>{{ sala.serie.pozo.toLocaleString('es-CO') }} 🪙 EN JUEGO</span>
+        </div>
+        <div class="lado-serie lado-umbria">
+          <strong>{{ sala.serie.nombres.equipo2 }}</strong>
+          <span class="puntos-equipo">{{ sala.serie.equipo2 }}</span>
+          <div class="rondas-equipo" :aria-label="`Rondas de ${sala.serie.nombres.equipo2}`">
+            <span v-for="ronda in 3" :key="ronda" class="casilla-ronda" :class="claseCasillaRonda(2, ronda - 1)">{{ String(ronda).padStart(2, '0') }}</span>
+          </div>
+          <small>COMBO {{ sala.serie.combo.equipo2 }}</small>
+        </div>
+      </section>
+      <p v-if="sala?.serie?.aviso" class="aviso-ronda" aria-live="polite">{{ sala.serie.aviso }}</p>
+      <p v-if="eventoRitmo" class="evento-oleada" role="status">✦ {{ eventoRitmo }} ✦</p>
+      <p v-if="sala?.serie && progresoMetodo >= 0.8 && sala.serie.fase === 'jugando'" class="aviso-casi" aria-live="polite">
+        ✦ {{ Math.max(0, Math.ceil((1 - progresoMetodo) * cantidadCasillasMetodo)) }} marcas para completar el sello ✦
       </p>
-      <p v-if="sala?.serie?.aviso" class="aviso-ronda">{{ sala.serie.aviso }}</p>
-
       <div class="mesa">
         <div class="oraculo">
-          <div class="bola" :class="{ vacia: ultimaBola === null }">{{ ultimaBola ?? '—' }}</div>
+          <div :key="ultimaBola ?? 'vacia'" class="bola" :class="{ vacia: ultimaBola === null, oleada: !!eventoRitmo }">{{ ultimaBola ?? '—' }}</div>
           <p class="lbl">Última bola</p>
           <div class="recientes">
             <span v-for="(n, i) in oracleSlots" :key="i" class="mini">{{ n ?? '' }}</span>
@@ -233,6 +255,10 @@
               :gap-px="2"
             />
             <p class="metodo">{{ metodoNombre }}</p>
+            <div class="progreso-sello" role="progressbar" :aria-valuenow="Math.round(progresoMetodo * 100)" aria-valuemin="0" aria-valuemax="100" :aria-label="`Progreso del método ${metodoNombre}`">
+              <span><i :style="{ width: `${Math.round(progresoMetodo * 100)}%` }"></i></span>
+              <small>{{ Math.round(progresoMetodo * 100) }}% DEL SELLO</small>
+            </div>
           </div>
           <div class="boosters">
             <button
@@ -243,7 +269,7 @@
               :data-booster="b.id"
               :title="tituloBooster(b)"
               :class="{ activo: boosterActivo === b.id, vacio: cantidad(b.id) <= 0, bloqueado: localizadorBloqueado(b.id) }"
-              :disabled="fase !== 'jugando' || lanzando || localizadorBloqueado(b.id)"
+              :disabled="fase !== 'jugando' || sala?.serie?.fase === 'intermedio' || lanzando || localizadorBloqueado(b.id)"
               @click="pulsarBooster(b.id)"
             >
               <img :src="b.icono" :alt="b.nombre" />
@@ -255,7 +281,7 @@
           type="button"
           class="bingo"
           :class="{ listo: cantoListo }"
-          :disabled="fase !== 'jugando'"
+          :disabled="fase !== 'jugando' || sala?.serie?.fase === 'intermedio'"
           :aria-label="cantoListo ? '¡Bingo! Método completado, canta ahora' : 'Cantar bingo'"
           @click="cantar"
         >
@@ -273,6 +299,24 @@
         <button type="button" class="cancelar-objetivo" @click="cancelarSeleccion">CANCELAR</button>
       </div>
       <p v-if="aviso" class="aviso">{{ aviso }}</p>
+
+      <div v-if="mostrarOfertaApuesta" class="intermedio-velo">
+        <section class="intermedio-panel" role="dialog" aria-modal="true" aria-labelledby="titulo-aumento-apuesta">
+          <span class="intermedio-sello">RONDA {{ sala?.serie?.ronda }} CONCLUIDA</span>
+          <h2 id="titulo-aumento-apuesta">¿SUBES LA APUESTA?</h2>
+          <p>Tu equipo comparte el cartón. Puedes añadir monedas al pozo antes de que empiece la siguiente ronda.</p>
+          <strong class="pozo-intermedio">Pozo actual · {{ (sala?.serie?.pozo ?? 0).toLocaleString('es-CO') }} 🪙</strong>
+          <div class="apuesta-fichas">
+            <button v-for="monto in montosSugeridos" :key="monto" type="button" :class="{ activa: aumentoSeleccionado === monto }" @click="aumentoSeleccionado = monto">+{{ monto.toLocaleString('es-CO') }}</button>
+          </div>
+          <small>Saldo · {{ progress.coins.toLocaleString('es-CO') }} · Apuesta total máxima · 6.000 · {{ segundosIntermedio }} s</small>
+          <p v-if="errorAumentoApuesta" class="error-apuesta">{{ errorAumentoApuesta }}</p>
+          <div class="acciones-modal">
+            <button type="button" class="accion" :disabled="subiendoApuesta || aumentoSeleccionado > progress.coins || (sala?.apuesta ?? 0) + aumentoSeleccionado > 6000" @click="confirmarAumentoApuesta">{{ subiendoApuesta ? 'SELLANDO…' : `AUMENTAR +${aumentoSeleccionado.toLocaleString('es-CO')}` }}</button>
+            <button type="button" class="accion suave" @click="pasarAumento">PASAR ESTA VEZ</button>
+          </div>
+        </section>
+      </div>
 
       <Teleport to="body">
         <span
@@ -321,6 +365,7 @@
                 <span v-else>{{ inicial(j.nombre) }}</span>
               </span>
               <span>{{ j.nombre }}</span>
+              <small v-if="espera.modo === 'equipos'" class="puesto-equipo">{{ index % 2 === 0 ? 'LUNA CARMESÍ' : 'LEGIÓN UMBRÍA' }}</small>
               <span v-if="j.id === espera.anfitrionId" class="estado">anfitrión</span>
               </template>
               <template v-else><span class="slot-vacio">✧</span><span>Esperando jugador…</span></template>
@@ -340,10 +385,10 @@
             <p class="hint">Cada jugador debe tener {{ espera.apuesta }} monedas disponibles para iniciar.</p>
             <label v-if="espera.permiteBots" class="bots-toggle">
               <input type="checkbox" :checked="espera.completarConBots" @change="cambiarRellenoBots" />
-              <span>Completar los puestos vacíos con bots</span>
+              <span>{{ espera.modo === 'equipos' ? 'Rellenar con bots (opcional)' : 'Completar los puestos vacíos con bots' }}<small v-if="espera.modo === 'equipos'">Mínimo: una persona en cada equipo.</small></span>
             </label>
-            <button type="button" class="accion" :disabled="(espera.completarConBots ? (!espera.permiteBots || espera.jugadores.length >= espera.cupo) : (espera.jugadores.length < (espera.modo === 'pvp' ? 2 : Math.ceil(espera.cupo / 2)))) || espera.apuesta < 200 || espera.apuesta > 2000" @click="empezar(espera.completarConBots ? 'bots' : 'sala')">
-              {{ espera.completarConBots ? 'INICIAR CON BOTS' : 'INICIAR PARTIDA' }}
+            <button type="button" class="accion" :disabled="espera.jugadores.length < (espera.modo === 'pvp' || espera.modo === 'equipos' ? 2 : Math.ceil(espera.cupo / 2)) || (espera.completarConBots && !espera.permiteBots) || (espera.completarConBots && espera.jugadores.length < espera.cupo && !equiposRepresentados) || espera.apuesta < 200 || espera.apuesta > 2000" @click="empezar(espera.completarConBots && espera.jugadores.length < espera.cupo ? 'bots' : 'sala')">
+              {{ espera.completarConBots && espera.jugadores.length < espera.cupo ? 'INICIAR CON BOTS' : 'INICIAR PARTIDA' }}
             </button>
             <p class="hint">{{ pistaAnfitrion }}</p>
           </template>
@@ -378,7 +423,6 @@
             <button type="button" class="accion accion-principal" @click="abrirMesa('jugar')">JUGAR PARTIDA</button>
             <button type="button" class="accion accion-secundaria" @click="abriendoUnion = true">UNIRSE A UNA SALA</button>
             <button type="button" class="accion accion-secundaria" @click="abrirMesa('crear')">CREAR SALA</button>
-            <button type="button" class="accion accion-caza" @click="cazarDragones">CAZAR DRAGONES</button>
             <button type="button" class="accion suave accion-salir" @click="salir">SALIR</button>
           </div>
           <p v-if="errorConexion" class="error">{{ errorConexion }}</p>
@@ -412,10 +456,10 @@
           <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 6 }" @click="fijarMesa('mesa', 6)">MESA DE 6</button>
           <button type="button" :class="{ on: mesa.modo === 'mesa' && mesa.cupo === 8 }" @click="fijarMesa('mesa', 8)">MESA DE 8</button>
           <button type="button" class="ancho" :class="{ on: mesa.modo === 'pvp' }" @click="fijarMesa('pvp', 2)">DUELO · 2 JUGADORES</button>
-          <button type="button" class="ancho" :class="{ on: mesa.modo === 'equipos' }" @click="fijarMesa('equipos', mesa.cupo === 2 ? 4 : mesa.cupo)">BATALLA DE EQUIPOS</button>
+          <button type="button" class="ancho" :class="{ on: mesa.modo === 'equipos' }" @click="fijarMesa('equipos', 4)">BATALLA DE EQUIPOS · 2 VS 2</button>
         </div>
-        <div v-if="mesa.modo === 'equipos'" class="opciones-mesa">
-          <button v-for="cupo in [4, 6, 8]" :key="cupo" type="button" :class="{ on: mesa.cupo === cupo }" @click="fijarMesa('equipos', cupo)">{{ cupo }} JUGADORES</button>
+        <div v-if="mesa.modo === 'equipos'" class="reglas-equipos-modal">
+          <span>Cartón compartido</span><span>3 rondas</span><span>Booster y ruleta</span>
         </div>
         <div v-if="eligiendo === 'crear'" class="apuesta-selector-modal">
           <div class="selector-titulo"><span>APUESTA POR JUGADOR</span><strong>{{ montoApuesta.toLocaleString('es-CO') }} <small>🪙</small></strong></div>
@@ -455,15 +499,16 @@
     <div v-if="fase === 'terminado'" class="modal-backdrop">
       <div class="modal" :class="{ gane: esGanador }">
         <h2>{{ tituloFin }}</h2>
-        <p v-if="sala?.modo === 'equipos' && sala.serie?.equipoGanador">
-          Ganó el equipo {{ sala.serie.equipoGanador }} · {{ sala.serie.equipo1 }} a {{ sala.serie.equipo2 }}
+        <p v-if="resumen?.anfitrionAbandono">El anfitrión abandonó la sala. La partida terminó y se devolvieron las apuestas.</p>
+        <p v-else-if="sala?.modo === 'equipos' && sala.serie?.equipoGanador">
+          Ganó {{ sala.serie.equipoGanador === 1 ? sala.serie.nombres.equipo1 : sala.serie.nombres.equipo2 }} · {{ sala.serie.equipo1 }} a {{ sala.serie.equipo2 }}
         </p>
         <p v-else-if="sala?.modo === 'equipos'">La serie quedó empatada.</p>
         <p v-else-if="ganador">Ganador: <strong>{{ ganador.nombre }}</strong></p>
         <p v-else>Nadie completó el patrón.</p>
         <p class="premio">{{ esGanador ? '+75 XP · +250 monedas · +1 diamante' : '+25 XP · +75 monedas por participar' }}</p>
         <p v-if="resumen?.pozo" class="premio">
-          {{ resumen.pozoPagado ? (esGanador ? `Pozo ganado: +${resumen.pozo} monedas.` : 'El pozo fue para el ganador.') : 'El pozo se devolvió porque ganó un bot o no hubo ganador humano.' }}
+          {{ resumen.pozoPagado ? (esGanador ? `Tu parte del pozo: +${(resumen.pozoPorGanador?.[usuarioId] ?? resumen.pozo).toLocaleString('es-CO')} monedas.` : 'El pozo fue para el equipo ganador.') : 'El pozo se devolvió porque ganó un bot o no hubo ganador humano.' }}
         </p>
         <div class="acciones-modal">
           <button type="button" class="accion" @click="jugarOtraVez">JUGAR</button>
@@ -510,6 +555,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
+import { useAudioStore } from '../stores/audio'
 import { usePartidaOnline } from '../composables/usePartidaOnline'
 import { nombreMetodo } from '../domain/bingo/nombresMetodo'
 import { patronDesdeModo } from '../domain/bingo/patrones/catalogoPatrones'
@@ -595,6 +641,7 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const progress = useProgressStore()
+const audioSettings = useAudioStore()
 const usuarioId = auth.usuario?.id ?? ''
 const online = usePartidaOnline(usuarioId)
 
@@ -626,6 +673,8 @@ const {
   errorSala,
   jugadoresApuesta,
   errorApuesta,
+  errorAumentoApuesta,
+  eventoRitmo,
   efectos,
 } = online
 
@@ -686,6 +735,9 @@ const montoApuesta = ref(200)
 const montoGlobalApuesta = ref(500)
 const montosSugeridos = [200, 500, 1000, 1500, 2000]
 const montoSala = ref(200)
+const aumentoSeleccionado = ref(500)
+const ocultarOfertaApuesta = ref(false)
+const subiendoApuesta = ref(false)
 const tituloBusqueda = ref('BUSCANDO RIVAL')
 const detalleBusqueda = ref('El oráculo busca un rival en las sombras…')
 const abriendoAbandono = ref(false)
@@ -700,8 +752,11 @@ let proyectilSeq = 0
 let relojEfectos: ReturnType<typeof setInterval> | null = null
 let cierreCarga: ReturnType<typeof setTimeout> | null = null
 let lanzandoTimer: ReturnType<typeof setTimeout> | null = null
+let contextoSfx: AudioContext | null = null
 
 const jugadores = computed(() => sala.value?.jugadores ?? [])
+const equipoPropio = computed(() => sala.value?.jugadores.find((jugador) => jugador.id === usuarioId)?.equipo ?? null)
+const equiposRepresentados = computed(() => espera.value?.modo !== 'equipos' || (espera.value?.jugadores.length ?? 0) >= 2)
 const slotsSala = computed(() => Array.from({ length: espera.value?.cupo ?? 4 }, (_, index) => espera.value?.jugadores[index] ?? null))
 const enPartida = computed(() => fase.value === 'jugando' || fase.value === 'terminado')
 const mostrarCarga = computed(() => fase.value === 'cola' || entrada.value)
@@ -721,15 +776,55 @@ const progresoMetodo = computed(() => {
   if (!modo) return 0
   return progresoDeFigura(tuCarton.value, patronDesdeModo(modo).indices(sala.value?.size ?? 5))
 })
+const cantidadCasillasMetodo = computed(() => {
+  const modo = metodoVictoria.value
+  if (!modo) return 1
+  const figuras = patronDesdeModo(modo).indices(sala.value?.size ?? 5)
+  return Math.max(1, ...figuras.map((figura) => figura.length))
+})
+const mostrarOfertaApuesta = computed(() => {
+  const serie = sala.value?.serie
+  return sala.value?.modo === 'equipos'
+    && serie?.fase === 'intermedio'
+    && serie.ronda < 3
+    && !serie.aumentaron.includes(usuarioId)
+    && !ocultarOfertaApuesta.value
+})
+const segundosIntermedio = computed(() => {
+  const vence = sala.value?.serie?.venceIntermedio
+  return vence ? Math.max(0, Math.ceil((vence - ahora.value) / 1000)) : 0
+})
+
+function tocarSello() {
+  if (audioSettings.sfx <= 0 || typeof window.AudioContext !== 'function') return
+  try {
+    contextoSfx ??= new AudioContext()
+    if (contextoSfx.state === 'suspended') void contextoSfx.resume().catch(() => undefined)
+    const inicio = contextoSfx.currentTime
+    const volumen = Math.min(1, audioSettings.sfx / 100) * 0.045
+    for (const [indice, frecuencia] of [660, 880].entries()) {
+      const tono = contextoSfx.createOscillator()
+      const ganancia = contextoSfx.createGain()
+      tono.type = 'sine'
+      tono.frequency.setValueAtTime(frecuencia, inicio + indice * 0.12)
+      ganancia.gain.setValueAtTime(0.0001, inicio + indice * 0.12)
+      ganancia.gain.exponentialRampToValueAtTime(volumen, inicio + indice * 0.12 + 0.025)
+      ganancia.gain.exponentialRampToValueAtTime(0.0001, inicio + indice * 0.12 + 0.2)
+      tono.connect(ganancia)
+      ganancia.connect(contextoSfx.destination)
+      tono.start(inicio + indice * 0.12)
+      tono.stop(inicio + indice * 0.12 + 0.21)
+    }
+  } catch {
+    // El juego sigue sin efectos si el navegador no dispone de audio web.
+  }
+}
 const fondoRuleta = computed(() => {
   const nivel = sala.value?.fondoNivel ?? 1
   return FONDOS_NIVELES[nivel - 1] ?? FONDOS_NIVELES[0]
 })
-function cazarDragones() {
-  router.push('/cazar-dragones')
-}
-
 const tituloFin = computed(() => {
+  if (resumen.value?.anfitrionAbandono) return 'SALA CERRADA'
   if (sala.value?.modo === 'equipos') return esGanador.value ? '¡GANÓ TU EQUIPO!' : 'Fin de la serie'
   return esGanador.value ? '¡BINGO! GANASTE' : 'Fin de la partida'
 })
@@ -738,7 +833,7 @@ const soyAnfitrion = computed(() => espera.value?.anfitrionId === usuarioId)
 const tituloSala = computed(() => {
   const salaEspera = espera.value
   if (!salaEspera) return 'SALA PRIVADA'
-  return `MESA DE ${salaEspera.cupo}`
+  return salaEspera.modo === 'equipos' ? 'BATALLA DE EQUIPOS · 2 VS 2' : `MESA DE ${salaEspera.cupo}`
 })
 const textoEsperaSala = computed(() => {
   const salaEspera = espera.value
@@ -869,7 +964,10 @@ function esDefensa(id: number): boolean {
 function puedeRecibir(idJugador: string): boolean {
   const boosterId = boosterActivo.value
   if (boosterId === null) return false
-  if (esAtaque(boosterId)) return idJugador !== usuarioId
+  if (esAtaque(boosterId)) {
+    const objetivo = jugadores.value.find((jugador) => jugador.id === idJugador)
+    return idJugador !== usuarioId && !(sala.value?.modo === 'equipos' && objetivo?.equipo === equipoPropio.value)
+  }
   return idJugador === usuarioId
 }
 
@@ -896,7 +994,17 @@ function onMetodoElegido() {
 
 function etiquetaMesa(elegida: MesaElegidaVista): string {
   if (elegida.modo === 'pvp') return 'duelo PvP'
-  return elegida.modo === 'equipos' ? `batalla de equipos · ${elegida.cupo}` : `mesa de ${elegida.cupo}`
+  return elegida.modo === 'equipos' ? 'batalla de equipos · 2 vs 2' : `mesa de ${elegida.cupo}`
+}
+
+function claseCasillaRonda(equipo: 1 | 2, indice: number): string {
+  const serie = sala.value?.serie
+  if (!serie) return ''
+  if (indice < serie.ganadoresRonda.length) {
+    const ganador = serie.ganadoresRonda[indice]
+    return ganador === null ? 'ronda-empate' : ganador === equipo ? 'ronda-ganada' : 'ronda-perdida'
+  }
+  return indice === serie.ronda - 1 && serie.fase === 'jugando' ? 'ronda-activa' : 'ronda-pendiente'
 }
 
 function etiquetaJugador(jugador: { id: string; esBot: boolean; equipo?: 1 | 2 }): string {
@@ -943,6 +1051,17 @@ function confirmarMesa() {
   online.buscar({ modo: elegida.modo, cupo: elegida.cupo })
 }
 
+function confirmarAumentoApuesta() {
+  if (subiendoApuesta.value || aumentoSeleccionado.value > progress.coins) return
+  subiendoApuesta.value = true
+  online.aumentarApuesta(aumentoSeleccionado.value)
+  window.setTimeout(() => { subiendoApuesta.value = false }, 1800)
+}
+
+function pasarAumento() {
+  ocultarOfertaApuesta.value = true
+}
+
 function cancelarBusqueda() {
   entrada.value = false
   online.cancelar()
@@ -963,6 +1082,18 @@ watch(espera, (salaEspera) => {
   montoSala.value = salaEspera.apuesta || 200
   abriendoUnion.value = false
   codigo.value = ''
+})
+
+watch(() => sala.value?.serie?.ronda, () => {
+  ocultarOfertaApuesta.value = false
+  subiendoApuesta.value = false
+})
+
+watch(eventoRitmo, (nuevo, anterior) => {
+  if (nuevo && nuevo !== anterior) tocarSello()
+})
+watch(() => equipoPropio.value === 1 ? sala.value?.serie?.combo.equipo1 : sala.value?.serie?.combo.equipo2, (nuevo, anterior = 0) => {
+  if (typeof nuevo === 'number' && nuevo > anterior && nuevo > 0 && nuevo % 3 === 0) tocarSello()
 })
 
 function empezar(modo: 'sala' | 'bots') {
@@ -1215,6 +1346,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', alTecla)
   if (relojEfectos) clearInterval(relojEfectos)
   if (lanzandoTimer) clearTimeout(lanzandoTimer)
+  if (contextoSfx) void contextoSfx.close().catch(() => undefined)
   pararCarga()
 })
 </script>
@@ -1648,7 +1780,6 @@ onUnmounted(() => {
 .acciones-online .accion { min-width: 0; width: 100%; padding: 13px 12px; font-size: 0.78rem; letter-spacing: 0.1em; border: 1px solid rgba(219, 190, 119, 0.25); }
 .acciones-online .accion-principal { grid-column: 1 / -1; min-height: 54px; color: #fff3cc; border-color: rgba(237, 204, 126, 0.78); background: linear-gradient(180deg, #80632b, #493818); box-shadow: 0 0 24px var(--oro-brillo), inset 0 1px rgba(255,255,255,.18); font-size: 0.95rem; }
 .acciones-online .accion-secundaria { background: linear-gradient(180deg, rgba(48, 54, 61, .96), rgba(25, 29, 36, .98)); }
-.acciones-online .accion-caza { grid-column: 1 / -1; background: linear-gradient(180deg, #3d3023, #251d18); color: #e7c18b; }
 .acciones-online .accion-salir { grid-column: 1 / -1; width: min(100%, 220px); justify-self: center; }
 .acciones-online .accion:hover { filter: brightness(1.18); transform: translateY(-1px); }
 
@@ -1751,6 +1882,55 @@ onUnmounted(() => {
   letter-spacing: 0.04em;
 }
 
+.marcador-equipos {
+  width: min(100%, 900px);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(8px, 2vw, 20px);
+  padding: 9px clamp(8px, 2vw, 20px);
+  border: 1px solid rgba(194, 153, 78, .58);
+  border-radius: 14px;
+  background: linear-gradient(110deg, rgba(62, 16, 18, .92), rgba(11, 7, 12, .96) 47%, rgba(23, 13, 29, .94));
+  box-shadow: inset 0 0 24px rgba(218, 166, 67, .08), 0 7px 24px rgba(0, 0, 0, .32);
+}
+.partida:has(.marcador-equipos) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+.partida:has(.marcador-equipos) .aviso-ronda { display: none; }
+.lado-serie { min-width: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 8px; }
+.lado-serie strong { overflow: hidden; color: #f4dfb4; font: 700 clamp(.68rem, 1.8vw, .95rem) Georgia, serif; letter-spacing: .06em; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
+.lado-carmesi strong { color: #f0b7a5; }
+.lado-umbria strong { color: #d4c3f1; }
+.puntos-equipo { grid-column: 2; grid-row: 1 / 3; color: #ffdc82; font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 900; text-shadow: 0 0 14px rgba(255, 204, 93, .34); }
+.rondas-equipo { display: flex; gap: 5px; }
+.casilla-ronda { width: clamp(26px, 4vw, 38px); height: 21px; display: grid; place-items: center; border: 1px solid rgba(220, 215, 207, .3); border-radius: 5px; background: rgba(70, 68, 68, .58); color: #b7b1a9; font-size: .57rem; font-weight: 800; }
+.lado-umbria .rondas-equipo { justify-content: flex-end; }
+.ronda-activa { background: #77716b; border-color: #d8cdb8; color: #fff4dd; box-shadow: 0 0 12px rgba(220, 214, 197, .25); animation: pulso-ronda .95s ease-in-out infinite alternate; }
+.ronda-ganada { background: linear-gradient(150deg, #f3d477, #a97722); border-color: #ffe697; color: #281607; box-shadow: 0 0 12px rgba(255, 207, 83, .4); }
+.ronda-perdida { background: #100f12; border-color: #090809; color: #766f6b; }
+.ronda-empate { background: #403d3a; border-color: #a29a8a; color: #e6dece; }
+.ronda-pendiente { opacity: .45; }
+.lado-serie small { color: #c6b78f; font-size: .53rem; letter-spacing: .13em; }
+.centro-serie { min-width: 104px; display: grid; justify-items: center; gap: 2px; color: #d7c59e; font-size: .57rem; letter-spacing: .1em; text-align: center; }
+.centro-serie b { color: #f2d17d; font: 800 1rem Georgia, serif; }
+@keyframes pulso-ronda { to { filter: brightness(1.35); } }
+.evento-oleada, .aviso-casi { position: absolute; left: 50%; z-index: 9; margin: 0; transform: translateX(-50%); border: 1px solid rgba(236, 194, 99, .68); border-radius: 999px; padding: 7px 15px; background: rgba(33, 17, 13, .94); color: #ffe19a; font-size: .78rem; text-align: center; box-shadow: 0 0 18px rgba(239, 168, 58, .22); }
+.evento-oleada { top: 118px; animation: oleada-latido .8s ease-in-out infinite alternate; }
+.aviso-casi { top: 158px; border-color: rgba(255, 220, 133, .4); background: rgba(34, 23, 13, .9); }
+@keyframes oleada-latido { to { filter: brightness(1.35); box-shadow: 0 0 28px rgba(239, 168, 58, .52); } }
+.intermedio-velo { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(5, 3, 6, .72); backdrop-filter: blur(5px); }
+.intermedio-panel { width: min(92vw, 520px); display: grid; justify-items: center; gap: 12px; padding: clamp(20px, 4vw, 32px); border: 1px solid #d4ac5e; border-radius: 18px; background: radial-gradient(ellipse at top, #482017, #170b0d 66%, #0b070b); color: #f1e3c7; text-align: center; box-shadow: 0 18px 58px #000c, 0 0 36px rgba(226, 170, 64, .22); }
+.intermedio-panel h2 { margin: 0; color: #ffdc85; font: 700 clamp(1.2rem, 4vw, 1.8rem) Georgia, serif; letter-spacing: .1em; }
+.intermedio-panel p { margin: 0; max-width: 48ch; color: #d8c7aa; line-height: 1.5; }
+.intermedio-sello { color: #dfbd73; font-size: .65rem; letter-spacing: .22em; }
+.pozo-intermedio { color: #ffe5a0; }
+.intermedio-panel small { color: #bcae91; }
+.intermedio-panel .apuesta-fichas { justify-content: center; }
+.intermedio-panel .acciones-modal { width: 100%; }
+.reglas-equipos-modal { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.reglas-equipos-modal span { padding: 7px 10px; border: 1px solid rgba(211, 171, 83, .34); border-radius: 999px; background: rgba(32, 15, 18, .7); color: #dfc88f; font-size: .7rem; }
+.puesto-equipo { color: #d6bc79; font-size: .58rem; letter-spacing: .08em; }
+
 .aviso-ronda {
   margin: 0 0 8px;
   text-align: center;
@@ -1813,6 +1993,7 @@ onUnmounted(() => {
 .ficha.yo .foto {
   border-color: #f0d78c;
 }
+.ficha.aliado .foto { border-color: #db9d53; box-shadow: 0 0 14px rgba(235, 161, 62, .22); }
 
 .ficha.objetivo {
   cursor: pointer;
@@ -2156,6 +2337,15 @@ onUnmounted(() => {
 .metodo-esquina .metodo {
   margin: 0;
 }
+
+.progreso-sello { width: min(100%, 150px); display: grid; justify-items: center; gap: 3px; margin-top: 5px; }
+.progreso-sello > span { width: 100%; height: 5px; overflow: hidden; border: 1px solid rgba(211, 171, 83, .45); border-radius: 999px; background: rgba(12, 8, 10, .92); }
+.progreso-sello i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8c2629, #f2cf70); box-shadow: 0 0 8px rgba(245, 195, 78, .55); transition: width .35s ease; }
+.progreso-sello small { color: #bea77a; font-size: .48rem; letter-spacing: .12em; }
+.bola { transition: color .2s, box-shadow .2s; }
+.bola:not(.vacia) { animation: bola-llega .42s cubic-bezier(.18,.8,.32,1.18); }
+.bola.oleada:not(.vacia) { border-color: #f6d77d; box-shadow: 0 0 28px rgba(246, 190, 64, .56), inset 0 0 18px rgba(255, 226, 142, .18); }
+@keyframes bola-llega { 0% { transform: scale(.72) rotate(-12deg); filter: brightness(1.8); } 70% { transform: scale(1.08) rotate(3deg); } 100% { transform: scale(1); filter: brightness(1); } }
 
 .metodo-esquina :deep(.method-preview) {
   padding: 5px;
@@ -2773,6 +2963,17 @@ onUnmounted(() => {
   .ranking { max-height: 260px; }
   .codigo { font-size: clamp(2rem, 12vw, 3.2rem); letter-spacing: 0.22em; }
   .partida { min-height: 100dvh; height: auto; grid-template-rows: auto auto auto auto; padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)); gap: 12px; }
+  .partida:has(.marcador-equipos) { height: 100dvh; min-height: 0; overflow: hidden; grid-template-rows: auto auto auto minmax(0, 1fr) auto; padding: max(5px, env(safe-area-inset-top)) 8px max(7px, env(safe-area-inset-bottom)); gap: 4px; }
+  .online:has(.marcador-equipos) { --board-h-reserve: 430px; --board-w: min(440px, calc(100vw - 108px), calc(100dvh - var(--board-h-reserve))); }
+  .marcador-equipos { gap: 5px; padding: 5px; border-radius: 10px; }
+  .lado-serie { gap: 2px 4px; }
+  .lado-serie strong { font-size: .58rem; letter-spacing: .02em; }
+  .lado-serie small { font-size: .43rem; }
+  .centro-serie { min-width: 58px; font-size: .45rem; letter-spacing: .03em; }
+  .centro-serie b { font-size: .8rem; }
+  .casilla-ronda { width: 24px; height: 17px; font-size: .48rem; }
+  .evento-oleada { top: 153px; max-width: 90vw; font-size: .65rem; }
+  .aviso-casi { top: 184px; font-size: .62rem; }
   .fila-jugadores { gap: 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px 2px 8px; }
   .ficha { width: 82px; flex: 0 0 82px; font-size: 0.8rem; }
   .ficha .foto { width: 48px; height: 48px; }
@@ -2796,6 +2997,25 @@ onUnmounted(() => {
     gap: 12px;
     min-height: 0;
   }
+  .partida:has(.marcador-equipos) .mesa { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 52px; gap: 5px; min-height: 0; overflow: hidden; }
+  .partida:has(.marcador-equipos) .oraculo { grid-column: 1; grid-row: 1; min-width: 0; padding: 4px 0; }
+  .partida:has(.marcador-equipos) .bola { width: 56px; height: 56px; font-size: 1.45rem; }
+  .partida:has(.marcador-equipos) .recientes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; }
+  .partida:has(.marcador-equipos) .mini { width: 24px; height: 22px; font-size: .64rem; }
+  .partida:has(.marcador-equipos) .carton-wrap { grid-column: 2; grid-row: 1; width: min(100%, var(--board-w)); justify-self: center; align-self: center; }
+  .partida:has(.marcador-equipos) .lista { grid-column: 1 / -1; grid-row: 2; min-height: 0; overflow: hidden; }
+  .partida:has(.marcador-equipos) .lista :deep(.chat-sala) { height: 48px; min-height: 0; max-height: 48px; padding: 0 5px; }
+  .partida:has(.marcador-equipos) .lista :deep(.chat-sala ul) { max-height: 22px; overflow: hidden; }
+  .partida:has(.marcador-equipos) .lista :deep(.chat-sala form) { margin-top: 2px; }
+  .partida:has(.marcador-equipos) .ficha { gap: 2px; }
+  .partida:has(.marcador-equipos) .fmeta { font-size: .55rem; }
+  .partida:has(.marcador-equipos) .barra { gap: 4px; }
+  .partida:has(.marcador-equipos) .boosters { gap: 5px; }
+  .partida:has(.marcador-equipos) .booster { width: 42px; height: 42px; }
+  .partida:has(.marcador-equipos) .booster img { width: 28px; height: 28px; }
+  .partida:has(.marcador-equipos) .bingo { min-height: 42px; padding: 7px 13px; }
+  .partida:has(.marcador-equipos) .metodo-esquina { display: none; }
+  .intermedio-panel { max-height: calc(100dvh - 24px); overflow-y: auto; }
   .oraculo { order: 0; align-self: stretch; }
   .carton-wrap { order: 1; }
   .lista { order: 2; width: 100%; box-sizing: border-box; }

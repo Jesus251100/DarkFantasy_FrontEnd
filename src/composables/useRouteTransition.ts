@@ -13,7 +13,6 @@ let timer: number | undefined
 const destinosLobby = new Set([
   '/lobby',
   '/online',
-  '/cazar-dragones',
   '/levels',
   '/inventory',
   '/store',
@@ -62,7 +61,6 @@ function datosPara(path: string): DatosCarga {
   const pantallas: Record<string, DatosCarga> = {
     '/lobby': { titulo: 'El refugio', subtitulo: 'Regreso al lobby', detalle: 'Las monedas, los cristales y tus aventuras vuelven a estar a la vista.', dificultad: 'Refugio', nivel: null },
     '/online': { titulo: 'La arena de los destinos', subtitulo: 'Bingo online', detalle: 'Se prepara la sala y se reúnen los jugadores.', dificultad: 'Encuentro', nivel: null },
-    '/cazar-dragones': { titulo: 'La cacería', subtitulo: 'Cazar dragones', detalle: 'La senda de caza se abre entre sombras y fuego.', dificultad: 'Desafío', nivel: null },
     '/levels': { titulo: 'El mapa de las sendas', subtitulo: 'Selección de nivel', detalle: 'Se revelan las rutas que ya puedes recorrer.', dificultad: 'Aventura', nivel: null },
     '/inventory': { titulo: 'La cámara de reliquias', subtitulo: 'Inventario', detalle: 'Tus objetos y poderes regresan a la cámara.', dificultad: 'Refugio', nivel: null },
     '/store': { titulo: 'El mercado encantado', subtitulo: 'Tienda', detalle: 'Los mercaderes preparan sus ofertas.', dificultad: 'Refugio', nivel: null },

@@ -8,7 +8,6 @@ import RecuperarView from '../views/RecuperarView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import LobbyView from '../views/LobbyView.vue'
 import OnlineView from '../views/OnlineView.vue'
-import CazarDragonesView from '../views/CazarDragonesView.vue'
 import InventoryView from '../views/InventoryView.vue'
 import StoreView from '../views/StoreView.vue'
 import LevelView from '../views/LevelView.vue'
@@ -74,11 +73,6 @@ const router = createRouter({
       path: '/online',
       name: 'online',
       component: OnlineView,
-    },
-    {
-      path: '/cazar-dragones',
-      name: 'cazar-dragones',
-      component: CazarDragonesView,
     },
     {
       path: '/inventory',
@@ -181,7 +175,6 @@ const router = createRouter({
 const rutasPrivadas = new Set([
   '/lobby',
   '/online',
-  '/cazar-dragones',
   '/inventory',
   '/store',
   '/levels',

@@ -58,6 +58,15 @@ export interface VistaSalaOnline {
     equipo2: number
     aviso: string | null
     equipoGanador: 1 | 2 | null
+    fase: 'jugando' | 'intermedio'
+    venceIntermedio: number | null
+    nombres: { equipo1: string; equipo2: string }
+    ganadoresRonda: (1 | 2 | null)[]
+    pozo: number
+    apuestas: Record<string, number>
+    combo: { equipo1: number; equipo2: number }
+    evento: string | null
+    aumentaron: string[]
   } | null
 }
 
@@ -68,6 +77,9 @@ export interface ResumenOnline {
   pozo?: number
   pozoPagado?: boolean
   diamantesPremio?: number
+  equipoGanador?: 1 | 2 | null
+  pozoPorGanador?: Record<string, number>
+  anfitrionAbandono?: boolean
 }
 
 export type FaseOnline = 'idle' | 'cola' | 'apuesta' | 'jugando' | 'terminado'

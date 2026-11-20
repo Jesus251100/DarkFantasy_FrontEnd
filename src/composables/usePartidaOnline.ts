@@ -58,6 +58,8 @@ export function usePartidaOnline(usuarioId: string) {
   const salaApuestaId = ref<string | null>(null)
   const jugadoresApuesta = ref<{ id: string; nombre: string; confirmado: boolean }[]>([])
   const errorApuesta = ref<string | null>(null)
+  const errorAumentoApuesta = ref<string | null>(null)
+  const eventoRitmo = ref<string | null>(null)
   const efectos = ref<Record<string, EfectoActivoOnline[]>>({})
   /** Quien ya volvió al lobby online no debe reentrar a la partida por un evento tardío. */
   let quiereHub = false
@@ -162,20 +164,26 @@ export function usePartidaOnline(usuarioId: string) {
     const rondaNueva = vista.serie?.ronda ?? 0
     const cambiaRonda = !salaNueva && rondaNueva > rondaAnterior
     sala.value = vista
+    eventoRitmo.value = vista.serie?.evento ?? null
     sincronizarEfectos(vista)
     const pool = vista.metodosVictoria?.length ? vista.metodosVictoria : vista.winModes
     if (salaNueva) {
-      marcas.value = restaurarMarcas(vista)
+      marcas.value = vista.modo === 'equipos'
+        ? new Set(vista.tuCarton.flatMap((celda, indice) => celda.marked && !celda.free ? [indice] : []))
+        : restaurarMarcas(vista)
       showRuleta.value = vista.estado === 'playing' && (pool?.length ?? 0) > 0
     }
     if (!salaNueva && estabaEsperando && vista.estado === 'playing') {
       showRuleta.value = (pool?.length ?? 0) > 0
     }
     if (cambiaRonda) {
-      marcas.value = new Set()
+      marcas.value = new Set(vista.tuCarton.flatMap((celda, indice) => celda.marked && !celda.free ? [indice] : []))
       persistirMarcas()
       cantadas.value = [...vista.calledList]
       ultimaBola.value = vista.lastDrawn
+      showRuleta.value = vista.modo === 'equipos' && (pool?.length ?? 0) > 0
+    } else if (vista.modo === 'equipos' && sala.value?.estado === 'playing') {
+      marcas.value = new Set(vista.tuCarton.flatMap((celda, indice) => celda.marked && !celda.free ? [indice] : []))
     }
     rivalMarcas.value = new Set(
       (vista.cartonRival?.celdas ?? []).flatMap((celda, indice) => (celda.marked && !celda.free ? [indice] : [])),
@@ -263,10 +271,11 @@ export function usePartidaOnline(usuarioId: string) {
     showRuleta.value = false
     mostrarAviso(payload?.mensaje ?? 'La preparación de la partida se canceló.')
   })
-  socket.on('ball:called', (payload: { numero: number }) => {
+  socket.on('ball:called', (payload: { numero: number; evento?: string | null }) => {
     if (quiereHub) return
     ultimaBola.value = payload.numero
     if (!cantadas.value.includes(payload.numero)) cantadas.value.push(payload.numero)
+    eventoRitmo.value = payload.evento ?? null
   })
   socket.on('game:over', (vista: VistaSalaOnline) => {
     if (quiereHub) return
@@ -278,6 +287,10 @@ export function usePartidaOnline(usuarioId: string) {
   socket.on('game:summary', (r: ResumenOnline) => {
     resumen.value = r
   })
+  socket.on('team:bet:error', (payload: { mensaje?: string }) => {
+    errorAumentoApuesta.value = payload?.mensaje ?? 'No se pudo aumentar la apuesta.'
+    mostrarAviso(errorAumentoApuesta.value)
+  })
   socket.on('claim:rejected', (p: { mensaje: string }) => mostrarAviso(p.mensaje))
   socket.on('queue:warning', (p: { mensaje: string }) => mostrarAlerta(p.mensaje))
   socket.on('game:connection-paused', (p: { nombre?: string }) => {
@@ -285,6 +298,18 @@ export function usePartidaOnline(usuarioId: string) {
   })
   socket.on('game:connection-resumed', (p: { nombre?: string }) => {
     mostrarAviso(`${p?.nombre ?? 'El jugador'} volvió a la partida.`)
+  })
+  socket.on('game:afk-warning', (p: { segundos?: number }) => {
+    mostrarAlerta(`Sigues inactivo. Realiza una acción en los próximos ${p?.segundos ?? 60} segundos para conservar tu lugar.`)
+  })
+  socket.on('game:afk-resumed', () => mostrarAviso('Actividad reanudada; conservas tu lugar en la partida.'))
+  socket.on('game:afk-player', (p: { nombre?: string }) => {
+    mostrarAviso(`${p?.nombre ?? 'Un jugador'} salió por inactividad.`)
+  })
+  socket.on('game:afk-removed', (p: { nombre?: string }) => {
+    sala.value = null
+    fase.value = 'idle'
+    mostrarAlerta(`${p?.nombre ?? 'Tu jugador'} salió de la partida por inactividad.`)
   })
   socket.on('room:state', (vista: SalaEsperaOnline) => {
     if (!vista || !('codigo' in vista)) return
@@ -390,6 +415,11 @@ export function usePartidaOnline(usuarioId: string) {
     socket.emit('betting:confirm', { salaId: salaApuestaId.value ?? sala.value?.salaId, monto })
   }
 
+  function aumentarApuesta(monto: number) {
+    errorAumentoApuesta.value = null
+    socket.emit('team:bet:raise', { monto })
+  }
+
   function crearSala(mesa?: { modo: 'mesa' | 'pvp' | 'equipos'; cupo: 2 | 4 | 6 | 8; apuesta?: number; radar?: boolean }) {
     quiereHub = false
     errorSala.value = null
@@ -492,7 +522,7 @@ export function usePartidaOnline(usuarioId: string) {
   }
 
   function publicarMarca(indice: number, activa: boolean) {
-    if (sala.value?.modo !== 'pvp') return
+    if (!sala.value || sala.value.estado !== 'playing') return
     socket.emit('pvp:marcar', { indice, activa })
   }
 
@@ -637,11 +667,14 @@ export function usePartidaOnline(usuarioId: string) {
     apuestaPendiente,
     jugadoresApuesta,
     errorApuesta,
+    errorAumentoApuesta,
+    eventoRitmo,
     efectos,
     buscar,
     pedirRanking,
     enviarChat,
     confirmarApuesta,
+    aumentarApuesta,
     crearSala,
     unirseSala,
     salirSala,

@@ -133,6 +133,24 @@ export function usePartida(levelNumber: number) {
           .catch((error: unknown) => {
             if (serverRoundId !== rondaId) return
             const status = error && typeof error === 'object' && 'status' in error ? Number(error.status) : 0
+            if (status === 410) {
+              stopTimer()
+              clearPending()
+              partida.perderContra('El oráculo agotó todas las bolas')
+              const tablero = partida.snapshotCarton(0)
+              openVictory({
+                message: 'SE AGOTARON LAS BOLAS',
+                name: 'El oráculo',
+                image: PLAYER_PORTRAIT,
+                card: tablero,
+                cardSize: partida.size,
+                indices: [],
+                playerWon: false,
+              })
+              serverRoundId = null
+              refresh()
+              return
+            }
             if (status !== 429) {
               stopTimer()
               partida.pausar()

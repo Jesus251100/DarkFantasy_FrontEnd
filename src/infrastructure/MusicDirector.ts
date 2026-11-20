@@ -4,7 +4,7 @@ import socialTheme from '@/assets/audio/wish of the stars.mp3'
 
 type PistaId = 'menu' | 'campania' | 'social'
 
-const RUTAS_CAMPANIA = /^\/levels$|^\/level(?:[1-9]|10)$/
+const RUTAS_CAMPANIA = /^\/levels$|^\/level(?:[1-9]|10)$|^\/online$/
 const RUTAS_SOCIAL = /^\/(?:inventory|achivements|store)$/
 
 /** Centraliza el ciclo de vida, el volumen y la selección de música por interfaz. */
